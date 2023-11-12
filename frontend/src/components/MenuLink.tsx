@@ -8,8 +8,11 @@ type MenuLinkProps = {
 };
 export default function MenuLink(props: MenuLinkProps) {
   return (
-
-    <Link className={buttonVariants({ variant: "outline" })} onClick={props.onClick} to={props.to}>
+    <Link
+      className={buttonVariants({ variant: "outline" })}
+      onClick={props.onClick}
+      to={props.to}
+    >
       {props.children}
     </Link>
     // <NavLink

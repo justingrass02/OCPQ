@@ -1,34 +1,26 @@
 import { useCallback, useContext, useEffect, useState } from "react";
 import ReactFlow, {
   Background,
-  type Connection,
   Controls,
-  type Edge,
-  Handle,
   MarkerType,
-  MiniMap,
-  type NodeProps,
   Panel,
-  Position,
   ReactFlowProvider,
   addEdge,
   useEdgesState,
   useNodesState,
+  type Connection,
+  type Edge,
 } from "reactflow";
 
-import "reactflow/dist/style.css";
-import { type OCELInfo } from "../../types/ocel";
-import ConnectionLine from "./helper/ConnectionLine";
-import { useLayoutedElements } from "./helper/LayoutFlow";
-import { Button } from "@/components/ui/button";
 import { OcelInfoContext } from "@/App";
-
-export type EventTypeQualifier = Record<
-  string,
-  { qualifier: string; counts: number[]; multiple: boolean; object_types: string[] }
->;
-
-export type EventTypeQualifiers = Record<string, EventTypeQualifier>;
+import { Button } from "@/components/ui/button";
+import { LuLayoutDashboard } from "react-icons/lu";
+import "reactflow/dist/style.css";
+import type { EventTypeQualifiers, OCELInfo } from "../../types/ocel";
+import ConnectionLine from "./helper/ConnectionLine";
+import EventLink from "./helper/EventLink";
+import EventTypeNode from "./helper/EventTypeNode";
+import { useLayoutedElements } from "./helper/LayoutFlow";
 
 interface VisualEditorProps {
   ocelInfo: OCELInfo;
@@ -47,6 +39,7 @@ const COLORS = [
   "#ffff99", // Yellow
 ];
 const nodeTypes = { eventType: EventTypeNode };
+const edgeTypes = { eventLink: EventLink };
 
 function VisualEditor(props: VisualEditorProps) {
   const objectTypeToColor: Record<string, string> = {};
@@ -67,7 +60,7 @@ function VisualEditor(props: VisualEditorProps) {
           objectTypeToColor,
         },
       };
-    })
+    }),
   );
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
@@ -78,6 +71,7 @@ function VisualEditor(props: VisualEditorProps) {
         return addEdge(
           {
             ...params,
+            type: "eventLink",
             markerEnd: {
               type: MarkerType.ArrowClosed,
               width: 15,
@@ -89,17 +83,27 @@ function VisualEditor(props: VisualEditorProps) {
               stroke: color,
             },
             label: params.sourceHandle!.split("===")[1].substring(0, 1) + "1",
+            data: {
+              color,
+              onDelete: (id: string) => {
+                setEdges((edges) => {
+                  const newEdges = edges.filter((e) => e.id !== id);
+                  return newEdges;
+                });
+              },
+            },
           },
-          eds
+          eds,
         );
       });
     },
-    [setEdges]
+    [setEdges],
   );
   const { getLayoutedElements } = useLayoutedElements();
 
   return (
     <ReactFlow
+      edgeTypes={edgeTypes}
       nodeTypes={nodeTypes}
       nodes={nodes}
       edges={edges}
@@ -107,98 +111,29 @@ function VisualEditor(props: VisualEditorProps) {
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
       proOptions={{ hideAttribution: true }}
-      connectionLineComponent={(props) => <ConnectionLine {...props} objectTypeToColor={objectTypeToColor} />}
+      connectionLineComponent={(props) => (
+        <ConnectionLine {...props} objectTypeToColor={objectTypeToColor} />
+      )}
       fitView
     >
-      <MiniMap />
       <Controls />
       <Panel position="top-right">
         <Button
+          variant="outline"
+          size="icon"
+          title="Apply automatic layout"
           onClick={() => {
-            getLayoutedElements({ "elk.algorithm": "layered", "elk.direction": "RIGHT" });
+            getLayoutedElements({
+              "elk.algorithm": "layered",
+              "elk.direction": "RIGHT",
+            });
           }}
         >
-          horizontal layout
+          <LuLayoutDashboard />
         </Button>
       </Panel>
       <Background />
     </ReactFlow>
-  );
-}
-
-function EventTypeNode({
-  data,
-  id,
-}: NodeProps<{ label: string; eventTypeQualifier: EventTypeQualifier; objectTypeToColor: Record<string, string> }>) {
-  const qualifiers = Object.keys(data.eventTypeQualifier);
-  return (
-    <>
-      <div
-        className="border border-blue-500 shadow flex flex-col pb-6 bg-blue-50 py-0.5 rounded-md"
-        style={{ height: 4 + qualifiers.length * 2 + "rem" }}
-      >
-        <div className="h-[2rem] text-large font-semibold mx-4 flex items-center">
-          <span>{id}</span>
-        </div>
-        <div className="flex flex-col relative h-full w-full border-t border-t-blue-500">
-          {qualifiers.map((q, i) => (
-            <Handle
-              type="target"
-              key={i}
-              id={`${q}===${data.eventTypeQualifier[q].object_types[0]}`}
-              isValidConnection={(connection) =>
-                connection.sourceHandle?.split("===")[1] === data.eventTypeQualifier[q].object_types[0]
-              }
-              onConnect={(params) => {
-                if (params.sourceHandle?.split("===")[1] === data.eventTypeQualifier[q].object_types[0]) {
-                  return params;
-                }
-              }}
-              position={Position.Left}
-              className="!w-2 !h-2 !-left-1 !border-none"
-              style={{
-                top: `${5 + ((100 - 10) * i) / (qualifiers.length - 1)}%`,
-                background: data.objectTypeToColor[data.eventTypeQualifier[q].object_types[0]],
-              }}
-            />
-          ))}
-          {qualifiers.map((q, i) => (
-            <div
-              className="absolute text-sm mx-auto flex flex-col text-center w-full"
-              key={q}
-              style={{ top: `${((100 - 10) * i) / (qualifiers.length - 1)}%` }}
-            >
-              {q}
-              <span className="text-gray-500 text-xs -mt-1">
-                {data.eventTypeQualifier[q].object_types[0]}
-                {data.eventTypeQualifier[q].multiple ? "*" : ""}
-              </span>
-            </div>
-          ))}
-          {qualifiers.map((q, i) => (
-            <Handle
-              key={i}
-              type="source"
-              isValidConnection={(connection) =>
-                connection.targetHandle?.split("===")[1] === data.eventTypeQualifier[q].object_types[0]
-              }
-              onConnect={(params) => {
-                if (params.targetHandle?.split("===")[1] === data.eventTypeQualifier[q].object_types[0]) {
-                  return params;
-                }
-              }}
-              id={`${q}===${data.eventTypeQualifier[q].object_types[0]}`}
-              position={Position.Right}
-              className="!w-2 !h-2 !-right-1 !border-none"
-              style={{
-                top: `${5 + ((100 - 10) * i) / (qualifiers.length - 1)}%`,
-                background: data.objectTypeToColor[data.eventTypeQualifier[q].object_types[0]],
-              }}
-            />
-          ))}
-        </div>
-      </div>
-    </>
   );
 }
 
@@ -207,22 +142,22 @@ export default function VisualEditorOuter() {
   const ocelInfo = useContext(OcelInfoContext);
   useEffect(() => {
     fetch("http://localhost:3000/ocel/qualifiers", { method: "get" })
-    .then(async (res) => {
-      const json: EventTypeQualifiers = await res.json();
-      setQualifiers(json);
-      console.log(json);
-    })
-    .catch((e) => {
-      console.error(e);
-    });
+      .then(async (res) => {
+        const json: EventTypeQualifiers = await res.json();
+        setQualifiers(json);
+        console.log(json);
+      })
+      .catch((e) => {
+        console.error(e);
+      });
   }, []);
 
   return (
     <ReactFlowProvider>
-      {qualifiers && ocelInfo && (
-        <><p>Test</p><VisualEditor
-          eventTypeQualifiers={qualifiers}
-          ocelInfo={ocelInfo} /></>
+      {qualifiers !== undefined && ocelInfo !== undefined && (
+        <>
+          <VisualEditor eventTypeQualifiers={qualifiers} ocelInfo={ocelInfo} />
+        </>
       )}{" "}
     </ReactFlowProvider>
   );

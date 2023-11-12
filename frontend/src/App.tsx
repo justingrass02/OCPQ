@@ -5,7 +5,13 @@ import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import { type OCELInfo } from "./types/ocel";
 import MenuLink from "./components/MenuLink";
 import Spinner from "./components/Spinner";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import toast from "react-hot-toast";
 
 export const OcelInfoContext = createContext<OCELInfo | undefined>(undefined);
@@ -21,6 +27,17 @@ function App() {
   const [availableOcels, setAvailableOcels] = useState<string[]>([]);
   const [selectedOcel, setSelectedOcel] = useState<string>();
   useEffect(() => {
+    fetch("http://localhost:3000/ocel/info", { method: "get" })
+      .then(async (res) => {
+        if (res.ok) {
+          const json: OCELInfo = await res.json();
+          console.log({ json });
+          setOcelInfo(json);
+        }
+      })
+      .catch((e) => {
+        // console.error(e);
+      });
     fetch("http://localhost:3000/ocel/available", { method: "get" })
       .then(async (res) => {
         const json: string[] = await res.json();
@@ -47,8 +64,12 @@ function App() {
       <div className="max-w-full overflow-hidden h-screen text-center grid grid-cols-[15rem_auto]">
         <div className="bg-gray-50 border-r border-r-slate-200 px-2">
           <div className="flex justify-center py-2 px-2">
-            <h1 className="text-pink-500 opacity-90 py-1 text-2xl font-black">OCED</h1>
-            <h1 className="text-blue-500 opacity-90 py-1 text-2xl font-black -ml-[0.5ch]">DECLARE</h1>
+            <h1 className="text-pink-500 opacity-90 py-1 text-2xl font-black">
+              OCED
+            </h1>
+            <h1 className="text-blue-500 opacity-90 py-1 text-2xl font-black -ml-[0.5ch]">
+              DECLARE
+            </h1>
           </div>
           <div className="flex flex-col gap-2">
             {ocelInfo !== undefined && (
@@ -59,7 +80,6 @@ function App() {
             {ocelInfo !== undefined && (
               <>
                 <MenuLink to="/ocel-info">View OCEL Info</MenuLink>
-                <MenuLink to="/ltl-editor">Open LTL Editor</MenuLink>
                 <MenuLink to="/beta">Open Beta</MenuLink>
               </>
             )}
@@ -81,8 +101,12 @@ function App() {
         </div>
         <div className="px-4 overflow-auto">
           <div className="flex justify-center px-2 pt-4">
-            <h1 className="text-pink-500 opacity-90 py-1 text-5xl font-black">OCED</h1>
-            <h1 className="text-blue-500 opacity-90 py-1 text-5xl font-black -ml-[0.5ch]">DECLARE</h1>
+            <h1 className="text-pink-500 opacity-90 py-1 text-5xl font-black">
+              OCED
+            </h1>
+            <h1 className="text-blue-500 opacity-90 py-1 text-5xl font-black -ml-[0.5ch]">
+              DECLARE
+            </h1>
           </div>
 
           {/* <Spinner loadingText="Importing OCEL..." spinning={loading} /> */}
