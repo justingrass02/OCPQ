@@ -29,14 +29,12 @@ export type OCELEvent = {
   relationships?: OCELRelationship[];
 };
 
-export type EventTypeQualifier = Record<
-  string,
-  {
-    qualifier: string;
-    counts: number[];
-    multiple: boolean;
-    object_types: string[];
-  }
->;
+export type EventTypeQualifierInfo = {
+  qualifier: string;
+  counts: number[];
+  multiple: boolean;
+  object_types: string[];
+};
+export type EventTypeQualifier = Record<string, EventTypeQualifierInfo>;
 
 export type EventTypeQualifiers = Record<string, EventTypeQualifier>;

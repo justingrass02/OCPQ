@@ -20,6 +20,11 @@ module.exports = {
     sourceType: "module",
   },
   plugins: ["react"],
+  settings: {
+    react: {
+      version: "detect",
+    },
+  },
   rules: {
     "no-unused-vars": "warn",
     "@typescript-eslint/no-unused-vars": "warn",

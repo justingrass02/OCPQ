@@ -15,7 +15,7 @@ export default function ErrorPage() {
         <h1 className="text-5xl">404</h1>
         <p className="text-3xl">The requested route does not exist.</p>
         <p className="text-center text-xl">
-          <i>{error?.statusText || error?.message}</i>
+          <i>{error?.statusText ?? error?.message}</i>
         </p>
         <div className="mx-auto text-center mt-4">
           <Link className={buttonVariants({ variant: "outline" })} to="/">

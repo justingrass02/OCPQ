@@ -1,10 +1,3 @@
-import { createContext, useEffect, useState } from "react";
-import "./App.css";
-import { Button } from "./components/ui/button";
-import { useNavigate, useLocation, Outlet } from "react-router-dom";
-import { type OCELInfo } from "./types/ocel";
-import MenuLink from "./components/MenuLink";
-import Spinner from "./components/Spinner";
 import {
   Select,
   SelectContent,
@@ -12,7 +5,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { createContext, useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { Outlet, useLocation } from "react-router-dom";
+import "./App.css";
+import MenuLink from "./components/MenuLink";
+import Spinner from "./components/Spinner";
+import { Button } from "./components/ui/button";
+import { type OCELInfo } from "./types/ocel";
 
 export const OcelInfoContext = createContext<OCELInfo | undefined>(undefined);
 
@@ -20,7 +20,6 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [ocelInfo, setOcelInfo] = useState<OCELInfo>();
 
-  const navigate = useNavigate();
   const location = useLocation();
   const isAtRoot = location.pathname === "/";
 
@@ -35,9 +34,7 @@ function App() {
           setOcelInfo(json);
         }
       })
-      .catch((e) => {
-        // console.error(e);
-      });
+      .catch(() => {});
     fetch("http://localhost:3000/ocel/available", { method: "get" })
       .then(async (res) => {
         const json: string[] = await res.json();
@@ -86,15 +83,7 @@ function App() {
             <br />
             {!isAtRoot && (
               <>
-                <MenuLink
-                  to={"/"}
-                  onClick={(ev) => {
-                    ev.preventDefault();
-                    navigate(-1);
-                  }}
-                >
-                  Back
-                </MenuLink>
+                <MenuLink to={"/"}>Back</MenuLink>
               </>
             )}
           </div>

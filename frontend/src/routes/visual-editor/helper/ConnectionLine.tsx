@@ -1,11 +1,17 @@
 import { getBezierPath, type ConnectionLineComponentProps } from "reactflow";
+import { extractFromHandleID } from "./visual-editor-utils";
 
 export default function ConnectionLine(
   props: ConnectionLineComponentProps & {
     objectTypeToColor: Record<string, string>;
   },
 ) {
-  const color = props.objectTypeToColor[props.fromHandle!.id!.split("===")[1]];
+  const color =
+    props.fromHandle?.id != null
+      ? props.objectTypeToColor[
+          extractFromHandleID(props.fromHandle.id).objectType
+        ]
+      : undefined;
 
   const [path] = getBezierPath({
     sourceX: props.fromX,

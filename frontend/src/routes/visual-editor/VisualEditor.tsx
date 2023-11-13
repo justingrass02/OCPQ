@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -18,9 +18,14 @@ import { LuLayoutDashboard } from "react-icons/lu";
 import "reactflow/dist/style.css";
 import type { EventTypeQualifiers, OCELInfo } from "../../types/ocel";
 import ConnectionLine from "./helper/ConnectionLine";
-import EventLink from "./helper/EventLink";
-import EventTypeNode from "./helper/EventTypeNode";
+import EventLink, { type EventLinkData } from "./helper/EventLink";
+import EventTypeNode, { type EventTypeNodeData } from "./helper/EventTypeNode";
 import { useLayoutedElements } from "./helper/LayoutFlow";
+import toast from "react-hot-toast";
+import { RxReset } from "react-icons/rx";
+import { extractFromHandleID } from "./helper/visual-editor-utils";
+import { TbBinaryTree } from "react-icons/tb";
+import { constructTree } from "./evaluation/construct-tree";
 
 interface VisualEditorProps {
   ocelInfo: OCELInfo;
@@ -42,13 +47,16 @@ const nodeTypes = { eventType: EventTypeNode };
 const edgeTypes = { eventLink: EventLink };
 
 function VisualEditor(props: VisualEditorProps) {
-  const objectTypeToColor: Record<string, string> = {};
+  const objectTypeToColor: Record<string, string> = useMemo(() => {
+    const ret: Record<string, string> = {};
+    props.ocelInfo.object_types.forEach((type, i) => {
+      ret[type.name] = COLORS[i % COLORS.length];
+    });
+    return ret;
+  }, [props.eventTypeQualifiers]);
 
-  props.ocelInfo.object_types.forEach((type, i) => {
-    objectTypeToColor[type.name] = COLORS[i % COLORS.length];
-  });
-
-  const [nodes, setNodes, onNodesChange] = useNodesState(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
+  const [nodes, _setNodes, onNodesChange] = useNodesState<EventTypeNodeData>(
     Object.keys(props.eventTypeQualifiers).map((eventType) => {
       return {
         id: eventType,
@@ -62,16 +70,39 @@ function VisualEditor(props: VisualEditorProps) {
       };
     }),
   );
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<EventLinkData>([]);
 
   const onConnect = useCallback(
-    (params: Edge | Connection) => {
+    ({ source, sourceHandle, target, targetHandle }: Edge | Connection) => {
       setEdges((eds) => {
-        const color = objectTypeToColor[params.sourceHandle!.split("===")[1]];
-        return addEdge(
-          {
-            ...params,
+        if (
+          source === null ||
+          target == null ||
+          sourceHandle == null ||
+          targetHandle == null
+        ) {
+          return eds;
+        } else {
+          const sourceHandleInfo = extractFromHandleID(sourceHandle);
+          const targetHandleInfo = extractFromHandleID(targetHandle);
+          // objectType is the same for source/target (connecting non-matching types is prevented by the Handle)
+          const objectType = sourceHandleInfo.objectType;
+          const color = objectTypeToColor[objectType];
+          const isMultiple =
+            props.eventTypeQualifiers[source][sourceHandleInfo.qualifier]
+              .multiple &&
+            props.eventTypeQualifiers[target][targetHandleInfo.qualifier]
+              .multiple;
+          const newEdge = {
             type: "eventLink",
+            label:
+              (isMultiple
+                ? objectType.substring(0, 1).toUpperCase()
+                : objectType.substring(0, 1)) + "1",
+            source,
+            sourceHandle,
+            target,
+            targetHandle,
             markerEnd: {
               type: MarkerType.ArrowClosed,
               width: 15,
@@ -79,12 +110,13 @@ function VisualEditor(props: VisualEditorProps) {
               color,
             },
             style: {
-              strokeWidth: 2,
+              strokeWidth: isMultiple ? 4 : 2,
               stroke: color,
+              strokeDasharray: isMultiple ? "1" : undefined,
             },
-            label: params.sourceHandle!.split("===")[1].substring(0, 1) + "1",
             data: {
               color,
+              multiple: isMultiple,
               onDelete: (id: string) => {
                 setEdges((edges) => {
                   const newEdges = edges.filter((e) => e.id !== id);
@@ -92,9 +124,9 @@ function VisualEditor(props: VisualEditorProps) {
                 });
               },
             },
-          },
-          eds,
-        );
+          };
+          return addEdge(newEdge, eds);
+        }
       });
     },
     [setEdges],
@@ -103,6 +135,18 @@ function VisualEditor(props: VisualEditorProps) {
 
   return (
     <ReactFlow
+      onInit={(flow) => {
+        getLayoutedElements(
+          {
+            "elk.algorithm": "layered",
+            "elk.direction": "RIGHT",
+          },
+          false,
+        );
+        setTimeout(() => {
+          flow.fitView({ duration: 300 });
+        }, 200);
+      }}
       edgeTypes={edgeTypes}
       nodeTypes={nodeTypes}
       nodes={nodes}
@@ -114,19 +158,47 @@ function VisualEditor(props: VisualEditorProps) {
       connectionLineComponent={(props) => (
         <ConnectionLine {...props} objectTypeToColor={objectTypeToColor} />
       )}
-      fitView
     >
       <Controls />
-      <Panel position="top-right">
+      <Panel position="top-right" className="flex gap-x-2">
+        <Button
+          disabled={edges.length === 0}
+          variant="outline"
+          size="icon"
+          title="Reset edges"
+          className="text-red-600 bg-white hover:bg-red-400"
+          onClick={() => {
+            setEdges([]);
+          }}
+        >
+          <RxReset />
+        </Button>
+
+        <Button
+          variant="outline"
+          size="icon"
+          title="Construct tree"
+          className="bg-white"
+          onClick={() => {
+            constructTree(props.eventTypeQualifiers, nodes, edges);
+          }}
+        >
+          <TbBinaryTree />
+        </Button>
+
         <Button
           variant="outline"
           size="icon"
           title="Apply automatic layout"
+          className="bg-white"
           onClick={() => {
-            getLayoutedElements({
-              "elk.algorithm": "layered",
-              "elk.direction": "RIGHT",
-            });
+            getLayoutedElements(
+              {
+                "elk.algorithm": "layered",
+                "elk.direction": "RIGHT",
+              },
+              true,
+            );
           }}
         >
           <LuLayoutDashboard />
@@ -141,11 +213,19 @@ export default function VisualEditorOuter() {
   const [qualifiers, setQualifiers] = useState<EventTypeQualifiers>();
   const ocelInfo = useContext(OcelInfoContext);
   useEffect(() => {
-    fetch("http://localhost:3000/ocel/qualifiers", { method: "get" })
+    toast
+      .promise(
+        fetch("http://localhost:3000/ocel/qualifiers", { method: "get" }),
+        {
+          loading: "Fetching qualifier info...",
+          success: "Loaded qualifier info",
+          error: "Failed to fetch qualifier info",
+        },
+        { id: "fetch-qualifiers" },
+      )
       .then(async (res) => {
         const json: EventTypeQualifiers = await res.json();
         setQualifiers(json);
-        console.log(json);
       })
       .catch((e) => {
         console.error(e);
@@ -153,12 +233,17 @@ export default function VisualEditorOuter() {
   }, []);
 
   return (
-    <ReactFlowProvider>
-      {qualifiers !== undefined && ocelInfo !== undefined && (
-        <>
-          <VisualEditor eventTypeQualifiers={qualifiers} ocelInfo={ocelInfo} />
-        </>
-      )}{" "}
-    </ReactFlowProvider>
+    <div className="max-h-[80vh] border mx-auto w-[calc(100%-4rem)] h-full">
+      <ReactFlowProvider>
+        {qualifiers !== undefined && ocelInfo !== undefined && (
+          <>
+            <VisualEditor
+              eventTypeQualifiers={qualifiers}
+              ocelInfo={ocelInfo}
+            />
+          </>
+        )}
+      </ReactFlowProvider>
+    </div>
   );
 }

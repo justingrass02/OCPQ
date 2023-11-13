@@ -1,10 +1,18 @@
-import { FiX } from "react-icons/fi";
+import { MdRemoveCircleOutline } from "react-icons/md";
 import {
   BaseEdge,
   EdgeLabelRenderer,
   getBezierPath,
   type EdgeProps,
 } from "reactflow";
+
+export const EVENT_LINK_TYPE = "eventLink";
+
+export type EventLinkData = {
+  color: string;
+  multiple: boolean;
+  onDelete: (id: string) => unknown;
+};
 
 export default function EventLink({
   id,
@@ -18,11 +26,7 @@ export default function EventLink({
   markerEnd,
   data,
   style = {},
-}: EdgeProps<{
-  label: string;
-  color: string;
-  onDelete: (id: string) => unknown;
-}>) {
+}: EdgeProps<EventLinkData>) {
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -47,17 +51,17 @@ export default function EventLink({
             className="nodrag nopan flex flex-col items-center -mt-1"
           >
             <span
-              className="bg-slate-50/80 rounded-sm px-1 border border-slate-100 mb-1"
+              className="bg-slate-50/90 rounded-sm px-1 border font-mono font-semibold border-slate-100 mb-1"
               style={{ color: data.color }}
             >
               {label}
             </span>
             <button
-              className="hover:text-red-400 text-red-700 text-gray-700/50 rounded-lg text-base"
+              className="hover:text-red-500 text-red-400/30  rounded-lg text-sm"
               title="Delete edge"
               onClick={() => data.onDelete(id)}
             >
-              <FiX />
+              <MdRemoveCircleOutline />
             </button>
           </div>
         </EdgeLabelRenderer>
