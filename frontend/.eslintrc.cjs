@@ -41,6 +41,7 @@ module.exports = {
     "@typescript-eslint/no-non-null-assertion": "warn",
     "no-empty": "warn",
     "@typescript-eslint/array-type": "off",
+    "react/prop-types": "off",
     "@typescript-eslint/no-misused-promises": [
       "warn",
       {
