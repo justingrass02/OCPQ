@@ -48,6 +48,7 @@ export default function EventTypeNode({
               )}
               isValidConnection={(connection) =>
                 connection.sourceHandle != null &&
+                connection.source !== id &&
                 extractFromHandleID(connection.sourceHandle).objectType ===
                   getObjectType(data.eventTypeQualifier[q])
               }
@@ -93,6 +94,7 @@ export default function EventTypeNode({
               type="source"
               isValidConnection={(connection) =>
                 connection.targetHandle != null &&
+                connection.target !== id &&
                 extractFromHandleID(connection.targetHandle).objectType ===
                   getObjectType(data.eventTypeQualifier[q])
               }
