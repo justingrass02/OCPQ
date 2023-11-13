@@ -22,3 +22,10 @@
     background-color: #ffffff;
   }
 }
+
+.reset-handles .react-flow__handle {
+  position: unset !important;
+  left: unset !important;
+  top: unset !important;
+  transform: unset !important;
+}

@@ -5,6 +5,8 @@ import {
   getBezierPath,
   type EdgeProps,
 } from "reactflow";
+import { useContext } from "react";
+import { VisualEditorContext } from "./visual-editor-context";
 
 export const EVENT_LINK_TYPE = "eventLink";
 
@@ -36,6 +38,8 @@ export default function EventLink({
     targetPosition,
   });
 
+  const { mode } = useContext(VisualEditorContext);
+
   return (
     <>
       <BaseEdge path={edgePath} markerEnd={markerEnd} style={style} />
@@ -56,13 +60,15 @@ export default function EventLink({
             >
               {label}
             </span>
-            <button
-              className="hover:text-red-500 text-red-400/30  rounded-lg text-sm"
-              title="Delete edge"
-              onClick={() => data.onDelete(id)}
-            >
-              <MdRemoveCircleOutline />
-            </button>
+            {mode === "normal" && (
+              <button
+                className="hover:text-red-500 text-red-400/30  rounded-lg text-sm"
+                title="Delete edge"
+                onClick={() => data.onDelete(id)}
+              >
+                <MdRemoveCircleOutline />
+              </button>
+            )}
           </div>
         </EdgeLabelRenderer>
       )}

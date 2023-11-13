@@ -10,6 +10,7 @@ import ReactFlow, {
   useNodesState,
   type Connection,
   type Edge,
+  useReactFlow,
 } from "reactflow";
 
 import { OcelInfoContext } from "@/App";
@@ -24,8 +25,9 @@ import { useLayoutedElements } from "./helper/LayoutFlow";
 import toast from "react-hot-toast";
 import { RxReset } from "react-icons/rx";
 import { extractFromHandleID } from "./helper/visual-editor-utils";
-import { TbBinaryTree } from "react-icons/tb";
+import { TbBinaryTree, TbRestore } from "react-icons/tb";
 import { constructTree } from "./evaluation/construct-tree";
+import { VisualEditorContext } from "./helper/visual-editor-context";
 
 interface VisualEditorProps {
   ocelInfo: OCELInfo;
@@ -47,6 +49,12 @@ const nodeTypes = { eventType: EventTypeNode };
 const edgeTypes = { eventLink: EventLink };
 
 function VisualEditor(props: VisualEditorProps) {
+  const [mode, setMode] = useState<"normal" | "view-tree" | "readonly">(
+    "normal",
+  );
+
+  const { fitView } = useReactFlow();
+
   const objectTypeToColor: Record<string, string> = useMemo(() => {
     const ret: Record<string, string> = {};
     props.ocelInfo.object_types.forEach((type, i) => {
@@ -112,7 +120,6 @@ function VisualEditor(props: VisualEditorProps) {
             style: {
               strokeWidth: isMultiple ? 4 : 2,
               stroke: color,
-              strokeDasharray: isMultiple ? "1" : undefined,
             },
             data: {
               color,
@@ -131,81 +138,123 @@ function VisualEditor(props: VisualEditorProps) {
     },
     [setEdges],
   );
+
   const { getLayoutedElements } = useLayoutedElements();
 
   return (
-    <ReactFlow
-      onInit={(flow) => {
-        getLayoutedElements(
-          {
-            "elk.algorithm": "layered",
-            "elk.direction": "RIGHT",
-          },
-          false,
-        );
-        setTimeout(() => {
-          flow.fitView({ duration: 300 });
-        }, 200);
-      }}
-      edgeTypes={edgeTypes}
-      nodeTypes={nodeTypes}
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      onConnect={onConnect}
-      proOptions={{ hideAttribution: true }}
-      connectionLineComponent={(props) => (
-        <ConnectionLine {...props} objectTypeToColor={objectTypeToColor} />
-      )}
-    >
-      <Controls />
-      <Panel position="top-right" className="flex gap-x-2">
-        <Button
-          disabled={edges.length === 0}
-          variant="outline"
-          size="icon"
-          title="Reset edges"
-          className="text-red-600 bg-white hover:bg-red-400"
-          onClick={() => {
-            setEdges([]);
+    <VisualEditorContext.Provider value={{ mode }}>
+      <ReactFlow
+        onInit={(flow) => {
+          getLayoutedElements(
+            {
+              "elk.algorithm": "layered",
+              "elk.direction": "RIGHT",
+            },
+            false,
+          );
+          setTimeout(() => {
+            flow.fitView({ duration: 300 });
+          }, 200);
+        }}
+        edgeTypes={edgeTypes}
+        nodeTypes={nodeTypes}
+        nodes={nodes}
+        edges={edges}
+        nodesConnectable={mode === "normal"}
+        nodesDraggable={mode === "normal" || mode === "view-tree"}
+        elementsSelectable={mode === "normal"}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        proOptions={{ hideAttribution: true }}
+        connectionLineComponent={(props) => (
+          <ConnectionLine {...props} objectTypeToColor={objectTypeToColor} />
+        )}
+      >
+        <Controls
+          onInteractiveChange={(status) => {
+            if (status) {
+              setMode("normal");
+            } else {
+              setMode("readonly");
+            }
           }}
-        >
-          <RxReset />
-        </Button>
+        />
+        <Panel position="top-right" className="flex gap-x-2">
+          <Button
+            disabled={edges.length === 0 || mode !== "normal"}
+            variant="outline"
+            size="icon"
+            title="Reset edges"
+            className="text-red-600 bg-white hover:bg-red-400"
+            onClick={() => {
+              setEdges([]);
+            }}
+          >
+            <RxReset />
+          </Button>
 
-        <Button
-          variant="outline"
-          size="icon"
-          title="Construct tree"
-          className="bg-white"
-          onClick={() => {
-            constructTree(props.eventTypeQualifiers, nodes, edges);
-          }}
-        >
-          <TbBinaryTree />
-        </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            title={mode !== "view-tree" ? "Construct tree" : "Edit"}
+            className="bg-white"
+            onClick={() => {
+              if (mode !== "view-tree") {
+                setMode("view-tree");
+                getLayoutedElements(
+                  {
+                    "elk.algorithm": "layered",
+                    "elk.direction": "DOWN",
+                  },
+                  false,
+                );
 
-        <Button
-          variant="outline"
-          size="icon"
-          title="Apply automatic layout"
-          className="bg-white"
-          onClick={() => {
-            getLayoutedElements(
-              {
-                "elk.algorithm": "layered",
-                "elk.direction": "RIGHT",
-              },
-              true,
-            );
-          }}
-        >
-          <LuLayoutDashboard />
-        </Button>
-      </Panel>
-      <Background />
-    </ReactFlow>
+                setTimeout(() => {
+                  fitView({ duration: 300 });
+                }, 100);
+                constructTree(props.eventTypeQualifiers, nodes, edges);
+              } else {
+                setMode("normal");
+                getLayoutedElements(
+                  {
+                    "elk.algorithm": "layered",
+                    "elk.direction": "RIGHT",
+                  },
+                  false,
+                );
+                setTimeout(() => {
+                  fitView({ duration: 300 });
+                }, 100);
+              }
+            }}
+          >
+            {mode !== "view-tree" && <TbBinaryTree />}
+            {mode === "view-tree" && <TbRestore />}
+          </Button>
+
+          <Button
+            disabled={mode !== "normal"}
+            variant="outline"
+            size="icon"
+            title="Apply automatic layout"
+            className="bg-white"
+            onClick={() => {
+              getLayoutedElements(
+                {
+                  "elk.algorithm": "layered",
+                  "elk.direction": "RIGHT",
+                },
+                true,
+              );
+            }}
+          >
+            <LuLayoutDashboard />
+          </Button>
+        </Panel>
+        <Background />
+      </ReactFlow>
+    </VisualEditorContext.Provider>
   );
 }
 
