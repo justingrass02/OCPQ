@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use axum::{
     extract::State,
-    http::{StatusCode, Method, header::CONTENT_TYPE},
+    http::{header::CONTENT_TYPE, Method, StatusCode},
     routing::{get, post},
     Json, Router,
 };
@@ -17,7 +17,7 @@ mod constraint_checker {
 }
 
 use constraint_checker::check::check_with_tree_req;
-use load_ocel::load_ocel::{load_ocel_file, get_available_ocels};
+use load_ocel::load_ocel::{get_available_ocels, load_ocel_file};
 use ocel_qualifiers::qualifiers::get_qualifiers_for_event_types;
 use pm_rust::event_log::ocel::ocel_struct::{OCELType, OCEL};
 use serde::{Deserialize, Serialize};
@@ -33,18 +33,21 @@ async fn main() {
     let state = AppState {
         ocel: Arc::new(RwLock::new(None)),
     };
-    let cors = CorsLayer::new().allow_methods([Method::GET, Method::POST]).allow_headers([CONTENT_TYPE]).allow_origin(tower_http::cors::Any);
+    let cors = CorsLayer::new()
+        .allow_methods([Method::GET, Method::POST])
+        .allow_headers([CONTENT_TYPE])
+        .allow_origin(tower_http::cors::Any);
 
     // build our application with a single route
     let app = Router::new()
-    .route("/ocel/load", post(load_ocel_file))
-    .route("/ocel/info", get(get_loaded_ocel_info))
-    .route("/ocel/available", get(get_available_ocels))
-    .route("/ocel/qualifiers",get(get_qualifiers_for_event_types))
-    .route("/ocel/check-constraints",post(check_with_tree_req))
-    .with_state(state)
-    .route("/", get(|| async { "Hello, Aaron!" }))
-.layer(cors);
+        .route("/ocel/load", post(load_ocel_file))
+        .route("/ocel/info", get(get_loaded_ocel_info))
+        .route("/ocel/available", get(get_available_ocels))
+        .route("/ocel/qualifiers", get(get_qualifiers_for_event_types))
+        .route("/ocel/check-constraints", post(check_with_tree_req))
+        .with_state(state)
+        .route("/", get(|| async { "Hello, Aaron!" }))
+        .layer(cors);
 
     // run it with hyper on localhost:3000
     axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
