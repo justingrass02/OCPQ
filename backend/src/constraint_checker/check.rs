@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     fmt::Debug,
+    iter::Map,
     time::Instant,
 };
 
@@ -54,13 +55,19 @@ struct TreeNodeDependency {
 }
 
 #[derive(Debug)]
-enum BoundValue {
+pub enum BoundValue {
     Single(String),
     Multiple(Vec<String>),
 }
 
-pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> Vec<String> {
-    let now = Instant::now();
+struct LinkedOCEL<'a> {
+    pub event_map: HashMap<String, &'a OCELEvent>,
+    pub object_map: HashMap<String, &'a OCELObject>,
+    pub events_of_type: HashMap<String, Vec<&'a OCELEvent>>,
+    pub objects_of_type: HashMap<String, Vec<&'a OCELObject>>,
+}
+
+fn link_ocel_info(ocel: &OCEL) -> LinkedOCEL {
     let event_map: HashMap<String, &OCELEvent> = ocel
         .events
         .par_iter()
@@ -101,140 +108,262 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> Vec<String> {
             )
         })
         .collect();
-    println!(
-        "{} {} {} {}",
-        event_map.len(),
-        object_map.len(),
-        events_of_type.len(),
-        objects_of_type.len()
-    );
-    println!("Linking OCEL info took {:?}", now.elapsed());
+    LinkedOCEL {
+        event_map: event_map,
+        object_map: object_map,
+        events_of_type: events_of_type,
+        objects_of_type: objects_of_type,
+    }
+}
+
+fn get_new_bound_variables_from_node(
+    node: &TreeNode,
+    events_of_type: &HashMap<String, Vec<&OCELEvent>>,
+    prev_bound_vars: &HashSet<&String>,
+) -> Vec<(AdditionalBindingInfo, HashMap<String, Vec<BoundValue>>)> {
+    if node.children.is_empty() {
+        // No variables to add
+        return Vec::new();
+    }
+    // Get all events of the corresponding event type (determined by node)
+    let events = events_of_type.get(&node.event_type).unwrap();
+    // Required Bindings: Variable that require binding (i.e., were not already bound before)
+    let required_bindings: HashSet<(String, String, DependencyType)> = node
+        .children
+        .clone()
+        .into_iter()
+        .filter(|c| !prev_bound_vars.contains(&c.dependency.variable_name))
+        .map(|c| {
+            (
+                c.dependency.source_qualifier,
+                c.dependency.variable_name,
+                c.dependency.dependency_type,
+            )
+        })
+        .collect();
+    let events_bindings: Vec<(AdditionalBindingInfo, HashMap<String, Vec<BoundValue>>)> = events
+        .into_par_iter()
+        .filter_map(|ev| match &ev.relationships {
+            Some(rels) => {
+                let mut binding_values: HashMap<String, Vec<BoundValue>> = required_bindings
+                    .iter()
+                    .map(|(_, variable_name, _)| (variable_name.clone(), Vec::new()))
+                    .collect();
+                for (qualifier, variable_name, dependency_type) in &required_bindings {
+                    let object_id_vals: Vec<String> = rels
+                        .iter()
+                        .filter(|rel| rel.qualifier == *qualifier)
+                        .map(|rel| rel.object_id.clone())
+                        .collect();
+                    match dependency_type {
+                        DependencyType::Simple => {
+                            binding_values.get_mut(variable_name).unwrap().extend(
+                                object_id_vals.into_iter().map(|id| BoundValue::Single(id)),
+                            );
+                        }
+                        DependencyType::All => binding_values
+                            .get_mut(variable_name)
+                            .unwrap()
+                            .push(BoundValue::Multiple(object_id_vals)),
+                        DependencyType::ExistsInSource => binding_values
+                            .get_mut(variable_name)
+                            .unwrap()
+                            .push(BoundValue::Multiple(object_id_vals)),
+                        DependencyType::ExistsInTarget => {
+                            binding_values.get_mut(variable_name).unwrap().extend(
+                                object_id_vals.into_iter().map(|id| BoundValue::Single(id)),
+                            );
+                        }
+                    }
+                }
+                return Some((
+                    AdditionalBindingInfo {
+                        past_events: vec![ev.id.clone()],
+                    },
+                    binding_values,
+                ));
+            }
+            None => {
+                eprintln!("Node has child dependency but event has no linked objects");
+                return None;
+            }
+        })
+        .collect();
+    return events_bindings;
+}
+
+#[derive(Clone, Debug)]
+pub struct AdditionalBindingInfo {
+    past_events: Vec<String>,
+}
+fn combine_bindings<'a>(
+    prev_binding: Option<(&'a AdditionalBindingInfo,&'a HashMap<&'a String, &'a BoundValue>)>,
+    new_vars_with_value: &'a Vec<(AdditionalBindingInfo, HashMap<String, Vec<BoundValue>>)>,
+) -> Vec<(AdditionalBindingInfo, HashMap<&'a String, &'a BoundValue>)> {
+    let new_bindings: Vec<(AdditionalBindingInfo, HashMap<&String, &BoundValue>)> =
+        new_vars_with_value
+            .par_iter()
+            .flat_map(|(info, b)| {
+                if b.len() > 0 {
+                    let cat = b
+                        .into_iter()
+                        .filter(|(_, b)| b.len() > 0)
+                        .map(|(a, bs)| bs.into_iter().map(move |b| (a, b)).collect_vec())
+                        .multi_cartesian_product();
+                    let xxx: Vec<(AdditionalBindingInfo, HashMap<&String, &BoundValue>)> = match prev_binding {
+                        Some((prev_info,prev_b)) => cat
+                            .cartesian_product(prev_b.into_iter())
+                            .flat_map(|(new, (x,y))| {
+                                vec![new,vec![(*x, *y)]]
+                            })
+                            .map(|x| (info.clone(), x.into_iter().collect()))
+                            .collect(),
+                        None => cat
+                            .map(|x| (info.clone(), x.into_iter().collect()))
+                            .collect(),
+                    };
+                    if prev_binding.is_some() {
+                        println!("XXX {:?}",xxx);
+                    }
+                    return xxx;
+                } else {
+                    match prev_binding {
+                        Some((prev_info,prev_b)) => {
+                            let xxx : Vec<(AdditionalBindingInfo, HashMap<&String, &BoundValue>)>  = vec![(prev_info.clone(), prev_b.clone())];
+                            return xxx;
+                        },
+                        None => {
+                            Vec::new()
+                        },
+                    }
+                }
+            })
+            .collect();
+
+    return new_bindings;
+}
+type Binding<'a> = Vec<(AdditionalBindingInfo, HashMap<&'a String, &'a BoundValue>)>;
+pub fn get_sat_bindings<'a>(
+    node: &TreeNode,
+    binding: &'a Binding<'a>,
+    events_of_type: &HashMap<String, Vec<&OCELEvent>>,
+    event_map: &HashMap<String, &OCELEvent>,
+    object_map: &HashMap<String, &OCELObject>,
+) -> Vec<&'a (AdditionalBindingInfo, HashMap<&'a String, &'a BoundValue>)> {
+    let sat_bindings: Vec<&(AdditionalBindingInfo, HashMap<&String, &BoundValue>)> = binding
+        .par_iter()
+        .filter(|(binding_info, binding)| {
+            let c_node = node.clone();
+            let next_evs = events_of_type.get(&c_node.event_type).unwrap();
+            next_evs.iter().any(|next_event| {
+                c_node.clone().parents.iter().all(|p| {
+                    match_dependency(
+                        &p.dependency,
+                        binding,
+                        binding_info,
+                        &next_event.id,
+                        &event_map,
+                        &object_map,
+                    )
+                })
+            })
+        })
+        .collect();
+    sat_bindings
+}
+
+pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> Vec<String> {
+    let LinkedOCEL {
+        event_map,
+        object_map,
+        events_of_type,
+        objects_of_type,
+    } = link_ocel_info(ocel);
 
     if nodes.len() > 0 {
         let current_node = nodes[0].clone();
-        let evs = events_of_type.get(&current_node.event_type).unwrap();
-        if current_node.children.len() > 0 {
-            let required_bindings: HashSet<(String, String, DependencyType)> = current_node
-                .children
-                .into_iter()
-                .map(|c| {
-                    (
-                        c.dependency.source_qualifier,
-                        c.dependency.variable_name,
-                        c.dependency.dependency_type,
-                    )
-                })
-                .collect();
-            let evs_bindings: Vec<HashMap<String, Vec<BoundValue>>> = evs
-                .par_iter()
-                .filter_map(|ev| match &ev.relationships {
-                    Some(rels) => {
-                        let mut binding_values: HashMap<String, Vec<BoundValue>> =
-                            required_bindings
-                                .iter()
-                                .map(|(_, variable_name, _)| (variable_name.clone(), Vec::new()))
-                                .collect();
-                        for (qualifier, variable_name, dependency_type) in &required_bindings {
-                            let object_id_vals: Vec<String> = rels
-                                .iter()
-                                .filter(|rel| rel.qualifier == *qualifier)
-                                .map(|rel| rel.object_id.clone())
-                                .collect();
-                            match dependency_type {
-                                DependencyType::Simple => {
-                                    binding_values.get_mut(variable_name).unwrap().extend(
-                                        object_id_vals.into_iter().map(|id| BoundValue::Single(id)),
-                                    );
-                                }
-                                DependencyType::All => binding_values
-                                    .get_mut(variable_name)
-                                    .unwrap()
-                                    .push(BoundValue::Multiple(object_id_vals)),
-                                DependencyType::ExistsInSource => binding_values
-                                    .get_mut(variable_name)
-                                    .unwrap()
-                                    .push(BoundValue::Multiple(object_id_vals)),
-                                DependencyType::ExistsInTarget => {
-                                    binding_values.get_mut(variable_name).unwrap().extend(
-                                        object_id_vals.into_iter().map(|id| BoundValue::Single(id)),
-                                    );
-                                }
-                            }
-                        }
-                        return Some(binding_values);
-                    }
-                    None => {
-                        eprintln!("Child dependency but no linked objects");
-                        return None;
-                    }
-                })
-                .collect();
+        let evs_bindings: Vec<(AdditionalBindingInfo, HashMap<String, Vec<BoundValue>>)> =
+            get_new_bound_variables_from_node(&current_node, &events_of_type, &HashSet::new());
 
-            println!("Required bindings: {}", evs_bindings.len());
-
-            // Vec of tuple:
-            //  event ids of previous events (Vec<String>)
-            //  HashMap of variable -> value (i.e., object) assignments
-            let complete_bindings: Vec<(Vec<String>, HashMap<&String, &BoundValue>)> = evs_bindings
-                .par_iter()
-                .enumerate()
-                .flat_map(|(i, b)| {
-                    if b.len() > 0 {
-                        b.into_iter()
-                            .filter(|(_, b)| b.len() > 0)
-                            .map(|(a, bs)| bs.into_iter().map(move |b| (a, b)))
-                            .multi_cartesian_product()
-                            .map(|x| (vec![evs[i].id.clone()], x.into_iter().collect()))
-                            .collect()
-                    } else {
-                        Vec::new()
-                    }
-                })
-                .collect();
-            println!("Total Combinations: {}", complete_bindings.len());
-            println!("First combination: {:#?}", complete_bindings[0]);
-
-            if nodes.len() >= 2 {
-                let next_node = nodes[1].clone();
-                let required_vars = next_node
-                    .parents
-                    .into_iter()
-                    .map(|p| p.dependency.variable_name)
-                    .collect_vec();
-                println!("Required vars for second node: {:#?}", required_vars);
-
-                let sat_bindings: Vec<&(Vec<String>, HashMap<&String, &BoundValue>)> =
-                    complete_bindings
-                        .par_iter()
-                        .filter(|(prev_events, binding)| {
-                            let c_next_node = nodes[1].clone();
-                            let next_evs = events_of_type.get(&c_next_node.event_type).unwrap();
-                            next_evs.iter().any(|next_event| {
-                                c_next_node.clone().parents.iter().all(|p| {
-                                    match_dependency(
-                                        &p.dependency,
-                                        binding,
-                                        prev_events,
-                                        &next_event.id,
-                                        &event_map,
-                                        &object_map,
-                                    )
-                                })
-                            })
-                        })
-                        .collect();
-                println!("Computed sat bindings. Total: {}", sat_bindings.len());
+        println!("Required bindings: {}", evs_bindings.len());
+        let binding: Binding = combine_bindings(None, &evs_bindings);
+        println!("Total Combinations: {}", binding.len());
+        println!("First combination: {:#?}", binding[0]);
+        println!("Nodes len: {}", nodes.len());
+        if nodes.len() >= 3 {
+            let next_node = nodes[1].clone();
+            let next_next_node = nodes[2].clone();
+            // let required_vars = next_node
+            //     .parents.clone()
+            //     .into_iter()
+            //     .map(|p| p.dependency.variable_name)
+            //     .collect_vec();
+            // println!("Required vars for second node: {:#?}", required_vars);
+            let sat_bindings: Vec<&(AdditionalBindingInfo, HashMap<&String, &BoundValue>)> =
+                get_sat_bindings(
+                    &next_node,
+                    &binding,
+                    &events_of_type,
+                    &event_map,
+                    &object_map,
+                );
+            println!("After sat-bindings (#: {})", sat_bindings.len());
+            // let sat_bindings: Vec<&(AdditionalBindingInfo, HashMap<&String, &BoundValue>)> =
+            //     complete_bindings
+            //         .par_iter()
+            //         .filter(|(binding_info, binding)| {
+            //             let c_next_node = nodes[1].clone();
+            //             let next_evs = events_of_type.get(&c_next_node.event_type).unwrap();
+            //             next_evs.iter().any(|next_event| {
+            //                 c_next_node.clone().parents.iter().all(|p| {
+            //                     match_dependency(
+            //                         &p.dependency,
+            //                         binding,
+            //                         binding_info,
+            //                         &next_event.id,
+            //                         &event_map,
+            //                         &object_map,
+            //                     )
+            //                 })
+            //             })
+            //         })
+            //         .collect();
+            sat_bindings.iter().for_each(|(info, binding)| {
+                println!("Hello {:?}", info);
+                let already_bound_vars: HashSet<&String> = binding.keys().map(|k| *k).collect();
+                let new_bound_vars = get_new_bound_variables_from_node(
+                    &next_node,
+                    &events_of_type,
+                    &already_bound_vars,
+                );
+                println!("#new_bound_vars: {}", new_bound_vars.len());
+                let binding = combine_bindings(Some((info,binding)), &new_bound_vars);
+                println!("#Combined bindings: {}", binding.len());
+                todo!("CONTINUE");
+                let sat_bindings = get_sat_bindings(
+                    &next_next_node,
+                    &binding,
+                    &events_of_type,
+                    &event_map,
+                    &object_map,
+                );
                 println!(
-                    "#Unsatisfied bindings: {}",
-                    complete_bindings.len() - sat_bindings.len()
+                    "#Satisfied bindings: {} ({:.2}%)",
+                    sat_bindings.len(),
+                    100.0 * sat_bindings.len() as f32 / binding.len() as f32
+                );
+                println!(
+                    "#Unsatisfied bindings: {} ({:.2}%)",
+                    binding.len() - sat_bindings.len(),
+                    100.0 * (binding.len() - sat_bindings.len()) as f32 / binding.len() as f32
                 );
                 if sat_bindings.len() > 0 {
                     println!("First sat binding: {:?}", sat_bindings.first().unwrap());
                 }
-            }
-        } else {
-            println!("Finished with check (nothing to do)");
+            })
         }
+    } else {
+        println!("Finished with check (nothing to do)");
     }
     return Vec::new();
 }
@@ -242,14 +371,15 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> Vec<String> {
 fn match_dependency(
     dep: &NodeDependency,
     variable_binding: &HashMap<&String, &BoundValue>,
-    prev_event_ids: &Vec<String>,
+    binding_info: &AdditionalBindingInfo,
     next_event_id: &String,
     event_map: &HashMap<String, &OCELEvent>,
     object_map: &HashMap<String, &OCELObject>,
 ) -> bool {
     let next_ev = event_map.get(next_event_id).unwrap();
+    let prev_ev = binding_info.past_events.last().unwrap();
     // Assuming eventually follows (for now)
-    if next_ev.time < event_map.get(prev_event_ids.first().unwrap()).unwrap().time {
+    if next_ev.time < event_map.get(prev_ev).unwrap().time {
         return false;
     } else {
         let x = variable_binding.get(&dep.variable_name).unwrap();
