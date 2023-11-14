@@ -54,8 +54,8 @@ export function constructTree(
     ]),
   );
   for (const e of edges) {
-    if (e.sourceHandle == null || e.targetHandle == null) {
-      console.warn("No source or target handle", e);
+    if (e.sourceHandle == null || e.targetHandle == null || e.data == null) {
+      console.warn("No source/target handle or no data on edge", e);
       continue;
     }
     const sourceHandleInfo = extractFromHandleID(e.sourceHandle);
@@ -69,10 +69,7 @@ export function constructTree(
       targetQualifier: targetHandleInfo.qualifier,
       objectType: sourceHandleInfo.objectType,
       dependencyType: getDependencyType(isSourceMultiple, isTargetMultiple),
-      variableName:
-        (isSourceMultiple && isTargetMultiple
-          ? sourceHandleInfo.objectType.substring(0, 1).toUpperCase()
-          : sourceHandleInfo.objectType.substring(0, 1)) + "1",
+      variableName: e.data?.variable,
     };
     treeNodes[e.source].children.push({ dependency, eventType: e.target });
     treeNodes[e.target].parents.push({ dependency, eventType: e.source });

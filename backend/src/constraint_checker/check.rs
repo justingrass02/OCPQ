@@ -53,6 +53,12 @@ struct TreeNodeDependency {
     event_type: String,
 }
 
+#[derive(Debug)]
+enum BoundValue {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
 pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> Vec<String> {
     let now = Instant::now();
     let event_map: HashMap<String, &OCELEvent> = ocel
@@ -104,11 +110,6 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> Vec<String> {
     );
     println!("Linking OCEL info took {:?}", now.elapsed());
 
-    #[derive(Debug)]
-    enum BoundValue {
-        Single(String),
-        Multiple(Vec<String>),
-    }
     if nodes.len() > 0 {
         let current_node = nodes[0].clone();
         let evs = events_of_type.get(&current_node.event_type).unwrap();
@@ -149,12 +150,11 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> Vec<String> {
                                     .get_mut(variable_name)
                                     .unwrap()
                                     .push(BoundValue::Multiple(object_id_vals)),
+                                DependencyType::ExistsInSource => binding_values
+                                    .get_mut(variable_name)
+                                    .unwrap()
+                                    .push(BoundValue::Multiple(object_id_vals)),
                                 DependencyType::ExistsInTarget => {
-                                    binding_values.get_mut(variable_name).unwrap().extend(
-                                        object_id_vals.into_iter().map(|id| BoundValue::Single(id)),
-                                    );
-                                }
-                                DependencyType::ExistsInSource => {
                                     binding_values.get_mut(variable_name).unwrap().extend(
                                         object_id_vals.into_iter().map(|id| BoundValue::Single(id)),
                                     );
@@ -172,15 +172,19 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> Vec<String> {
 
             println!("Required bindings: {}", evs_bindings.len());
 
-            let complete_bindings: Vec<HashMap<&String, &BoundValue>> = evs_bindings
-                .iter()
-                .flat_map(|b| {
+            // Vec of tuple:
+            //  event ids of previous events (Vec<String>)
+            //  HashMap of variable -> value (i.e., object) assignments
+            let complete_bindings: Vec<(Vec<String>, HashMap<&String, &BoundValue>)> = evs_bindings
+                .par_iter()
+                .enumerate()
+                .flat_map(|(i, b)| {
                     if b.len() > 0 {
                         b.into_iter()
                             .filter(|(_, b)| b.len() > 0)
                             .map(|(a, bs)| bs.into_iter().map(move |b| (a, b)))
                             .multi_cartesian_product()
-                            .map(|x| x.into_iter().collect())
+                            .map(|x| (vec![evs[i].id.clone()], x.into_iter().collect()))
                             .collect()
                     } else {
                         Vec::new()
@@ -188,9 +192,132 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> Vec<String> {
                 })
                 .collect();
             println!("Total Combinations: {}", complete_bindings.len());
+            println!("First combination: {:#?}", complete_bindings[0]);
+
+            if nodes.len() >= 2 {
+                let next_node = nodes[1].clone();
+                let required_vars = next_node
+                    .parents
+                    .into_iter()
+                    .map(|p| p.dependency.variable_name)
+                    .collect_vec();
+                println!("Required vars for second node: {:#?}", required_vars);
+
+                let sat_bindings: Vec<&(Vec<String>, HashMap<&String, &BoundValue>)> =
+                    complete_bindings
+                        .par_iter()
+                        .filter(|(prev_events, binding)| {
+                            let c_next_node = nodes[1].clone();
+                            let next_evs = events_of_type.get(&c_next_node.event_type).unwrap();
+                            next_evs.iter().any(|next_event| {
+                                c_next_node.clone().parents.iter().all(|p| {
+                                    match_dependency(
+                                        &p.dependency,
+                                        binding,
+                                        prev_events,
+                                        &next_event.id,
+                                        &event_map,
+                                        &object_map,
+                                    )
+                                })
+                            })
+                        })
+                        .collect();
+                println!("Computed sat bindings. Total: {}", sat_bindings.len());
+                println!(
+                    "#Unsatisfied bindings: {}",
+                    complete_bindings.len() - sat_bindings.len()
+                );
+                if sat_bindings.len() > 0 {
+                    println!("First sat binding: {:?}", sat_bindings.first().unwrap());
+                }
+            }
+        } else {
+            println!("Finished with check (nothing to do)");
         }
     }
     return Vec::new();
+}
+
+fn match_dependency(
+    dep: &NodeDependency,
+    variable_binding: &HashMap<&String, &BoundValue>,
+    prev_event_ids: &Vec<String>,
+    next_event_id: &String,
+    event_map: &HashMap<String, &OCELEvent>,
+    object_map: &HashMap<String, &OCELObject>,
+) -> bool {
+    let next_ev = event_map.get(next_event_id).unwrap();
+    // Assuming eventually follows (for now)
+    if next_ev.time < event_map.get(prev_event_ids.first().unwrap()).unwrap().time {
+        return false;
+    } else {
+        let x = variable_binding.get(&dep.variable_name).unwrap();
+        match dep.dependency_type {
+            DependencyType::Simple => match x {
+                BoundValue::Single(v) => match &next_ev.relationships {
+                    Some(rels) => rels
+                        .iter()
+                        .any(|rel| rel.object_id == *v && rel.qualifier == dep.target_qualifier),
+                    None => false,
+                },
+                BoundValue::Multiple(vs) => {
+                    eprintln!(
+                        "Expected single bound object for variable {}\nGot: {:?}",
+                        dep.variable_name, vs
+                    );
+                    return false;
+                }
+            },
+            DependencyType::All => match x {
+                BoundValue::Single(v) => {
+                    eprintln!(
+                        "Expected multiple bound objects for variable {}\nGot: {:?}",
+                        dep.variable_name, v
+                    );
+                    return false;
+                }
+                BoundValue::Multiple(vs) => match &next_ev.relationships {
+                    Some(rels) => vs.iter().all(|v| {
+                        rels.iter()
+                            .any(|rel| rel.object_id == *v && rel.qualifier == dep.target_qualifier)
+                    }),
+                    None => false,
+                },
+            },
+            DependencyType::ExistsInTarget => match x {
+                BoundValue::Single(v) => match &next_ev.relationships {
+                    Some(rels) => rels
+                        .iter()
+                        .any(|rel| rel.object_id == *v && rel.qualifier == dep.target_qualifier),
+                    None => false,
+                },
+                BoundValue::Multiple(vs) => {
+                    eprintln!(
+                        "Expected single bound object for variable {}\nGot: {:?}",
+                        dep.variable_name, vs
+                    );
+                    return false;
+                }
+            },
+            DependencyType::ExistsInSource => match x {
+                BoundValue::Single(v) => {
+                    eprintln!(
+                        "Expected multiple bound objects for variable {}\nGot: {:?}",
+                        dep.variable_name, v
+                    );
+                    return false;
+                }
+                BoundValue::Multiple(vs) => match &next_ev.relationships {
+                    Some(rels) => vs.iter().any(|v| {
+                        rels.iter()
+                            .any(|rel| rel.object_id == *v && rel.qualifier == dep.target_qualifier)
+                    }),
+                    None => false,
+                },
+            },
+        }
+    }
 }
 
 pub async fn check_with_tree_req(

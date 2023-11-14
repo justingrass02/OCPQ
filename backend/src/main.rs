@@ -17,7 +17,9 @@ mod constraint_checker {
 }
 
 use constraint_checker::check::check_with_tree_req;
-use load_ocel::load_ocel::{get_available_ocels, load_ocel_file};
+use load_ocel::load_ocel::{
+    get_available_ocels, load_ocel_file, load_ocel_file_req, DEFAULT_OCEL_FILE,
+};
 use ocel_qualifiers::qualifiers::get_qualifiers_for_event_types;
 use pm_rust::event_log::ocel::ocel_struct::{OCELType, OCEL};
 use serde::{Deserialize, Serialize};
@@ -38,9 +40,11 @@ async fn main() {
         .allow_headers([CONTENT_TYPE])
         .allow_origin(tower_http::cors::Any);
 
+    load_ocel_file(DEFAULT_OCEL_FILE, &state);
+
     // build our application with a single route
     let app = Router::new()
-        .route("/ocel/load", post(load_ocel_file))
+        .route("/ocel/load", post(load_ocel_file_req))
         .route("/ocel/info", get(get_loaded_ocel_info))
         .route("/ocel/available", get(get_available_ocels))
         .route("/ocel/qualifiers", get(get_qualifiers_for_event_types))
@@ -48,7 +52,6 @@ async fn main() {
         .with_state(state)
         .route("/", get(|| async { "Hello, Aaron!" }))
         .layer(cors);
-
     // run it with hyper on localhost:3000
     axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
         .serve(app.into_make_service())

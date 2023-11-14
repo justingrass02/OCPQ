@@ -10,16 +10,20 @@ import { VisualEditorContext } from "./visual-editor-context";
 import type { DependencyType } from "../evaluation/construct-tree";
 
 export const EVENT_TYPE_LINK_TYPE = "eventTypeLink";
-
+export type VariableChangeOptions = {
+  linkID: string;
+  newValue: string;
+};
 export type EventTypeLinkData = {
   color: string;
   dependencyType: DependencyType;
+  variable: string;
+  onVariableChange: (change: VariableChangeOptions) => unknown;
   onDelete: (id: string) => unknown;
 };
 
 export default function EventTypeLink({
   id,
-  label,
   sourceX,
   sourceY,
   targetX,
@@ -55,12 +59,20 @@ export default function EventTypeLink({
             }}
             className="nodrag nopan flex flex-col items-center -mt-1"
           >
-            <div className="bg-slate-50/90 rounded-sm px-1 border border-slate-100 mb-1 flex flex-col">
+            <button
+              onClick={() => {
+                const newVar = prompt("New variable name");
+                if (newVar !== null) {
+                  data.onVariableChange({ linkID: id, newValue: newVar });
+                }
+              }}
+              className="bg-slate-50/90 rounded-sm px-1 border border-slate-100 mb-1 flex flex-col"
+            >
               <span
                 className=" font-mono font-semibold"
                 style={{ color: data.color }}
               >
-                {label}
+                {data.variable}
               </span>
               <span
                 className={`text-gray-700 ${
@@ -87,7 +99,7 @@ export default function EventTypeLink({
                 {data.dependencyType === "existsInTarget" && "∈"}
                 {data.dependencyType === "existsInSource" && "∋"}
               </span>
-            </div>
+            </button>
             {mode === "normal" && (
               <button
                 className="hover:text-red-500 text-red-400/30  rounded-lg text-sm"

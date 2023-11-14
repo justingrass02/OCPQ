@@ -108,10 +108,6 @@ function VisualEditor(props: VisualEditorProps) {
           const newEdge: Edge<EventTypeLinkData> = {
             id: sourceHandle + "|||" + targetHandle,
             type: EVENT_TYPE_LINK_TYPE,
-            label:
-              (dependencyType === "all"
-                ? objectType.substring(0, 1).toUpperCase()
-                : objectType.substring(0, 1)) + "1",
             source,
             sourceHandle,
             target,
@@ -129,6 +125,24 @@ function VisualEditor(props: VisualEditorProps) {
             data: {
               color,
               dependencyType,
+              variable:
+                (dependencyType === "all"
+                  ? objectType.substring(0, 1).toUpperCase()
+                  : objectType.substring(0, 1)) + "1",
+              onVariableChange: (change) => {
+                setEdges((es) => {
+                  const newEdges = [...es];
+                  const changedEdge = newEdges.find(
+                    (e) => e.id === change.linkID,
+                  );
+                  if (changedEdge?.data !== undefined) {
+                    changedEdge.data.variable = change.newValue;
+                  } else {
+                    console.warn("Did not find changed edge data");
+                  }
+                  return es;
+                });
+              },
               onDelete: (id: string) => {
                 setEdges((edges) => {
                   const newEdges = edges.filter((e) => e.id !== id);

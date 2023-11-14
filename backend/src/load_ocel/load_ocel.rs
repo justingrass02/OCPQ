@@ -18,6 +18,8 @@ pub struct OCELFilePath {
     path: &'static str,
 }
 
+pub const DEFAULT_OCEL_FILE: &str = "order-management";
+
 const OCEL_PATHS: &'static [OCELFilePath] = &[
     OCELFilePath {
         name: "ContainerLogistics",
@@ -40,11 +42,18 @@ pub async fn get_available_ocels() -> (StatusCode, Json<Option<Vec<&'static str>
     );
 }
 
-pub async fn load_ocel_file(
+pub async fn load_ocel_file_req(
     State(state): State<AppState>,
     Json(payload): Json<LoadOcel>,
 ) -> (StatusCode, Json<Option<OCELInfo>>) {
-    match OCEL_PATHS.into_iter().find(|op| op.name == payload.name) {
+    match load_ocel_file(&payload.name, &state) {
+        Some(ocel_info) => (StatusCode::OK, Json(Some(ocel_info))),
+        None => (StatusCode::BAD_REQUEST, Json(None)),
+    }
+}
+
+pub fn load_ocel_file(name: &str, state: &AppState) -> Option<OCELInfo> {
+    match OCEL_PATHS.into_iter().find(|op| op.name == name) {
         Some(ocel_path) => {
             let file = File::open(ocel_path.path).unwrap();
             let reader = BufReader::new(file);
@@ -54,8 +63,8 @@ pub async fn load_ocel_file(
             let mut x = state.ocel.write().unwrap();
             *x = Some(ocel);
 
-            (StatusCode::OK, Json(Some(ocel_info)))
+            Some(ocel_info)
         }
-        None => (StatusCode::BAD_REQUEST, Json(None)),
+        None => None,
     }
 }
