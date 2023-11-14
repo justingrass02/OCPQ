@@ -1,15 +1,9 @@
-use std::{
-    borrow::BorrowMut,
-    collections::{HashMap, HashSet},
-    fmt::Debug,
-    iter::Map,
-    time::Instant,
-};
+use std::collections::{HashMap, HashSet};
 
 use axum::{extract::State, http::StatusCode, Json};
 use itertools::Itertools;
 use pm_rust::event_log::ocel::ocel_struct::{OCELEvent, OCELObject, OCEL};
-use rayon::{prelude::*, vec};
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{with_ocel_from_state, AppState};
@@ -202,11 +196,13 @@ fn match_and_add_new_bindings<'a>(
     prev_bindings_opt: Option<Bindings<'a>>,
     node: &'a TreeNode,
     events_of_type: &'a HashMap<String, Vec<&'a OCELEvent>>,
+    event_map: &HashMap<String, &OCELEvent>,
+    object_map: &HashMap<String, &OCELObject>,
 ) -> Bindings<'a> {
-    if node.children.is_empty() {
-        // No variables to add
-        return Vec::new();
-    }
+    // if node.children.is_empty() && prev_bindings_opt.is_some() {
+    //     // No variables to add
+    //     return prev_bindings_opt.unwrap();
+    // }
     // Get all events of the corresponding event type (determined by node)
     let events = events_of_type.get(&node.event_type).unwrap();
     let is_initial_binding = prev_bindings_opt.is_none();
@@ -224,20 +220,54 @@ fn match_and_add_new_bindings<'a>(
             })
             .collect(),
     };
+    println!(
+        "is_initial_binding: {}; prev_bindings.len: {}",
+        is_initial_binding,
+        prev_bindings.len()
+    );
     return prev_bindings
         .par_iter_mut()
         .filter_map(|(info, binding)| {
             let matching_event_opt = events
                 .into_iter()
-                .filter(|ev| {
+                .find(|ev| {
+                    if is_initial_binding {
+                        return ev.id == info.past_events[0];
+                    }
                     for p in &node.parents {
                         match binding.get(&p.dependency.variable_name) {
                             Some(bound_val) => {
                                 // TODO: Implement matching conditions here
                                 // If no match: return false (early return)
-                                if is_initial_binding {
-                                    return ev.id == info.past_events[0]
-                                }else {
+
+                                let prev_ev = event_map.get(info.past_events.last().unwrap()).unwrap();
+                                if prev_ev.time > ev.time {
+                                    return false;
+                                }
+                                let ev_rels = ev.relationships.clone().unwrap();
+                                let bound_val_match: bool  = match bound_val {
+                                    BoundValue::Single(v) => {
+                                        ev_rels.iter().any(|r| r.object_id == *v && r.qualifier == p.dependency.target_qualifier)
+                                    },
+                                    BoundValue::Multiple(vs) => {
+                                        match p.dependency.dependency_type {
+                                            DependencyType::All => {
+                                                vs.iter().all(|v| {
+                                                    ev_rels.iter().any(|r| r.object_id == *v && r.qualifier == p.dependency.target_qualifier)
+                                                })
+                                            },
+                                            DependencyType::ExistsInTarget => {
+                                                vs.iter().any(|v| {
+                                                    ev_rels.iter().any(|r|
+                                                        r.object_id == *v && r.qualifier == p.dependency.target_qualifier)
+                                                })
+                                            },
+                                            DependencyType::ExistsInSource =>  todo!("ExistsInTarget type but multiple bound values;Should not happen"),
+                                            DependencyType::Simple => todo!("Single type but multiple bound values;Should not happen"),
+                                        }
+                                    },
+                                };
+                                if !bound_val_match {
                                     return false;
                                 }
                             }
@@ -247,14 +277,15 @@ fn match_and_add_new_bindings<'a>(
                             ),
                         }
                     }
-                    return false;
-                })
-                .nth(0);
+                    return true;
+                });
             match matching_event_opt {
                 Some(matching_event) => {
                     // We now got a matching event!
                     // We can now update the corresponding info...
-                    info.past_events.push(matching_event.id.clone());
+                    if !is_initial_binding {
+                        info.past_events.push(matching_event.id.clone());
+                    }
                     // ...and also compute the updated binding
                     for c in &node.children {
                         // If binding already contains variable, there is nothing left to do :)
@@ -324,6 +355,7 @@ fn match_and_add_new_bindings<'a>(
                 }
                 None => {
                     // No matching event found.
+                    // println!("Found no matching event for binding: {:?} with info {:?}",binding, info);
                     return None;
                 }
             }
@@ -412,53 +444,21 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> Vec<String> {
     } = link_ocel_info(ocel);
 
     if nodes.len() > 0 {
-        let current_node = nodes[0].clone();
-        let evs_bindings: Vec<(AdditionalBindingInfo, HashMap<String, Vec<BoundValue>>)> =
-            get_new_bound_variables_from_node(&current_node, &events_of_type, &HashSet::new());
-
-        println!("Required bindings: {}", evs_bindings.len());
-        let mut binding: Bindings = combine_bindings(None, evs_bindings);
-        println!("Total Combinations: {}", binding.len());
-        println!("First combination: {:#?}", binding[0]);
-        println!("Nodes len: {}", nodes.len());
-        for i in 1..nodes.len() {
-            let next_node = nodes[i].clone();
-            let sat_bindings: Vec<&(AdditionalBindingInfo, HashMap<String, BoundValue>)> =
-                get_sat_bindings(
-                    &next_node,
-                    &binding,
-                    &events_of_type,
-                    &event_map,
-                    &object_map,
-                );
+        let mut bindings: Option<Bindings> = None;
+        for i in 0..nodes.len() {
+            let node = &nodes[i];
+            bindings = Some(match_and_add_new_bindings(
+                bindings,
+                node,
+                &events_of_type,
+                &event_map,
+                &object_map,
+            ));
             println!(
-                "After sat-bindings (i={}) (#: {} of {})",
+                "#Bindings for i={}: {}",
                 i,
-                sat_bindings.len(),
-                binding.len()
-            );
-            binding = sat_bindings
-                .par_iter()
-                .flat_map(|(info, binding)| {
-                    let already_bound_vars: HashSet<&String> = binding.keys().collect();
-                    if next_node
-                        .children
-                        .iter()
-                        .all(|c| already_bound_vars.contains(&c.dependency.variable_name))
-                    {
-                        return vec![(info.clone(), binding.clone())];
-                    }
-                    let new_bound_vars = get_new_bound_variables_from_node(
-                        &next_node,
-                        &events_of_type,
-                        &already_bound_vars,
-                    );
-                    let binding: Vec<(AdditionalBindingInfo, HashMap<String, BoundValue>)> =
-                        combine_bindings(Some((info.clone(), binding.clone())), new_bound_vars);
-                    return binding;
-                })
-                .collect();
-            println!("Bindings: (i={}) (#: {})", i, binding.len());
+                bindings.as_ref().unwrap().len()
+            )
         }
     } else {
         println!("Finished with check (nothing to do)");
@@ -475,9 +475,11 @@ fn match_dependency(
     object_map: &HashMap<String, &OCELObject>,
 ) -> bool {
     let next_ev = event_map.get(next_event_id).unwrap();
-    let prev_ev = binding_info.past_events.last().unwrap();
+    let prev_ev = event_map
+        .get(binding_info.past_events.last().unwrap())
+        .unwrap();
     // Assuming eventually follows (for now)
-    if next_ev.time < event_map.get(prev_ev).unwrap().time {
+    if next_ev.time < prev_ev.time {
         return false;
     } else {
         let x = variable_binding.get(&dep.variable_name).unwrap();
