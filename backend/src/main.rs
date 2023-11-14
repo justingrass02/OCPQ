@@ -12,6 +12,11 @@ mod load_ocel {
 mod ocel_qualifiers {
     pub mod qualifiers;
 }
+mod constraint_checker {
+    pub mod check;
+}
+
+use constraint_checker::check::check_with_tree_req;
 use load_ocel::load_ocel::{load_ocel_file, get_available_ocels};
 use ocel_qualifiers::qualifiers::get_qualifiers_for_event_types;
 use pm_rust::event_log::ocel::ocel_struct::{OCELType, OCEL};
@@ -36,6 +41,7 @@ async fn main() {
     .route("/ocel/info", get(get_loaded_ocel_info))
     .route("/ocel/available", get(get_available_ocels))
     .route("/ocel/qualifiers",get(get_qualifiers_for_event_types))
+    .route("/ocel/check-constraints",post(check_with_tree_req))
     .with_state(state)
     .route("/", get(|| async { "Hello, Aaron!" }))
 .layer(cors);
