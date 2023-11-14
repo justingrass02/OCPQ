@@ -19,14 +19,17 @@ import { LuLayoutDashboard } from "react-icons/lu";
 import "reactflow/dist/style.css";
 import type { EventTypeQualifiers, OCELInfo } from "../../types/ocel";
 import ConnectionLine from "./helper/ConnectionLine";
-import EventLink, { type EventLinkData } from "./helper/EventLink";
+import EventTypeLink, {
+  EVENT_TYPE_LINK_TYPE,
+  type EventTypeLinkData,
+} from "./helper/EventTypeLink";
 import EventTypeNode, { type EventTypeNodeData } from "./helper/EventTypeNode";
 import { useLayoutedElements } from "./helper/LayoutFlow";
 import toast from "react-hot-toast";
 import { RxReset } from "react-icons/rx";
 import { extractFromHandleID } from "./helper/visual-editor-utils";
 import { TbBinaryTree, TbRestore } from "react-icons/tb";
-import { constructTree } from "./evaluation/construct-tree";
+import { constructTree, getDependencyType } from "./evaluation/construct-tree";
 import { VisualEditorContext } from "./helper/visual-editor-context";
 
 interface VisualEditorProps {
@@ -46,7 +49,7 @@ const COLORS = [
   "#ffff99", // Yellow
 ];
 const nodeTypes = { eventType: EventTypeNode };
-const edgeTypes = { eventLink: EventLink };
+const edgeTypes = { [EVENT_TYPE_LINK_TYPE]: EventTypeLink };
 
 function VisualEditor(props: VisualEditorProps) {
   const [mode, setMode] = useState<"normal" | "view-tree" | "readonly">(
@@ -78,7 +81,7 @@ function VisualEditor(props: VisualEditorProps) {
       };
     }),
   );
-  const [edges, setEdges, onEdgesChange] = useEdgesState<EventLinkData>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<EventTypeLinkData>([]);
 
   const onConnect = useCallback(
     ({ source, sourceHandle, target, targetHandle }: Edge | Connection) => {
@@ -96,15 +99,17 @@ function VisualEditor(props: VisualEditorProps) {
           // objectType is the same for source/target (connecting non-matching types is prevented by the Handle)
           const objectType = sourceHandleInfo.objectType;
           const color = objectTypeToColor[objectType];
-          const isMultiple =
+          const dependencyType = getDependencyType(
             props.eventTypeQualifiers[source][sourceHandleInfo.qualifier]
-              .multiple &&
+              .multiple,
             props.eventTypeQualifiers[target][targetHandleInfo.qualifier]
-              .multiple;
-          const newEdge = {
-            type: "eventLink",
+              .multiple,
+          );
+          const newEdge: Edge<EventTypeLinkData> = {
+            id: sourceHandle + "|||" + targetHandle,
+            type: EVENT_TYPE_LINK_TYPE,
             label:
-              (isMultiple
+              (dependencyType === "all"
                 ? objectType.substring(0, 1).toUpperCase()
                 : objectType.substring(0, 1)) + "1",
             source,
@@ -118,12 +123,12 @@ function VisualEditor(props: VisualEditorProps) {
               color,
             },
             style: {
-              strokeWidth: isMultiple ? 4 : 2,
+              strokeWidth: dependencyType === "all" ? 4 : 2,
               stroke: color,
             },
             data: {
               color,
-              multiple: isMultiple,
+              dependencyType,
               onDelete: (id: string) => {
                 setEdges((edges) => {
                   const newEdges = edges.filter((e) => e.id !== id);
@@ -213,7 +218,7 @@ function VisualEditor(props: VisualEditorProps) {
                 setTimeout(() => {
                   fitView({ duration: 300 });
                 }, 100);
-                constructTree(props.eventTypeQualifiers, nodes, edges);
+                constructTree(props.eventTypeQualifiers, edges);
               } else {
                 setMode("normal");
                 getLayoutedElements(

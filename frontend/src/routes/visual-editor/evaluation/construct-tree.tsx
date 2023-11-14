@@ -1,34 +1,53 @@
-import type { EventTypeQualifier, EventTypeQualifiers } from "@/types/ocel";
+import type { EventTypeQualifiers } from "@/types/ocel";
 import toast from "react-hot-toast";
-import { type Edge, type Node } from "reactflow";
-import { type EventLinkData } from "../helper/EventLink";
-import { type EventTypeNodeData } from "../helper/EventTypeNode";
+import type { Edge } from "reactflow";
+import type { EventTypeLinkData } from "../helper/EventTypeLink";
 import { extractFromHandleID } from "../helper/visual-editor-utils";
+
+export type DependencyType =
+  | "simple"
+  | "all"
+  | "existsInTarget"
+  | "existsInSource";
 
 type NodeDependency = {
   sourceQualifier: string;
   targetQualifier: string;
   objectType: string;
-  dependencyType: "simple" | "all" | "existsInTarget" | "existsInSource";
+  dependencyType: DependencyType;
+  variableName: string;
 };
+
+type TreeNodeDependency = { dependency: NodeDependency; eventType: string };
 
 type TreeNode = {
   eventType: string;
-  qualifiers: EventTypeQualifier;
-  parents: (NodeDependency & { parentID: string })[];
-  children: (NodeDependency & { childID: string })[];
+  parents: TreeNodeDependency[];
+  children: TreeNodeDependency[];
 };
+
+export function getDependencyType(
+  isSourceMultiple: boolean,
+  isTargetMultiple: boolean,
+): DependencyType {
+  return isSourceMultiple
+    ? isTargetMultiple
+      ? "all"
+      : "existsInSource"
+    : isTargetMultiple
+    ? "existsInTarget"
+    : "simple";
+}
+
 export function constructTree(
   eventTypes: EventTypeQualifiers,
-  nodes: Node<EventTypeNodeData>[],
-  edges: Edge<EventLinkData>[],
+  edges: Edge<EventTypeLinkData>[],
 ) {
   const treeNodes: Record<string, TreeNode> = Object.fromEntries(
     Object.keys(eventTypes).map((evt) => [
       evt,
       {
         eventType: evt,
-        qualifiers: eventTypes[evt],
         parents: [],
         children: [],
       },
@@ -45,20 +64,18 @@ export function constructTree(
       eventTypes[e.source][sourceHandleInfo.qualifier].multiple;
     const isTargetMultiple =
       eventTypes[e.target][targetHandleInfo.qualifier].multiple;
-    const dep: NodeDependency = {
+    const dependency: NodeDependency = {
       sourceQualifier: sourceHandleInfo.qualifier,
       targetQualifier: targetHandleInfo.qualifier,
       objectType: sourceHandleInfo.objectType,
-      dependencyType: isSourceMultiple
-        ? isTargetMultiple
-          ? "all"
-          : "existsInSource"
-        : isTargetMultiple
-        ? "existsInTarget"
-        : "simple",
+      dependencyType: getDependencyType(isSourceMultiple, isTargetMultiple),
+      variableName:
+        (isSourceMultiple && isTargetMultiple
+          ? sourceHandleInfo.objectType.substring(0, 1).toUpperCase()
+          : sourceHandleInfo.objectType.substring(0, 1)) + "1",
     };
-    treeNodes[e.source].children.push({ ...dep, childID: e.target });
-    treeNodes[e.target].parents.push({ ...dep, parentID: e.source });
+    treeNodes[e.source].children.push({ dependency, eventType: e.target });
+    treeNodes[e.target].parents.push({ dependency, eventType: e.source });
   }
 
   const disconnectedTreeNodes: Record<string, TreeNode> = {};
@@ -86,7 +103,7 @@ export function constructTree(
     for (let i = 0; i < queue.length; i++) {
       const node = queue[i];
       if (
-        node.parents.every((p) => reachableFromRootIDs.includes(p.parentID))
+        node.parents.every((p) => reachableFromRootIDs.includes(p.eventType))
       ) {
         return i;
       }
@@ -94,6 +111,8 @@ export function constructTree(
     return undefined;
   }
 
+  // List of reachable IDS;
+  // conincidely also a possible execution error that satisfies all dependency
   const reachableFromRootIDs: string[] = [];
   let queue: TreeNode[] = [...rootTreeNodes];
 
@@ -106,7 +125,7 @@ export function constructTree(
     if (indexInqueue !== undefined) {
       const [node] = queue.splice(indexInqueue, 1);
       reachableFromRootIDs.push(node.eventType);
-      queue = queue.concat(node.children.map((c) => treeNodes[c.childID]));
+      queue = queue.concat(node.children.map((c) => treeNodes[c.eventType]));
     } else {
       toast.error("Invalid requirements: Cycle detected!");
       invalid = true;
@@ -139,4 +158,20 @@ export function constructTree(
     );
   }
   console.log({ connectedTreeNodes, rootTreeNodes, reachableFromRootIDs });
+
+  fetch("http://localhost:3000/ocel/check-constraints", {
+    method: "post",
+    body: JSON.stringify(
+      reachableFromRootIDs.map((id) => connectedTreeNodes[id]),
+    ),
+    headers: { "Content-Type": "application/json" },
+  })
+    .then(async (res) => {
+      const violations: string[] = await res.json();
+      console.log({ violations });
+      toast(violations.length + " violations found");
+    })
+    .catch((err) => {
+      toast.error(String(err));
+    });
 }
