@@ -121,13 +121,16 @@ export function constructTree(
     );
     if (indexInqueue !== undefined) {
       const [node] = queue.splice(indexInqueue, 1);
-      reachableFromRootIDs.push(node.eventType);
+      if (!reachableFromRootIDs.includes(node.eventType)) {
+        reachableFromRootIDs.push(node.eventType);
+      }
       queue = queue.concat(node.children.map((c) => treeNodes[c.eventType]));
     } else {
       toast.error("Invalid requirements: Cycle detected!");
       invalid = true;
       break;
     }
+    queue.sort((a, b) => b.parents.length - a.parents.length);
   }
   const unreachableNodeIDs: string[] = [];
 
@@ -150,25 +153,38 @@ export function constructTree(
       </span>,
     );
   } else {
-    toast.success(
-      <span>Constructed tree with {rootTreeNodes.length} root nodes</span>,
-    );
+    console.log(`Constructed tree with ${rootTreeNodes.length} root nodes`);
   }
   console.log({ connectedTreeNodes, rootTreeNodes, reachableFromRootIDs });
 
-  fetch("http://localhost:3000/ocel/check-constraints", {
-    method: "post",
-    body: JSON.stringify(
+  void toast.promise(
+    callCheckConstraintsEndpoint(
       reachableFromRootIDs.map((id) => connectedTreeNodes[id]),
     ),
+    {
+      loading: "Evaluating...",
+      success: (sizes) => (
+        <span>
+          <b>Evaluation finished</b>
+          <br />
+          <span>
+            Bindings per step:
+            <br />
+            <span className="font-mono">{sizes.join(", ")}</span>
+          </span>
+        </span>
+      ),
+      error: "Evaluation failed",
+    },
+  );
+}
+
+async function callCheckConstraintsEndpoint(nodesOrder: TreeNode[]) {
+  const res = await fetch("http://localhost:3000/ocel/check-constraints", {
+    method: "post",
+    body: JSON.stringify(nodesOrder),
     headers: { "Content-Type": "application/json" },
-  })
-    .then(async (res) => {
-      const violations: string[] = await res.json();
-      console.log({ violations });
-      toast(violations.length + " violations found");
-    })
-    .catch((err) => {
-      toast.error(String(err));
-    });
+  });
+  const matchingSizes: number[] = await res.json();
+  return matchingSizes;
 }

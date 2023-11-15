@@ -10,14 +10,17 @@ import ReactFlow, {
   useNodesState,
   type Connection,
   type Edge,
-  useReactFlow,
 } from "reactflow";
 
 import { OcelInfoContext } from "@/App";
 import { Button } from "@/components/ui/button";
+import toast from "react-hot-toast";
 import { LuLayoutDashboard } from "react-icons/lu";
+import { RxReset } from "react-icons/rx";
+import { TbBinaryTree, TbRestore } from "react-icons/tb";
 import "reactflow/dist/style.css";
 import type { EventTypeQualifiers, OCELInfo } from "../../types/ocel";
+import { constructTree, getDependencyType } from "./evaluation/construct-tree";
 import ConnectionLine from "./helper/ConnectionLine";
 import EventTypeLink, {
   EVENT_TYPE_LINK_TYPE,
@@ -25,12 +28,8 @@ import EventTypeLink, {
 } from "./helper/EventTypeLink";
 import EventTypeNode, { type EventTypeNodeData } from "./helper/EventTypeNode";
 import { useLayoutedElements } from "./helper/LayoutFlow";
-import toast from "react-hot-toast";
-import { RxReset } from "react-icons/rx";
-import { extractFromHandleID } from "./helper/visual-editor-utils";
-import { TbBinaryTree, TbRestore } from "react-icons/tb";
-import { constructTree, getDependencyType } from "./evaluation/construct-tree";
 import { VisualEditorContext } from "./helper/visual-editor-context";
+import { extractFromHandleID } from "./helper/visual-editor-utils";
 
 interface VisualEditorProps {
   ocelInfo: OCELInfo;
@@ -56,8 +55,6 @@ function VisualEditor(props: VisualEditorProps) {
     "normal",
   );
 
-  const { fitView } = useReactFlow();
-
   const objectTypeToColor: Record<string, string> = useMemo(() => {
     const ret: Record<string, string> = {};
     props.ocelInfo.object_types.forEach((type, i) => {
@@ -81,6 +78,7 @@ function VisualEditor(props: VisualEditorProps) {
       };
     }),
   );
+
   const [edges, setEdges, onEdgesChange] = useEdgesState<EventTypeLinkData>([]);
 
   const onConnect = useCallback(
@@ -219,33 +217,7 @@ function VisualEditor(props: VisualEditorProps) {
             title={mode !== "view-tree" ? "Construct tree" : "Edit"}
             className="bg-white"
             onClick={() => {
-              if (mode !== "view-tree") {
-                setMode("view-tree");
-                getLayoutedElements(
-                  {
-                    "elk.algorithm": "layered",
-                    "elk.direction": "DOWN",
-                  },
-                  false,
-                );
-
-                setTimeout(() => {
-                  fitView({ duration: 300 });
-                }, 100);
-                constructTree(props.eventTypeQualifiers, edges);
-              } else {
-                setMode("normal");
-                getLayoutedElements(
-                  {
-                    "elk.algorithm": "layered",
-                    "elk.direction": "RIGHT",
-                  },
-                  false,
-                );
-                setTimeout(() => {
-                  fitView({ duration: 300 });
-                }, 100);
-              }
+              constructTree(props.eventTypeQualifiers, edges);
             }}
           >
             {mode !== "view-tree" && <TbBinaryTree />}
