@@ -30,6 +30,8 @@ import EventTypeNode, { type EventTypeNodeData } from "./helper/EventTypeNode";
 import { useLayoutedElements } from "./helper/LayoutFlow";
 import { VisualEditorContext } from "./helper/visual-editor-context";
 import { extractFromHandleID } from "./helper/visual-editor-utils";
+import { ImageIcon } from "@radix-ui/react-icons";
+import { toPng } from "html-to-image";
 
 interface VisualEditorProps {
   ocelInfo: OCELInfo;
@@ -209,6 +211,39 @@ function VisualEditor(props: VisualEditorProps) {
             }}
           >
             <RxReset />
+          </Button>
+
+          <Button
+            disabled={mode !== "normal"}
+            variant="outline"
+            size="icon"
+            title="Save PNG"
+            className="bg-white"
+            onClick={(ev) => {
+              const button = ev.currentTarget;
+              button.disabled = true;
+              const scaleFactor = 2.0;
+              const viewPort = document.querySelector(
+                ".react-flow__viewport",
+              ) as HTMLElement;
+              setTimeout(() => {
+                void toPng(viewPort, {
+                  canvasHeight: viewPort.clientHeight * scaleFactor,
+                  canvasWidth: viewPort.clientWidth * scaleFactor,
+                })
+                  .then((dataURL) => {
+                    const a = document.createElement("a");
+                    a.setAttribute("download", "oced-declare-export.png");
+                    a.setAttribute("href", dataURL);
+                    a.click();
+                  })
+                  .finally(() => {
+                    button.disabled = false;
+                  });
+                },50);
+            }}
+          >
+            <ImageIcon />
           </Button>
 
           <Button
