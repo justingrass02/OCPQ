@@ -1,4 +1,9 @@
-import { MdRemoveCircleOutline } from "react-icons/md";
+import {
+  MdDoNotDisturb,
+  MdKeyboardArrowRight,
+  MdKeyboardDoubleArrowRight,
+  MdRemoveCircleOutline,
+} from "react-icons/md";
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -15,12 +20,20 @@ export type VariableChangeOptions = {
   type: "in" | "out";
   newValue: string;
 };
+
+export const CONSTRAINT_TYPES = [
+  "response",
+  "unary-response",
+  "non-response",
+] as const;
+
 export type EventTypeLinkData = {
   color: string;
   dependencyType: DependencyType;
+  constraintType: (typeof CONSTRAINT_TYPES)[number];
   inVariable: string;
   outVariable: string;
-  onVariableChange: (change: VariableChangeOptions) => unknown;
+  onDataChange: (id: string, newData: Partial<EventTypeLinkData>) => unknown;
   onDelete: (id: string) => unknown;
 };
 
@@ -65,12 +78,7 @@ export default function EventTypeLink({
               onClick={() => {
                 const newVar = prompt("New variable name");
                 if (newVar !== null) {
-                  
-                  data.onVariableChange({
-                    linkID: id,
-                    newValue: newVar,
-                    type: "in",
-                  });
+                  data.onDataChange(id, { inVariable: newVar });
                 }
               }}
               className="bg-slate-50/90 rounded-sm px-1 border border-slate-100 mb-1 flex flex-col"
@@ -101,11 +109,7 @@ export default function EventTypeLink({
               onClick={() => {
                 const newVar = prompt("New variable name");
                 if (newVar !== null) {
-                  data.onVariableChange({
-                    linkID: id,
-                    newValue: newVar,
-                    type: "out",
-                  });
+                  data.onDataChange(id, { outVariable: newVar });
                 }
               }}
               className="bg-slate-50/90 rounded-sm px-1 border border-slate-100 mb-1 flex flex-col"
@@ -127,8 +131,37 @@ export default function EventTypeLink({
             }}
             className="nodrag nopan flex flex-col items-center -mt-1"
           >
+            <button
+              onClick={() => {
+                const newIndex =
+                  (CONSTRAINT_TYPES.indexOf(data.constraintType) + 1) %
+                  CONSTRAINT_TYPES.length;
+                data.onDataChange(id, {
+                  constraintType: CONSTRAINT_TYPES[newIndex],
+                });
+              }}
+            >
+              <span
+                className="text-xl text-orange-400"
+                title={data.constraintType}
+              >
+                {data.constraintType === "response" && (
+                  <MdKeyboardDoubleArrowRight />
+                )}
+                {data.constraintType === "unary-response" && (
+                  <MdKeyboardArrowRight />
+                )}
+                {data.constraintType === "non-response" && (
+                  <div className="relative">
+                    <MdDoNotDisturb className="absolute -rotate-12 text-orange-800/50" />
+                    <MdKeyboardArrowRight />
+                  </div>
+                )}
+                {/* {data.constraintType} */}
+              </span>
+            </button>
             <span
-              className={`text-gray-700 ${
+              className={`text-gray-700 bg-white/80 px-0.5 rounded-md font-mono ${
                 mode === "view-tree" ? "rotate-90 -mr-1" : "-mt-1"
               }`}
               title={(() => {

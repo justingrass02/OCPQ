@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use axum::{extract::State, http::StatusCode, Json};
+use itertools::Itertools;
 use pm_rust::event_log::ocel::ocel_struct::{OCELEvent, OCELObject, OCEL};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -19,6 +20,16 @@ enum DependencyType {
     ExistsInSource,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+enum ConstraintType{
+    #[serde(rename = "response")]
+    Response,
+    #[serde(rename = "unary-response")]
+    UnaryResponse,
+    #[serde(rename = "non-response")]
+    NonResponse,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct NodeDependency {
     #[serde(rename = "sourceQualifier")]
@@ -31,6 +42,8 @@ struct NodeDependency {
     dependency_type: DependencyType,
     #[serde(rename = "variableName")]
     variable_name: String,
+    #[serde(rename = "constraintType")]
+    constraint_type: ConstraintType
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -160,6 +173,7 @@ fn match_and_add_new_bindings<'a>(
                         return &ev.id == &info.past_events[0];
                     }
                     for p in &node.parents {
+                        // TODO: Use p.dependency.constraint_type to correct constraints (like Non-Reponse etc.)
                         match binding.get(&p.dependency.variable_name) {
                             Some(bound_val) => {
                                 // If no match: return false (early return)
@@ -203,22 +217,24 @@ fn match_and_add_new_bindings<'a>(
                     }
                     return true;
                 });
-                matching_events.take_any(if node.children.is_empty() { 1 } else {events.len()}).filter_map(|matching_event| {
-                    let mut info_cc = info.clone();
-                    let mut binding = binding.clone();
+                matching_events.take_any(if node.children.is_empty() { 1 } else {events.len()}).flat_map(|matching_event| {
+                    let mut info_cc: AdditionalBindingInfo = info.clone();
+                    // let binding: HashMap<String, BoundValue> = binding.clone();
                     // We now got a matching event!
                     // We can now update the corresponding info...
                     if !is_initial_binding {
                         info_cc.past_events.push(matching_event.id.clone());
                     }
-                    // ...and also compute the updated binding
+
+                    let mut bindings: Vec<(AdditionalBindingInfo,HashMap<String, BoundValue>)> = vec![(info_cc,binding.clone())];
+                    // ...and also compute the updated bindings
                     for c in &node.children {
                         // If binding already contains variable, there is nothing left to do :)
                         if !binding.contains_key(&c.dependency.variable_name) {
                             // Else... construct bound value and insert it
                             match matching_event.relationships.clone() {
                                 Some(rel) => {
-                                    let new_bound_value_opt: Option<BoundValue> =
+                                    let new_bound_value_opt: Option<Vec<BoundValue>> =
                                         match c.dependency.dependency_type {
                                             DependencyType::Simple => {
                                                 let obj_rel_opt = rel
@@ -228,7 +244,7 @@ fn match_and_add_new_bindings<'a>(
                                                     });
                                                 match obj_rel_opt {
                                                     Some(obj_rel) => {
-                                                    Some(BoundValue::Single(obj_rel.object_id))
+                                                    Some(vec![BoundValue::Single(obj_rel.object_id)])
                                                     },
                                                     None => None,
                                                 }
@@ -241,7 +257,7 @@ fn match_and_add_new_bindings<'a>(
                                                     })
                                                     .map(|r| r.object_id)
                                                     .collect();
-                                                Some(BoundValue::Multiple(obj_ids))
+                                                Some(vec![BoundValue::Multiple(obj_ids)])
                                             }
                                             DependencyType::ExistsInSource => {
                                                 let obj_ids: Vec<String> = rel
@@ -251,7 +267,7 @@ fn match_and_add_new_bindings<'a>(
                                                     })
                                                     .map(|r| r.object_id)
                                                     .collect();
-                                                Some(BoundValue::Multiple(obj_ids))
+                                                Some(obj_ids.into_iter().map(|o_id| BoundValue::Single(o_id)).collect())
                                             }
                                             DependencyType::ExistsInTarget => {
                                                 let obj_rel_opt = rel
@@ -261,7 +277,7 @@ fn match_and_add_new_bindings<'a>(
                                                 });
                                             match obj_rel_opt {
                                                 Some(obj_rel) => {
-                                                Some(BoundValue::Single(obj_rel.object_id))
+                                                Some(vec![BoundValue::Single(obj_rel.object_id)])
                                                 },
                                                 None => None,
                                             }
@@ -269,14 +285,17 @@ fn match_and_add_new_bindings<'a>(
                                         };
                                     match new_bound_value_opt {
                                         Some(new_bound_value) => {
-                                            binding.insert(
-                                                c.dependency.variable_name.clone(),
-                                                new_bound_value,
-                                            );
+                                           bindings = bindings.into_iter().flat_map(|binding| {
+                                                new_bound_value.iter().map(|new_bound_value| {
+                                                    let mut cloned_bind = binding.clone();
+                                                    cloned_bind.1.insert(c.dependency.variable_name.clone(), new_bound_value.clone());
+                                                    return cloned_bind;
+                                                }).collect_vec()
+                                            }).collect_vec();
 
                                         },
                                         None => {
-                                            return None
+                                            return Vec::new()
                                         },
                                     }
                                 }
@@ -289,7 +308,8 @@ fn match_and_add_new_bindings<'a>(
                             }
                         }
                     }  
-                    return Some((info_cc,binding));
+                    println!("#Bindings: {}",bindings.len());
+                    return bindings;
                 })
         })
         .collect();

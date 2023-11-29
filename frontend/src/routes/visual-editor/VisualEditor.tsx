@@ -125,6 +125,7 @@ function VisualEditor(props: VisualEditorProps) {
             data: {
               color,
               dependencyType,
+              constraintType: "non-response",
               inVariable:
                 (dependencyType === "all" || dependencyType === "existsInSource"
                   ? objectType.substring(0, 1).toUpperCase()
@@ -133,18 +134,12 @@ function VisualEditor(props: VisualEditorProps) {
                 (dependencyType === "all" || dependencyType === "existsInTarget"
                   ? objectType.substring(0, 1).toUpperCase()
                   : objectType.substring(0, 1)) + "1",
-              onVariableChange: (change) => {
+              onDataChange: (id, newData) => {
                 setEdges((es) => {
                   const newEdges = [...es];
-                  const changedEdge = newEdges.find(
-                    (e) => e.id === change.linkID,
-                  );
+                  const changedEdge = newEdges.find((e) => e.id === id);
                   if (changedEdge?.data !== undefined) {
-                    if (change.type === "in") {
-                      changedEdge.data.inVariable = change.newValue;
-                    } else {
-                      changedEdge.data.outVariable = change.newValue;
-                    }
+                    changedEdge.data = { ...changedEdge.data, ...newData };
                   } else {
                     console.warn("Did not find changed edge data");
                   }

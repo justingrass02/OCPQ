@@ -1,7 +1,7 @@
 import type { EventTypeQualifiers } from "@/types/ocel";
 import toast from "react-hot-toast";
 import type { Edge } from "reactflow";
-import type { EventTypeLinkData } from "../helper/EventTypeLink";
+import type { CONSTRAINT_TYPES, EventTypeLinkData } from "../helper/EventTypeLink";
 import { extractFromHandleID } from "../helper/visual-editor-utils";
 
 export type DependencyType =
@@ -16,6 +16,7 @@ type NodeDependency = {
   objectType: string;
   dependencyType: DependencyType;
   variableName: string;
+  constraintType: typeof CONSTRAINT_TYPES[number];
 };
 
 type TreeNodeDependency = { dependency: NodeDependency; eventType: string };
@@ -71,6 +72,7 @@ export function constructTree(
       dependencyType: getDependencyType(isSourceMultiple, isTargetMultiple),
       // TODO: Update NodeDependency to reflect changed bindings (with in and out variables)
       variableName: e.data?.inVariable,
+      constraintType: e.data.constraintType,
     };
     treeNodes[e.source].children.push({ dependency, eventType: e.target });
     treeNodes[e.target].parents.push({ dependency, eventType: e.source });
