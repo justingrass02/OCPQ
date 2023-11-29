@@ -125,8 +125,12 @@ function VisualEditor(props: VisualEditorProps) {
             data: {
               color,
               dependencyType,
-              variable:
-                (dependencyType === "all"
+              inVariable:
+                (dependencyType === "all" || dependencyType === "existsInSource"
+                  ? objectType.substring(0, 1).toUpperCase()
+                  : objectType.substring(0, 1)) + "1",
+              outVariable:
+                (dependencyType === "all" || dependencyType === "existsInTarget"
                   ? objectType.substring(0, 1).toUpperCase()
                   : objectType.substring(0, 1)) + "1",
               onVariableChange: (change) => {
@@ -136,11 +140,15 @@ function VisualEditor(props: VisualEditorProps) {
                     (e) => e.id === change.linkID,
                   );
                   if (changedEdge?.data !== undefined) {
-                    changedEdge.data.variable = change.newValue;
+                    if (change.type === "in") {
+                      changedEdge.data.inVariable = change.newValue;
+                    } else {
+                      changedEdge.data.outVariable = change.newValue;
+                    }
                   } else {
                     console.warn("Did not find changed edge data");
                   }
-                  return es;
+                  return newEdges;
                 });
               },
               onDelete: (id: string) => {
@@ -240,7 +248,7 @@ function VisualEditor(props: VisualEditorProps) {
                   .finally(() => {
                     button.disabled = false;
                   });
-                },50);
+              }, 50);
             }}
           >
             <ImageIcon />

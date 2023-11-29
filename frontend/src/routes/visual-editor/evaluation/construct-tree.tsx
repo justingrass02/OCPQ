@@ -35,7 +35,7 @@ export function getDependencyType(
       ? "all"
       : "existsInSource"
     : isTargetMultiple
-    ? "existsInTarget"
+    ? "all"
     : "simple";
 }
 
@@ -69,7 +69,8 @@ export function constructTree(
       targetQualifier: targetHandleInfo.qualifier,
       objectType: sourceHandleInfo.objectType,
       dependencyType: getDependencyType(isSourceMultiple, isTargetMultiple),
-      variableName: e.data?.variable,
+      // TODO: Update NodeDependency to reflect changed bindings (with in and out variables)
+      variableName: e.data?.inVariable,
     };
     treeNodes[e.source].children.push({ dependency, eventType: e.target });
     treeNodes[e.target].parents.push({ dependency, eventType: e.source });
