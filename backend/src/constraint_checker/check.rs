@@ -130,16 +130,16 @@ pub struct AdditionalBindingInfo {
 }
 
 fn match_and_add_new_bindings<'a>(
-    prev_bindings_opt: Option<Bindings<'a>>,
+    prev_bindings_opt: Option<Bindings>,
     node: &'a TreeNode,
     events_of_type: &'a HashMap<String, Vec<&'a OCELEvent>>,
     event_map: &HashMap<String, &OCELEvent>,
     _object_map: &HashMap<String, &OCELObject>,
-) -> Bindings<'a> {
+) -> Vec<(Binding,Option<ViolationReason>)> {
     // Get all events of the corresponding event type (determined by node)
     let events = events_of_type.get(&node.event_type).unwrap();
     let is_initial_binding = prev_bindings_opt.is_none();
-    let mut prev_bindings: Bindings<'a> = match prev_bindings_opt {
+    let mut prev_bindings: Bindings = match prev_bindings_opt {
         Some(p) => p,
         None => events
             .iter()
@@ -228,19 +228,24 @@ fn match_and_add_new_bindings<'a>(
                     }
                     return true;
                 });
+
+                let num_matching_events = matching_events.clone().count();
                 // In the future, we should distinguish between (the *number* of) new bindings and whether the constraints are satisfied
                 // So far, we simply return Vec::new() if some constraint (like NonResponse or Unary Response) is violated
                 if node.parents.iter().any(|p| p.dependency.constraint_type == ConstraintType::NonResponse) {
-                    if matching_events.clone().count() > 0 {
-                         return Vec::new(); 
+                    if num_matching_events > 0 {
+                        return vec![((info.clone(),binding.clone()),Some(ViolationReason::MatchingEvents))];
                         }else{
-                            return vec![(info.clone(),binding.clone())];
+                            return vec![((info.clone(),binding.clone()),None)];
                         }
                     }else if node.parents.iter().any(|p| p.dependency.constraint_type == ConstraintType::UnaryResponse){
-                        if matching_events.clone().count() > 1 {
-                            return Vec::new();
+                        if num_matching_events > 1 {
+                            return vec![((info.clone(),binding.clone()),Some(ViolationReason::MultipleMatchingEvents))];
                         }
                     }
+            if num_matching_events == 0 {
+                return vec![((info.clone(),binding.clone()),Some(ViolationReason::NoMatchingEvents))];
+            }
                 let take = match node.parents.len() {
                     0 => 1,
                     _ => events.len()
@@ -255,7 +260,7 @@ fn match_and_add_new_bindings<'a>(
                         info_cc.past_events.push(matching_event.id.clone());
                     }
 
-                    let mut bindings: Vec<(AdditionalBindingInfo,HashMap<String, BoundValue>)> = vec![(info_cc,binding.clone())];
+                    let mut bindings: Vec<(Binding,Option<ViolationReason>)> = vec![((info_cc,binding.clone()),None)];
                     // ...and also compute the updated bindings
                     for c in &node.children {
                         // If binding already contains variable, there is nothing left to do :)
@@ -317,7 +322,7 @@ fn match_and_add_new_bindings<'a>(
                                            bindings = bindings.into_iter().flat_map(|binding| {
                                                 new_bound_value.iter().map(|new_bound_value| {
                                                     let mut cloned_bind = binding.clone();
-                                                    cloned_bind.1.insert(c.dependency.variable_name.clone(), new_bound_value.clone());
+                                                    cloned_bind.0.1.insert(c.dependency.variable_name.clone(), new_bound_value.clone());
                                                     return cloned_bind;
                                                 }).collect_vec()
                                             }).collect_vec();
@@ -338,14 +343,23 @@ fn match_and_add_new_bindings<'a>(
                         }
                     }
                     return bindings;
-                }).collect::<Vec<(AdditionalBindingInfo, HashMap<std::string::String, BoundValue>)>>()
+                }).collect::<Vec<(Binding,Option<ViolationReason>)>>()
         })
         .collect();
 }
 
-type Bindings<'a> = Vec<(AdditionalBindingInfo, HashMap<String, BoundValue>)>;
 
-pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> Vec<usize> {
+type Binding = (AdditionalBindingInfo, HashMap<String, BoundValue>);
+type Bindings = Vec<Binding>;
+#[derive(Clone)]
+enum ViolationReason {
+    NoMatchingEvents,
+    MultipleMatchingEvents,
+    MatchingEvents,
+}
+type Violations = Vec<(Binding,ViolationReason)>;
+
+pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>,Vec<usize>) {
     let LinkedOCEL {
         event_map,
         object_map,
@@ -353,7 +367,9 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> Vec<usize> {
         objects_of_type: _,
     } = link_ocel_info(ocel);
     let mut binding_sizes: Vec<usize> = Vec::new();
+    let mut violation_sizes: Vec<usize> = Vec::new();
     if nodes.len() > 0 {
+        // let mut bindings: Option<Vec<(Binding,Option<ViolationReason>)>> = None;
         let mut bindings: Option<Bindings> = None;
         for i in 0..nodes.len() {
             let node = &nodes[i];
@@ -361,31 +377,46 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> Vec<usize> {
                 println!("Node {} has no child/parent", { i });
                 continue;
             }
-            bindings = Some(match_and_add_new_bindings(
-                bindings,
+            let x = Some(match_and_add_new_bindings(
+                bindings.clone(),
                 node,
                 &events_of_type,
                 &event_map,
                 &object_map,
-            ));
-            binding_sizes.push(bindings.as_ref().unwrap().len());
+            )).unwrap();
+            let mut new_bindings: Bindings = Vec::new();
+            let mut new_violations: Violations = Vec::new();
+            for (b,v) in x {
+                match v {
+                    Some(violation) => {
+                        new_violations.push(((b),violation));
+                    },
+                    None => {
+                        new_bindings.push(b);
+                    },
+                }
+            }
+            binding_sizes.push(new_bindings.len());
+            violation_sizes.push(new_violations.len());
+            bindings = Some(new_bindings);
             println!(
-                "#Bindings for i={}: {}",
+                "#Bindings for i={}: {};\nViolations: {}",
                 i,
-                bindings.as_ref().unwrap().len()
+                bindings.as_ref().unwrap().len(),
+                new_violations.len()
             )
         }
     } else {
         println!("Finished with check (nothing to do)");
     }
     println!("No connected node left!");
-    return binding_sizes;
+    return (binding_sizes,violation_sizes);
 }
 
 pub async fn check_with_tree_req(
     state: State<AppState>,
     Json(nodes): Json<Vec<TreeNode>>,
-) -> (StatusCode, Json<Option<Vec<usize>>>) {
+) -> (StatusCode, Json<Option<(Vec<usize>,Vec<usize>)>>) {
     with_ocel_from_state(&state, |ocel| {
         return (StatusCode::OK, Json(Some(check_with_tree(nodes, ocel))));
     })

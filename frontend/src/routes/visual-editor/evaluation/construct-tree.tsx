@@ -1,7 +1,10 @@
 import type { EventTypeQualifiers } from "@/types/ocel";
 import toast from "react-hot-toast";
 import type { Edge } from "reactflow";
-import type { CONSTRAINT_TYPES, EventTypeLinkData } from "../helper/EventTypeLink";
+import type {
+  CONSTRAINT_TYPES,
+  EventTypeLinkData,
+} from "../helper/EventTypeLink";
 import { extractFromHandleID } from "../helper/visual-editor-utils";
 
 export type DependencyType =
@@ -16,7 +19,7 @@ type NodeDependency = {
   objectType: string;
   dependencyType: DependencyType;
   variableName: string;
-  constraintType: typeof CONSTRAINT_TYPES[number];
+  constraintType: (typeof CONSTRAINT_TYPES)[number];
 };
 
 type TreeNodeDependency = { dependency: NodeDependency; eventType: string };
@@ -166,7 +169,7 @@ export function constructTree(
     ),
     {
       loading: "Evaluating...",
-      success: (sizes) => (
+      success: ([sizes, violations]) => (
         <span>
           <b>Evaluation finished</b>
           <br />
@@ -174,6 +177,10 @@ export function constructTree(
             Bindings per step:
             <br />
             <span className="font-mono">{sizes.join(", ")}</span>
+            <br />
+            Violations per step:
+            <br />
+            <span className="font-mono">{violations.join(", ")}</span>
           </span>
         </span>
       ),
@@ -188,6 +195,6 @@ async function callCheckConstraintsEndpoint(nodesOrder: TreeNode[]) {
     body: JSON.stringify(nodesOrder),
     headers: { "Content-Type": "application/json" },
   });
-  const matchingSizes: number[] = await res.json();
-  return matchingSizes;
+  const matchingSizesAndViolations: [number[], number[]] = await res.json();
+  return matchingSizesAndViolations;
 }
