@@ -21,7 +21,7 @@ enum DependencyType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-enum ConstraintType{
+enum ConstraintType {
     #[serde(rename = "response")]
     Response,
     #[serde(rename = "unary-response")]
@@ -43,7 +43,7 @@ struct NodeDependency {
     #[serde(rename = "variableName")]
     variable_name: String,
     #[serde(rename = "constraintType")]
-    constraint_type: ConstraintType
+    constraint_type: ConstraintType,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -136,7 +136,6 @@ fn match_and_add_new_bindings<'a>(
     event_map: &HashMap<String, &OCELEvent>,
     _object_map: &HashMap<String, &OCELObject>,
 ) -> Bindings<'a> {
-
     // Get all events of the corresponding event type (determined by node)
     let events = events_of_type.get(&node.event_type).unwrap();
     let is_initial_binding = prev_bindings_opt.is_none();
@@ -165,7 +164,6 @@ fn match_and_add_new_bindings<'a>(
     return prev_bindings
         .par_iter_mut()
         .flat_map(|(info, binding)| {
-
             let matching_events = events
             .into_par_iter()
             .filter(|ev| {
@@ -173,14 +171,27 @@ fn match_and_add_new_bindings<'a>(
                         return &ev.id == &info.past_events[0];
                     }
                     for p in &node.parents {
-                        // TODO: Use p.dependency.constraint_type to correct constraints (like Non-Reponse etc.)
                         match binding.get(&p.dependency.variable_name) {
                             Some(bound_val) => {
-                                // If no match: return false (early return)
-
+                                
                                 let prev_ev = event_map.get(info.past_events.last().unwrap()).unwrap();
-                                if prev_ev.time > ev.time {
-                                    return false;
+                                match p.dependency.constraint_type {
+                                    ConstraintType::Response => {
+                                        // If no match: return false (early return)
+                                        if prev_ev.time > ev.time {
+                                            return false;
+                                        }
+                                    },
+                                    ConstraintType::UnaryResponse => {
+                                        if prev_ev.time > ev.time {
+                                            return false;
+                                        }
+                                    },
+                                    ConstraintType::NonResponse => {
+                                        if prev_ev.time > ev.time {
+                                            return false;
+                                        }
+                                    },
                                 }
                                 let ev_rels = ev.relationships.clone().unwrap();
                                 let bound_val_match: bool  = match bound_val {
@@ -217,7 +228,25 @@ fn match_and_add_new_bindings<'a>(
                     }
                     return true;
                 });
-                matching_events.take_any(if node.children.is_empty() { 1 } else {events.len()}).flat_map(|matching_event| {
+                // In the future, we should distinguish between (the *number* of) new bindings and whether the constraints are satisfied
+                // So far, we simply return Vec::new() if some constraint (like NonResponse or Unary Response) is violated
+                if node.parents.iter().any(|p| p.dependency.constraint_type == ConstraintType::NonResponse) {
+                    if matching_events.clone().count() > 0 {
+                         return Vec::new(); 
+                        }else{
+                            return vec![(info.clone(),binding.clone())];
+                        }
+                    }else if node.parents.iter().any(|p| p.dependency.constraint_type == ConstraintType::UnaryResponse){
+                        if matching_events.clone().count() > 1 {
+                            return Vec::new();
+                        }
+                    }
+                let take = match node.parents.len() {
+                    0 => 1,
+                    _ => events.len()
+                };
+
+                matching_events.take_any(take).flat_map(|matching_event| {
                     let mut info_cc: AdditionalBindingInfo = info.clone();
                     // let binding: HashMap<String, BoundValue> = binding.clone();
                     // We now got a matching event!
@@ -307,14 +336,12 @@ fn match_and_add_new_bindings<'a>(
                                 }
                             }
                         }
-                    }  
-                    println!("#Bindings: {}",bindings.len());
+                    }
                     return bindings;
-                })
+                }).collect::<Vec<(AdditionalBindingInfo, HashMap<std::string::String, BoundValue>)>>()
         })
         .collect();
 }
-
 
 type Bindings<'a> = Vec<(AdditionalBindingInfo, HashMap<String, BoundValue>)>;
 
@@ -331,7 +358,7 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> Vec<usize> {
         for i in 0..nodes.len() {
             let node = &nodes[i];
             if node.children.is_empty() && node.parents.is_empty() {
-                println!("Node {} has no child/parent", {i});
+                println!("Node {} has no child/parent", { i });
                 continue;
             }
             bindings = Some(match_and_add_new_bindings(
