@@ -351,7 +351,7 @@ fn match_and_add_new_bindings<'a>(
 
 type Binding = (AdditionalBindingInfo, HashMap<String, BoundValue>);
 type Bindings = Vec<Binding>;
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum ViolationReason {
     NoMatchingEvents,
     MultipleMatchingEvents,
@@ -400,10 +400,11 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>,Vec<usi
             violation_sizes.push(new_violations.len());
             bindings = Some(new_bindings);
             println!(
-                "#Bindings for i={}: {};\nViolations: {}",
+                "#Bindings for i={}: {};\nViolations: {}\n{:?}",
                 i,
                 bindings.as_ref().unwrap().len(),
-                new_violations.len()
+                new_violations.len(),
+                if new_violations.len() > 0 { Some(new_violations[0].1.clone()) } else { None}
             )
         }
     } else {

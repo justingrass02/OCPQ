@@ -39,7 +39,7 @@ export function getDependencyType(
       ? "all"
       : "existsInSource"
     : isTargetMultiple
-    ? "all"
+    ? "existsInTarget"
     : "simple";
 }
 
