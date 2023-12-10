@@ -31,9 +31,19 @@ enum ConstraintType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+struct TimeConstraint {
+    #[serde(rename = "minSeconds")]
+    min_seconds: f64,
+    #[serde(rename = "maxSeconds")]
+    max_seconds: f64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct Connection {
     #[serde(rename = "type")]
     connection_type: ConstraintType,
+    #[serde(rename = "timeConstraint")]
+    time_constraint: TimeConstraint,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -172,7 +182,7 @@ fn event_has_correct_objects(
                             },
                             None => {
                                 return false;
-                            },
+                            }
                         }
                     });
                 }
@@ -225,7 +235,35 @@ fn match_and_add_new_bindings<'a>(
         .flat_map(|(info, binding)| {
             // Get all matching events (i.e. events with correct association to unbound objects)
             let matching_events = events.into_par_iter().filter(|ev| {
-                return event_has_correct_objects(node, ev, &binding);
+                // First check for correct related objects
+                if !event_has_correct_objects(node, ev, &binding) {
+                    return false;
+                }
+
+                // Then check time difference
+                for p in &node.parents {
+                    let last_ev_id = info
+                        .past_events
+                        .iter()
+                        .filter(|ev| event_map.get(*ev).unwrap().event_type == p.event_type)
+                        .last();
+                    match last_ev_id {
+                        Some(ev_id) => {
+                            let second_diff =
+                                (ev.time - event_map.get(ev_id).unwrap().time).num_seconds();
+                            if (second_diff as f64) < p.connection.time_constraint.min_seconds
+                                || (second_diff as f64) > p.connection.time_constraint.max_seconds
+                            {
+                                return false;
+                            }
+                        }
+                        None => {
+                            // Hmm weird... no matching parent found?!
+                            eprintln!("No matching parent found for event type {}", p.event_type);
+                        }
+                    }
+                }
+                return true;
             });
             let num_matching_events = matching_events.clone().count();
 
@@ -241,9 +279,6 @@ fn match_and_add_new_bindings<'a>(
                 )];
             }
 
-            // if num_matching_events == 0 {
-            //     return vec![((info.clone(),binding.clone()),Some(ViolationReason::NoMatchingEvents))];
-            // }
             let take = match node.parents.len() {
                 0 => 1,
                 _ => events.len(),
@@ -253,104 +288,50 @@ fn match_and_add_new_bindings<'a>(
                 .take_any(take)
                 .flat_map(|matching_event| {
                     let mut info_cc: AdditionalBindingInfo = info.clone();
-                    // let binding: HashMap<String, BoundValue> = binding.clone();
-                    // We now got a matching event!
+                    let binding: HashMap<String, BoundValue> = binding.clone();
+                    // We now got one or more matching event(s)!
                     // We can now update the corresponding info...
                     // if !is_initial_binding {
-                    //     info_cc.past_events.push(matching_event.id.clone());
+                    info_cc.past_events.push(matching_event.id.clone());
                     // }
 
                     let mut bindings: Vec<(Binding, Option<ViolationReason>)> =
                         vec![((info_cc, binding.clone()), None)];
-                    // ...and also compute the updated bindings
-                    // for c in &node.children {
-                    //     // If binding already contains variable, there is nothing left to do :)
-                    //     if !binding.contains_key(&c.dependency.variable_name) {
-                    //         // Else... construct bound value and insert it
-                    //         match matching_event.relationships.clone() {
-                    //             Some(rel) => {
-                    //                 let new_bound_value_opt: Option<Vec<BoundValue>> = match c
-                    //                     .dependency
-                    //                     .dependency_type
-                    //                 {
-                    //                     DependencyType::Simple => {
-                    //                         let obj_rel_opt = rel.into_iter().find(|r| {
-                    //                             r.qualifier == c.dependency.source_qualifier
-                    //                         });
-                    //                         match obj_rel_opt {
-                    //                             Some(obj_rel) => Some(vec![BoundValue::Single(
-                    //                                 obj_rel.object_id,
-                    //                             )]),
-                    //                             None => None,
-                    //                         }
-                    //                     }
-                    //                     DependencyType::All => {
-                    //                         let obj_ids: Vec<String> = rel
-                    //                             .into_iter()
-                    //                             .filter(|r| {
-                    //                                 r.qualifier == c.dependency.source_qualifier
-                    //                             })
-                    //                             .map(|r| r.object_id)
-                    //                             .collect();
-                    //                         Some(vec![BoundValue::Multiple(obj_ids)])
-                    //                     }
-                    //                     DependencyType::ExistsInSource => {
-                    //                         let obj_ids: Vec<String> = rel
-                    //                             .into_iter()
-                    //                             .filter(|r| {
-                    //                                 r.qualifier == c.dependency.source_qualifier
-                    //                             })
-                    //                             .map(|r| r.object_id)
-                    //                             .collect();
-                    //                         Some(
-                    //                             obj_ids
-                    //                                 .into_iter()
-                    //                                 .map(|o_id| BoundValue::Single(o_id))
-                    //                                 .collect(),
-                    //                         )
-                    //                     }
-                    //                     DependencyType::ExistsInTarget => {
-                    //                         let obj_rel_opt = rel.into_iter().find(|r| {
-                    //                             r.qualifier == c.dependency.source_qualifier
-                    //                         });
-                    //                         match obj_rel_opt {
-                    //                             Some(obj_rel) => Some(vec![BoundValue::Single(
-                    //                                 obj_rel.object_id,
-                    //                             )]),
-                    //                             None => None,
-                    //                         }
-                    //                     }
-                    //                 };
-                    //                 match new_bound_value_opt {
-                    //                     Some(new_bound_value) => {
-                    //                         bindings = bindings
-                    //                             .into_iter()
-                    //                             .flat_map(|binding| {
-                    //                                 new_bound_value
-                    //                                     .iter()
-                    //                                     .map(|new_bound_value| {
-                    //                                         let mut cloned_bind = binding.clone();
-                    //                                         cloned_bind.0 .1.insert(
-                    //                                             c.dependency.variable_name.clone(),
-                    //                                             new_bound_value.clone(),
-                    //                                         );
-                    //                                         return cloned_bind;
-                    //                                     })
-                    //                                     .collect_vec()
-                    //                             })
-                    //                             .collect_vec();
-                    //                     }
-                    //                     None => return Vec::new(),
-                    //                 }
-                    //             }
-                    //             None => {
-                    //                 panic!(
-                    //                     "Expected relationship in event with id {} (of type {})",
-                    //                     matching_event.id, node.event_type
-                    //                 );
-                    //             }
-                    //         }
-                    //     }
+                    for v in &node.variables {
+                        if v.bound {
+                            // v should be binded!
+                            // First gather possible values
+                            match &matching_event.relationships {
+                                Some(rels) => {
+                                    let matching_qualified_relationships = rels
+                                        .into_iter()
+                                        .filter(|rel| rel.qualifier == v.qualifier)
+                                        .collect_vec();
+                                    bindings = bindings
+                                        .into_iter()
+                                        .flat_map(|binding| {
+                                            matching_qualified_relationships
+                                                .iter()
+                                                .map(|matching_rel| {
+                                                    let mut cloned_bind = binding.clone();
+                                                    cloned_bind.0 .1.insert(
+                                                        v.variable.name.clone(),
+                                                        BoundValue::Single(
+                                                            matching_rel.object_id.clone(),
+                                                        ),
+                                                    );
+                                                    return cloned_bind;
+                                                })
+                                                .collect_vec()
+                                        })
+                                        .collect_vec();
+                                }
+                                None => {
+                                    // New variable cannot be bound as matching_event has no object relationships
+                                }
+                            }
+                        }
+                    }
                     // }
                     return bindings;
                 })

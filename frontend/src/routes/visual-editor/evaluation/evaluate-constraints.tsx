@@ -1,4 +1,5 @@
 import {
+  type TimeConstraint,
   type CONSTRAINT_TYPES,
   type EventTypeLinkData,
 } from "../helper/EventTypeLink";
@@ -9,6 +10,7 @@ import type { EventTypeNodeData } from "../helper/EventTypeNode";
 
 type Connection = {
   type: (typeof CONSTRAINT_TYPES)[number];
+  timeConstraint: TimeConstraint;
 };
 
 type TreeNodeConnection = { connection: Connection; eventType: string };
@@ -53,7 +55,13 @@ export function evaluateConstraints(
       console.warn("No source/target handle or no data on edge", e);
       continue;
     }
-    const dependencyConnection: Connection = { type: e.data.constraintType };
+    const dependencyConnection: Connection = {
+      type: e.data.constraintType,
+      timeConstraint: {
+        minSeconds: replaceInfinity(e.data.timeConstraint.minSeconds),
+        maxSeconds: replaceInfinity(e.data.timeConstraint.maxSeconds),
+      },
+    };
 
     treeNodes[e.target].parents.push({
       connection: dependencyConnection,

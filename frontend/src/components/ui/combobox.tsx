@@ -26,7 +26,7 @@ export function Combobox({
   options: { value: string; label: string }[];
   onChange: (value: string) => unknown;
   name: string;
-  value: string1;
+  value: string;
 }) {
   const [open, setOpen] = React.useState(false);
 

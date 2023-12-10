@@ -133,7 +133,8 @@ function VisualEditor(props: VisualEditorProps) {
             },
             data: {
               color,
-              constraintType: "non-response",
+              constraintType: "response",
+              timeConstraint: { minSeconds: 0, maxSeconds: Infinity },
               onDataChange: (id, newData) => {
                 setEdges((es) => {
                   const newEdges = [...es];

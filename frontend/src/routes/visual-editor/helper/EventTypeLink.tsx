@@ -1,3 +1,20 @@
+import TimeDurationInput, {
+  formatSeconds,
+} from "@/components/TimeDurationInput";
+import { Button } from "@/components/ui/button";
+import {
+  DialogHeader,
+  Dialog,
+  DialogTrigger,
+  DialogPortal,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { useState } from "react";
+import { LuClock } from "react-icons/lu";
+
 import {
   MdDoNotDisturb,
   MdKeyboardArrowRight,
@@ -18,10 +35,11 @@ export const CONSTRAINT_TYPES = [
   "unary-response",
   "non-response",
 ] as const;
-
+export type TimeConstraint = { minSeconds: number; maxSeconds: number };
 export type EventTypeLinkData = {
   color: string;
   constraintType: (typeof CONSTRAINT_TYPES)[number];
+  timeConstraint: TimeConstraint;
   onDataChange: (id: string, newData: Partial<EventTypeLinkData>) => unknown;
   onDelete: (id: string) => unknown;
 };
@@ -110,9 +128,78 @@ export default function EventTypeLink({
             >
               <MdRemoveCircleOutline />
             </button>
+            <TimeDurationChangeDialog
+              data={data}
+              onChange={(newTimeConstraint) => {
+                data.onDataChange(id, { timeConstraint: newTimeConstraint });
+              }}
+            />
           </div>
         </EdgeLabelRenderer>
       )}
     </>
+  );
+}
+
+function TimeDurationChangeDialog({
+  data,
+  onChange,
+}: {
+  data: EventTypeLinkData;
+  onChange: (newTimeConstraint: TimeConstraint) => unknown;
+}) {
+  const [timeConstraint, setTimeConstraint] = useState<TimeConstraint>(
+    data.timeConstraint,
+  );
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button
+          className="flex items-center gap-x-1 px-1 py-0.5 rounded-md hover:bg-blue-200/70"
+          title="Update time constraint..."
+        >
+          <LuClock />
+          {formatSeconds(data.timeConstraint.minSeconds)} -{" "}
+          {formatSeconds(data.timeConstraint.maxSeconds)}
+        </button>
+      </DialogTrigger>
+      <DialogPortal>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update time constraints</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. This will permanently delete your
+              account and remove your data from our servers.
+            </DialogDescription>
+          </DialogHeader>
+          <h3>From</h3>
+          <TimeDurationInput
+            durationSeconds={timeConstraint.minSeconds}
+            onChange={(v) => {
+              setTimeConstraint({ ...timeConstraint, minSeconds: v });
+            }}
+          />
+          <h3>To</h3>
+          <TimeDurationInput
+            durationSeconds={data.timeConstraint.maxSeconds}
+            onChange={(v) => {
+              setTimeConstraint({ ...timeConstraint, maxSeconds: v });
+            }}
+          />
+          <DialogClose asChild>
+            <Button
+              disabled={timeConstraint.minSeconds > timeConstraint.maxSeconds}
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                onChange(timeConstraint);
+              }}
+            >
+              Save
+            </Button>
+          </DialogClose>
+        </DialogContent>
+      </DialogPortal>
+    </Dialog>
   );
 }
