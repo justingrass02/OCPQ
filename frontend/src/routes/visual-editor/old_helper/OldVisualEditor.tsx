@@ -350,9 +350,11 @@ function ConstraintContainer({
           </Button>
         </div>
         <div className="flex flex-wrap divide-x-2 absolute mt-1 z-10">
-        {constraintMetaInfo.variables.map((m, i) => (
-          <div className="text-center px-2" key={i} title={m.type}>{m.name}</div>
-        ))}
+          {constraintMetaInfo.variables.map((m, i) => (
+            <div className="text-center px-2" key={i} title={m.type}>
+              {m.name}
+            </div>
+          ))}
         </div>
       </div>
       <div className="w-[50rem] h-[50rem] border p-2">

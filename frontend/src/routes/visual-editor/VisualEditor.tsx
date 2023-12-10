@@ -71,7 +71,6 @@ function VisualEditor(props: VisualEditorProps) {
     return ret;
   }, [props.eventTypeQualifiers]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
   const [nodes, setNodes, onNodesChange] = useNodesState<EventTypeNodeData>(
     Object.keys(props.eventTypeQualifiers).map((eventType) => {
       return {

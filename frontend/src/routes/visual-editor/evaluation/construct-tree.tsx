@@ -6,8 +6,6 @@ import type {
   EventTypeLinkData,
 } from "../helper/EventTypeLink";
 
-
-
 export type DependencyType =
   | "simple"
   | "all"

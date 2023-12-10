@@ -59,8 +59,7 @@ export default function EventTypeLink({
               pointerEvents: "all",
             }}
             className="nodrag nopan flex flex-col items-center -mt-1"
-          >
-          </div>
+          ></div>
           <div
             style={{
               position: "absolute",
@@ -69,8 +68,7 @@ export default function EventTypeLink({
               pointerEvents: "all",
             }}
             className="nodrag nopan flex flex-col items-center -mt-1"
-          >
-          </div>
+          ></div>
           <div
             style={{
               position: "absolute",
@@ -90,10 +88,7 @@ export default function EventTypeLink({
                 });
               }}
             >
-              <span
-                className="text-xl text-black"
-                title={data.constraintType}
-              >
+              <span className="text-xl text-black" title={data.constraintType}>
                 {data.constraintType === "response" && (
                   <MdKeyboardDoubleArrowRight />
                 )}

@@ -1,7 +1,7 @@
 export interface ObjectVariable {
   name: string;
   type: string;
-};
+}
 
 export type SelectedVariables = {
   variable: ObjectVariable;
@@ -9,5 +9,4 @@ export type SelectedVariables = {
   bound: boolean;
 }[];
 
-
-export type CountConstraint = {min: number, max: number};
+export type CountConstraint = { min: number; max: number };
