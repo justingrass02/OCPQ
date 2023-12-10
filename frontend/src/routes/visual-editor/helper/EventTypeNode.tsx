@@ -1,18 +1,19 @@
 import type { EventTypeQualifierInfo, EventTypeQualifier } from "@/types/ocel";
-import {
-  Handle,
-  Position,
-  type NodeProps,
-  useUpdateNodeInternals,
-} from "reactflow";
-import { buildHandleID, extractFromHandleID } from "./visual-editor-utils";
-import { Fragment, useContext, useEffect, useRef } from "react";
-import { VisualEditorContext } from "./visual-editor-context";
+import { useContext } from "react";
+import { Handle, Position, type NodeProps } from "reactflow";
+import { ConstraintInfoContext } from "./ConstraintInfoContext";
+import { Combobox } from "@/components/ui/combobox";
+import { Button } from "@/components/ui/button";
+import { LuLink, LuUnlink } from "react-icons/lu";
+import type { CountConstraint, SelectedVariables } from "./types";
 
 export type EventTypeNodeData = {
   label: string;
   eventTypeQualifier: EventTypeQualifier;
   objectTypeToColor: Record<string, string>;
+  countConstraint: CountConstraint;
+  selectedVariables: SelectedVariables;
+  onDataChange: (id: string, newData: Partial<EventTypeNodeData>) => unknown;
 };
 
 function getObjectType(qualInfo: EventTypeQualifierInfo) {
@@ -34,149 +35,161 @@ export default function EventTypeNode({
       getObjectType(data.eventTypeQualifier[b]),
     ),
   );
+  const qualifierPerObjectType: Record<string, string[]> = {};
+  for (const ot of Object.keys(data.objectTypeToColor)) {
+    qualifierPerObjectType[ot] = qualifiers.filter((q) =>
+      data.eventTypeQualifier[q].object_types.includes(ot),
+    );
+  }
 
-  const divRef = useRef<HTMLDivElement>(null);
+  const { objectVariables } = useContext(ConstraintInfoContext);
+  const hasAssociatedObjects = data.selectedVariables.length > 0;
 
-  const updateNodeInternals = useUpdateNodeInternals();
-  const { mode } = useContext(VisualEditorContext);
-  const topDownHandles = mode === "view-tree";
+  function getCountConstraint(): CountConstraint {
+    return data.countConstraint;
+  }
 
-  useEffect(() => {
-    updateNodeInternals(id);
-  }, [topDownHandles]);
-
+  function handleCountInput(
+    type: "min" | "max",
+    ev:
+      | React.FocusEvent<HTMLInputElement>
+      | React.KeyboardEvent<HTMLInputElement>,
+  ) {
+    let value = 0;
+    try {
+      value = parseInt(ev.currentTarget.value);
+    } catch (e) {}
+    if (isNaN(value)) {
+      if (
+        ev.currentTarget.value === "∞" ||
+        ev.currentTarget.value === "inf" ||
+        ev.currentTarget.value === "infinity" ||
+        ev.currentTarget.value === "infty"
+      ) {
+        value = Infinity;
+      }
+    }
+    value = Math.max(0, value);
+    if (!isNaN(value)) {
+      ev.currentTarget.value = value === Infinity ? "∞" : value.toString();
+    }
+    const newCountConstraint = getCountConstraint();
+    if (type === "min") {
+      newCountConstraint.min = value;
+    } else {
+      newCountConstraint.max = value;
+    }
+    data.onDataChange(id, {
+      countConstraint: newCountConstraint,
+    });
+  }
+  const countConstraint = getCountConstraint();
   return (
-    <>
-      <div
-        ref={divRef}
-        className="border border-blue-200 shadow backdrop-blur flex flex-col pb-6 bg-blue-50/70 bg-blue-50 py-0.5 rounded-md min-w-[10rem] min-h-[10rem]"
-        style={{ height: 4 + qualifiers.length * 2 + "rem" }}
-      >
-        <div className="h-[2rem] text-large font-semibold mx-4 flex justify-center items-center">
-          <span>{id}</span>
-        </div>
-        <div className="h-full [&_.react-flow\_\_handle]:!relative">
-          <div
-            className={`grid grid-cols-[1fr_auto_1fr] justify-between w-full ${
-              topDownHandles
-                ? "rotate-90 absolute top-1/2 -translate-y-1/2 h-full reset-handles"
-                : " h-full border-t border-t-blue-100"
-            }`}
-            style={{
-              width:
-                divRef.current !== null && topDownHandles
-                  ? `${Math.floor(divRef.current?.clientHeight * 10) / 10}px`
-                  : undefined,
-              height:
-                divRef.current !== null && topDownHandles
-                  ? `${Math.floor(divRef.current?.clientWidth * 10) / 10}px`
-                  : undefined,
-            }}
-          >
-            {qualifiers.map((q, i) => (
-              <Fragment key={i}>
-                <div className={"flex justify-start"}>
-                  <Handle
-                    type="target"
-                    id={buildHandleID(
-                      "destination",
-                      id,
-                      q,
-                      getObjectType(data.eventTypeQualifier[q]),
-                    )}
-                    isValidConnection={(connection) =>
-                      mode === "normal" &&
-                      connection.sourceHandle != null &&
-                      connection.source !== id &&
-                      extractFromHandleID(connection.sourceHandle)
-                        .objectType ===
-                        getObjectType(data.eventTypeQualifier[q])
-                    }
-                    onConnect={(params) => {
-                      return params;
-                    }}
-                    position={topDownHandles ? Position.Top : Position.Left}
-                    className="!border-none hover:brightness-125 [&>.react-flow__handle]:relative"
-                    style={{
-                      width: data.eventTypeQualifier[q].multiple
-                        ? "0.66rem"
-                        : "0.5rem",
-                      height: data.eventTypeQualifier[q].multiple
-                        ? "0.66rem"
-                        : "0.5rem",
-                      marginLeft: topDownHandles
-                        ? data.eventTypeQualifier[q].multiple
-                          ? "-0.3rem"
-                          : "-0.2rem"
-                        : data.eventTypeQualifier[q].multiple
-                        ? "-0.125rem"
-                        : undefined,
-                      background:
-                        data.objectTypeToColor[
-                          getObjectType(data.eventTypeQualifier[q])
-                        ],
-                    }}
-                  />
-                </div>
-                <div
-                  className={`text-sm mx-auto flex flex-col text-center w-full ${
-                    topDownHandles ? "max-w-[12ch] text-ellipsis" : ""
-                  }`}
-                >
-                  {q}
-                  <span className="text-gray-500 text-xs -mt-1">
-                    {getObjectType(data.eventTypeQualifier[q])}
-                    {data.eventTypeQualifier[q].multiple ? "*" : ""}
-                  </span>
-                </div>
-                <div className="flex justify-end">
-                  <Handle
-                    type="source"
-                    isValidConnection={(connection) =>
-                      mode === "normal" &&
-                      connection.targetHandle != null &&
-                      connection.target !== id &&
-                      extractFromHandleID(connection.targetHandle)
-                        .objectType ===
-                        getObjectType(data.eventTypeQualifier[q])
-                    }
-                    onConnect={(params) => {
-                      return params;
-                    }}
-                    id={buildHandleID(
-                      "source",
-                      id,
-                      q,
-                      getObjectType(data.eventTypeQualifier[q]),
-                    )}
-                    position={topDownHandles ? Position.Bottom : Position.Right}
-                    className="!border-none hover:brightness-125"
-                    style={{
-                      width: data.eventTypeQualifier[q].multiple
-                        ? "0.66rem"
-                        : "0.5rem",
-                      height: data.eventTypeQualifier[q].multiple
-                        ? "0.66rem"
-                        : "0.5rem",
-                      marginRight: topDownHandles
-                        ? data.eventTypeQualifier[q].multiple
-                          ? "-0.33rem"
-                          : "-0.25rem"
-                        : data.eventTypeQualifier[q].multiple
-                        ? "-0.125rem"
-                        : undefined,
-                      background:
-                        data.objectTypeToColor[
-                          getObjectType(data.eventTypeQualifier[q])
-                        ],
-                    }}
-                  />
-                </div>
-              </Fragment>
-            ))}
-          </div>
-        </div>
+    <div className="border border-blue-200 shadow backdrop-blur flex flex-col bg-blue-50/70 bg-blue-50 py-2 px-0.5 rounded-md relative">
+      <div className="absolute left-2 -top-[1rem] px-1 border border-b-0 border-blue-200 bg-blue-50 text-xs">
+        <input
+          disabled={!hasAssociatedObjects}
+          onBlur={(ev) => {
+            handleCountInput("min", ev);
+          }}
+          onKeyDown={(ev) => {
+            if (ev.key === "Enter") {
+              handleCountInput("min", ev);
+              ev.currentTarget.blur();
+            }
+          }}
+          className="bg-transparent disabled:cursor-not-allowed disabled:bg-gray-100 disabled:hover:bg-gray-100 hover:bg-blue-100 w-[4ch] text-center"
+          type="text"
+          pattern="([0-9]|&#8734;)+"
+          defaultValue={
+            countConstraint.min === Infinity ? "∞" : countConstraint.min
+          }
+        />
+        -
+        <input
+          disabled={!hasAssociatedObjects}
+          onBlur={(ev) => {
+            handleCountInput("max", ev);
+          }}
+          onKeyDown={(ev) => {
+            if (ev.key === "Enter") {
+              handleCountInput("max", ev);
+              ev.currentTarget.blur();
+            }
+          }}
+          className="bg-transparent disabled:cursor-not-allowed disabled:bg-gray-100 disabled:hover:bg-gray-100 hover:bg-blue-100 w-[4ch] text-center"
+          type="text"
+          pattern="([0-9]|&#8734;)+"
+          defaultValue={
+            countConstraint.max === Infinity ? "∞" : countConstraint.max
+          }
+        />
       </div>
-    </>
+      <div className="text-large font-semibold mx-4 flex justify-center items-center">
+        <span>{id}</span>
+      </div>
+      <div className="mb-1">
+        {data.selectedVariables.map((selectedVar) => (
+          <div key={selectedVar.variable.name}>
+            {selectedVar.variable.name} - {selectedVar.qualifier}{" "}
+            <Button
+              className="text-xs px-2 my-0 py-0"
+              variant="ghost"
+              onClick={(ev) => {
+                selectedVar.bound = !selectedVar.bound;
+                data.onDataChange(id, {
+                  selectedVariables: [...data.selectedVariables],
+                });
+              }}
+            >
+              {selectedVar.bound ? <LuLink /> : <LuUnlink />}
+            </Button>
+          </div>
+        ))}
+      </div>
+      <div>
+        <Combobox
+          options={objectVariables
+            .filter((ot) => qualifierPerObjectType[ot.type].length > 0)
+            .map((ot) => ({
+              value: ot.name,
+              label: `${ot.name} (${ot.type})`,
+            }))}
+          onChange={(value: string) => {
+            const type = objectVariables.find((ov) => ov.name === value)?.type;
+            if (type !== undefined) {
+              data.onDataChange(id, {
+                selectedVariables: [
+                  ...data.selectedVariables,
+                  {
+                    variable: { name: value, type },
+                    qualifier: qualifierPerObjectType[type][0],
+                    bound: false,
+                  },
+                ],
+              });
+            }
+          }}
+          name="Variable"
+          value={""}
+        />
+      </div>
+      {hasAssociatedObjects && (
+        <Handle
+          className="!w-3 !h-3"
+          position={Position.Top}
+          type="target"
+          id={id + "-target"}
+        />
+      )}
+      {hasAssociatedObjects && (
+        <Handle
+          className="!w-3 !h-3"
+          position={Position.Bottom}
+          type="source"
+          id={id + "-source"}
+        />
+      )}
+    </div>
   );
 }

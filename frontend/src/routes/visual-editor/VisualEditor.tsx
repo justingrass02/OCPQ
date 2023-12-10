@@ -16,22 +16,26 @@ import { OcelInfoContext } from "@/App";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
 import { LuLayoutDashboard } from "react-icons/lu";
-import { RxReset } from "react-icons/rx";
+import { RxPlus, RxReset } from "react-icons/rx";
 import { TbBinaryTree, TbRestore } from "react-icons/tb";
 import "reactflow/dist/style.css";
 import type { EventTypeQualifiers, OCELInfo } from "../../types/ocel";
-import { constructTree, getDependencyType } from "./evaluation/construct-tree";
-import ConnectionLine from "./helper/ConnectionLine";
+// import ConnectionLine from "./helper/ConnectionLine";
 import EventTypeLink, {
   EVENT_TYPE_LINK_TYPE,
   type EventTypeLinkData,
 } from "./helper/EventTypeLink";
 import EventTypeNode, { type EventTypeNodeData } from "./helper/EventTypeNode";
 import { useLayoutedElements } from "./helper/LayoutFlow";
-import { VisualEditorContext } from "./helper/visual-editor-context";
-import { extractFromHandleID } from "./helper/visual-editor-utils";
+// import { VisualEditorContext } from "./helper/visual-editor-context";
+// import { extractFromHandleID } from "./helper/visual-editor-utils";
 import { ImageIcon } from "@radix-ui/react-icons";
 import { toPng } from "html-to-image";
+import { Combobox } from "@/components/ui/combobox";
+import { Input } from "@/components/ui/input";
+import type { ObjectVariable } from "./helper/types";
+import { ConstraintInfoContext } from "./helper/ConstraintInfoContext";
+import { evaluateConstraints } from "./evaluation/evaluate-constraints";
 
 interface VisualEditorProps {
   ocelInfo: OCELInfo;
@@ -50,7 +54,9 @@ const COLORS = [
   "#ffff99", // Yellow
 ];
 const nodeTypes = { eventType: EventTypeNode };
-const edgeTypes = { [EVENT_TYPE_LINK_TYPE]: EventTypeLink };
+const edgeTypes = {
+  [EVENT_TYPE_LINK_TYPE]: EventTypeLink,
+};
 
 function VisualEditor(props: VisualEditorProps) {
   const [mode, setMode] = useState<"normal" | "view-tree" | "readonly">(
@@ -66,7 +72,7 @@ function VisualEditor(props: VisualEditorProps) {
   }, [props.eventTypeQualifiers]);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
-  const [nodes, _setNodes, onNodesChange] = useNodesState<EventTypeNodeData>(
+  const [nodes, setNodes, onNodesChange] = useNodesState<EventTypeNodeData>(
     Object.keys(props.eventTypeQualifiers).map((eventType) => {
       return {
         id: eventType,
@@ -76,6 +82,20 @@ function VisualEditor(props: VisualEditorProps) {
           label: eventType,
           eventTypeQualifier: props.eventTypeQualifiers[eventType],
           objectTypeToColor,
+          selectedVariables: [],
+          countConstraint: { min: 0, max: Infinity },
+          onDataChange: (id, newData) => {
+            setNodes((ns) => {
+              const newNodes = [...ns];
+              const changedNode = newNodes.find((n) => n.id === id);
+              if (changedNode?.data !== undefined) {
+                changedNode.data = { ...changedNode.data, ...newData };
+              } else {
+                console.warn("Did not find changed node data");
+              }
+              return newNodes;
+            });
+          },
         },
       };
     }),
@@ -94,17 +114,7 @@ function VisualEditor(props: VisualEditorProps) {
         ) {
           return eds;
         } else {
-          const sourceHandleInfo = extractFromHandleID(sourceHandle);
-          const targetHandleInfo = extractFromHandleID(targetHandle);
-          // objectType is the same for source/target (connecting non-matching types is prevented by the Handle)
-          const objectType = sourceHandleInfo.objectType;
-          const color = objectTypeToColor[objectType];
-          const dependencyType = getDependencyType(
-            props.eventTypeQualifiers[source][sourceHandleInfo.qualifier]
-              .multiple,
-            props.eventTypeQualifiers[target][targetHandleInfo.qualifier]
-              .multiple,
-          );
+          const color = "#969696";
           const newEdge: Edge<EventTypeLinkData> = {
             id: sourceHandle + "|||" + targetHandle,
             type: EVENT_TYPE_LINK_TYPE,
@@ -119,21 +129,12 @@ function VisualEditor(props: VisualEditorProps) {
               color,
             },
             style: {
-              strokeWidth: dependencyType === "all" ? 4 : 2,
+              strokeWidth: 2,
               stroke: color,
             },
             data: {
               color,
-              dependencyType,
               constraintType: "non-response",
-              inVariable:
-                (dependencyType === "all" || dependencyType === "existsInSource"
-                  ? objectType.substring(0, 1).toUpperCase()
-                  : objectType.substring(0, 1)) + "1",
-              outVariable:
-                (dependencyType === "all" || dependencyType === "existsInTarget"
-                  ? objectType.substring(0, 1).toUpperCase()
-                  : objectType.substring(0, 1)) + "1",
               onDataChange: (id, newData) => {
                 setEdges((es) => {
                   const newEdges = [...es];
@@ -164,132 +165,243 @@ function VisualEditor(props: VisualEditorProps) {
   const { getLayoutedElements } = useLayoutedElements();
 
   return (
-    <VisualEditorContext.Provider value={{ mode }}>
-      <ReactFlow
-        onInit={(flow) => {
-          getLayoutedElements(
-            {
-              "elk.algorithm": "layered",
-              "elk.direction": "RIGHT",
-            },
-            false,
-          );
-          setTimeout(() => {
-            flow.fitView({ duration: 300 });
-          }, 200);
+    <ReactFlow
+      onInit={(flow) => {
+        getLayoutedElements(
+          {
+            "elk.algorithm": "layered",
+            "elk.direction": "RIGHT",
+          },
+          false,
+        );
+        setTimeout(() => {
+          flow.fitView({ duration: 300 });
+        }, 200);
+      }}
+      edgeTypes={edgeTypes}
+      nodeTypes={nodeTypes}
+      nodes={nodes}
+      edges={edges}
+      nodesConnectable={mode === "normal"}
+      nodesDraggable={mode === "normal" || mode === "view-tree"}
+      elementsSelectable={mode === "normal"}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      onConnect={onConnect}
+      proOptions={{ hideAttribution: true }}
+      // connectionLineComponent={(props) => (
+      //   <ConnectionLine {...props} objectTypeToColor={objectTypeToColor} />
+      // )}
+    >
+      <Controls
+        onInteractiveChange={(status) => {
+          if (status) {
+            setMode("normal");
+          } else {
+            setMode("readonly");
+          }
         }}
-        edgeTypes={edgeTypes}
-        nodeTypes={nodeTypes}
-        nodes={nodes}
-        edges={edges}
-        nodesConnectable={mode === "normal"}
-        nodesDraggable={mode === "normal" || mode === "view-tree"}
-        elementsSelectable={mode === "normal"}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        proOptions={{ hideAttribution: true }}
-        connectionLineComponent={(props) => (
-          <ConnectionLine {...props} objectTypeToColor={objectTypeToColor} />
-        )}
-      >
-        <Controls
-          onInteractiveChange={(status) => {
-            if (status) {
-              setMode("normal");
-            } else {
-              setMode("readonly");
-            }
+      />
+      <Panel position="top-right" className="flex gap-x-2">
+        <Button
+          disabled={edges.length === 0 || mode !== "normal"}
+          variant="outline"
+          size="icon"
+          title="Reset edges"
+          className="text-red-600 bg-white hover:bg-red-400"
+          onClick={() => {
+            setEdges([]);
           }}
-        />
-        <Panel position="top-right" className="flex gap-x-2">
-          <Button
-            disabled={edges.length === 0 || mode !== "normal"}
-            variant="outline"
-            size="icon"
-            title="Reset edges"
-            className="text-red-600 bg-white hover:bg-red-400"
-            onClick={() => {
-              setEdges([]);
-            }}
-          >
-            <RxReset />
-          </Button>
+        >
+          <RxReset />
+        </Button>
 
-          <Button
-            disabled={mode !== "normal"}
-            variant="outline"
-            size="icon"
-            title="Save PNG"
-            className="bg-white"
-            onClick={(ev) => {
-              const button = ev.currentTarget;
-              button.disabled = true;
-              const scaleFactor = 2.0;
-              const viewPort = document.querySelector(
-                ".react-flow__viewport",
-              ) as HTMLElement;
-              setTimeout(() => {
-                void toPng(viewPort, {
-                  canvasHeight: viewPort.clientHeight * scaleFactor,
-                  canvasWidth: viewPort.clientWidth * scaleFactor,
+        <Button
+          disabled={mode !== "normal"}
+          variant="outline"
+          size="icon"
+          title="Save PNG"
+          className="bg-white"
+          onClick={(ev) => {
+            const button = ev.currentTarget;
+            button.disabled = true;
+            const scaleFactor = 2.0;
+            const viewPort = document.querySelector(
+              ".react-flow__viewport",
+            ) as HTMLElement;
+            setTimeout(() => {
+              void toPng(viewPort, {
+                canvasHeight: viewPort.clientHeight * scaleFactor,
+                canvasWidth: viewPort.clientWidth * scaleFactor,
+              })
+                .then((dataURL) => {
+                  const a = document.createElement("a");
+                  a.setAttribute("download", "oced-declare-export.png");
+                  a.setAttribute("href", dataURL);
+                  a.click();
                 })
-                  .then((dataURL) => {
-                    const a = document.createElement("a");
-                    a.setAttribute("download", "oced-declare-export.png");
-                    a.setAttribute("href", dataURL);
-                    a.click();
-                  })
-                  .finally(() => {
-                    button.disabled = false;
-                  });
-              }, 50);
-            }}
-          >
-            <ImageIcon />
-          </Button>
+                .finally(() => {
+                  button.disabled = false;
+                });
+            }, 50);
+          }}
+        >
+          <ImageIcon />
+        </Button>
 
+        <Button
+          variant="outline"
+          size="icon"
+          title={mode !== "view-tree" ? "Construct tree" : "Edit"}
+          className="bg-white"
+          onClick={() => {
+            evaluateConstraints(nodes, edges);
+          }}
+        >
+          {mode !== "view-tree" && <TbBinaryTree />}
+          {mode === "view-tree" && <TbRestore />}
+        </Button>
+
+        <Button
+          disabled={mode !== "normal"}
+          variant="outline"
+          size="icon"
+          title="Apply automatic layout"
+          className="bg-white"
+          onClick={() => {
+            getLayoutedElements(
+              {
+                "elk.algorithm": "layered",
+                "elk.direction": "DOWN",
+              },
+              true,
+            );
+          }}
+        >
+          <LuLayoutDashboard />
+        </Button>
+      </Panel>
+      <Background />
+    </ReactFlow>
+  );
+}
+
+interface ConstraintContainerProps {
+  qualifiers: EventTypeQualifiers;
+  ocelInfo: OCELInfo;
+}
+
+function ConstraintContainer({
+  qualifiers,
+  ocelInfo,
+}: ConstraintContainerProps) {
+  const [info, setInfo] = useState<{
+    objectVariables: ObjectVariable[];
+  }>({ objectVariables: [] });
+  const [editMetaInfoData, setEditMetaInfoData] = useState<ObjectVariable>({
+    name: "",
+    type: "",
+  });
+
+  return (
+    <div className="relative">
+      <div>
+        <div className="flex items-center gap-x-2 w-fit mx-auto mb-1">
+          <Combobox
+            value={editMetaInfoData.type}
+            options={ocelInfo.object_types.map((ot) => ({
+              value: ot.name,
+              label: ot.name,
+            }))}
+            name="Object type"
+            onChange={(val) => {
+              if (
+                editMetaInfoData.name === "" ||
+                editMetaInfoData.name.match(
+                  new RegExp(editMetaInfoData.type.substring(0, 2) + "_[0-9]$"),
+                ) != null
+              ) {
+                let name = val.substring(0, 2) + "_";
+                for (let i = 0; i < 10; i++) {
+                  if (
+                    info.objectVariables.find((v) => v.name === name + i) ===
+                    undefined
+                  ) {
+                    name = name + i;
+                    break;
+                  }
+                }
+                setEditMetaInfoData({ ...editMetaInfoData, type: val, name });
+              } else {
+                setEditMetaInfoData({ ...editMetaInfoData, type: val });
+              }
+            }}
+          />
+          <Input
+            value={editMetaInfoData.name}
+            onChange={(ev) => {
+              setEditMetaInfoData({
+                ...editMetaInfoData,
+                name: ev.currentTarget.value,
+              });
+            }}
+            className="max-w-[20ch]"
+            placeholder="Variable name"
+          />
           <Button
+            disabled={
+              editMetaInfoData.name === "" ||
+              editMetaInfoData.type === "" ||
+              info.objectVariables.findIndex(
+                (c) => c.name === editMetaInfoData.name,
+              ) > -1
+            }
             variant="outline"
             size="icon"
-            title={mode !== "view-tree" ? "Construct tree" : "Edit"}
-            className="bg-white"
+            title="Add variable"
             onClick={() => {
-              constructTree(props.eventTypeQualifiers, edges);
+              setInfo((cs) => {
+                return {
+                  ...cs,
+                  objectVariables: [...cs.objectVariables, editMetaInfoData],
+                };
+              });
+              // setEditMetaInfoData({ name: "", type: "" });
             }}
           >
-            {mode !== "view-tree" && <TbBinaryTree />}
-            {mode === "view-tree" && <TbRestore />}
+            <RxPlus />
           </Button>
-
-          <Button
-            disabled={mode !== "normal"}
-            variant="outline"
-            size="icon"
-            title="Apply automatic layout"
-            className="bg-white"
-            onClick={() => {
-              getLayoutedElements(
-                {
-                  "elk.algorithm": "layered",
-                  "elk.direction": "RIGHT",
-                },
-                true,
-              );
-            }}
-          >
-            <LuLayoutDashboard />
-          </Button>
-        </Panel>
-        <Background />
-      </ReactFlow>
-    </VisualEditorContext.Provider>
+        </div>
+        <div className="flex flex-wrap divide-x-2 absolute mt-1 z-10">
+          {info.objectVariables.map((m, i) => (
+            <div className="text-center px-2" key={i} title={m.type}>
+              {m.name}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="w-[50rem] h-[50rem] border p-2">
+        <ReactFlowProvider>
+          <ConstraintInfoContext.Provider value={info}>
+            {qualifiers !== undefined && ocelInfo !== undefined && (
+              <>
+                <VisualEditor
+                  eventTypeQualifiers={qualifiers}
+                  ocelInfo={ocelInfo}
+                />
+              </>
+            )}
+          </ConstraintInfoContext.Provider>
+        </ReactFlowProvider>
+      </div>
+    </div>
   );
 }
 
 export default function VisualEditorOuter() {
   const [qualifiers, setQualifiers] = useState<EventTypeQualifiers>();
   const ocelInfo = useContext(OcelInfoContext);
+  const [constraints, setConstraints] = useState<string[]>([]);
   useEffect(() => {
     toast
       .promise(
@@ -311,17 +423,26 @@ export default function VisualEditorOuter() {
   }, []);
 
   return (
-    <div className="max-h-[80vh] border mx-auto w-[calc(100%-4rem)] h-full">
-      <ReactFlowProvider>
-        {qualifiers !== undefined && ocelInfo !== undefined && (
-          <>
-            <VisualEditor
-              eventTypeQualifiers={qualifiers}
+    <div>
+      <Button
+        className="mb-2"
+        onClick={() => {
+          setConstraints((cs) => [...cs, "new"]);
+        }}
+      >
+        Add...
+      </Button>
+      <div className="flex flex-wrap justify-between">
+        {ocelInfo !== undefined &&
+          qualifiers !== undefined &&
+          constraints.map((c, i) => (
+            <ConstraintContainer
+              key={i}
               ocelInfo={ocelInfo}
+              qualifiers={qualifiers}
             />
-          </>
-        )}
-      </ReactFlowProvider>
+          ))}
+      </div>
     </div>
   );
 }

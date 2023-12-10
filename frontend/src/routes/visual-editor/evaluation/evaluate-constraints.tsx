@@ -1,85 +1,68 @@
-import type { EventTypeQualifiers } from "@/types/ocel";
-import toast from "react-hot-toast";
-import type { Edge } from "reactflow";
-import type {
-  CONSTRAINT_TYPES,
-  EventTypeLinkData,
+import {
+  type CONSTRAINT_TYPES,
+  type EventTypeLinkData,
 } from "../helper/EventTypeLink";
+import type { Node, Edge } from "reactflow";
+import toast from "react-hot-toast";
+import type { CountConstraint, SelectedVariables } from "../helper/types";
+import type { EventTypeNodeData } from "../helper/EventTypeNode";
 
-
-
-export type DependencyType =
-  | "simple"
-  | "all"
-  | "existsInTarget"
-  | "existsInSource";
-
-type NodeDependency = {
-  sourceQualifier: string;
-  targetQualifier: string;
-  objectType: string;
-  dependencyType: DependencyType;
-  variableName: string;
-  constraintType: (typeof CONSTRAINT_TYPES)[number];
+type Connection = {
+  type: (typeof CONSTRAINT_TYPES)[number];
 };
 
-type TreeNodeDependency = { dependency: NodeDependency; eventType: string };
+type TreeNodeConnection = { connection: Connection; eventType: string };
 
 type TreeNode = {
   eventType: string;
-  parents: TreeNodeDependency[];
-  children: TreeNodeDependency[];
+  parents: TreeNodeConnection[];
+  children: TreeNodeConnection[];
+  variables: SelectedVariables;
+  countConstraint: CountConstraint;
 };
 
-export function getDependencyType(
-  isSourceMultiple: boolean,
-  isTargetMultiple: boolean,
-): DependencyType {
-  return isSourceMultiple
-    ? isTargetMultiple
-      ? "all"
-      : "existsInSource"
-    : isTargetMultiple
-    ? "existsInTarget"
-    : "simple";
+function replaceInfinity(x: number) {
+  if (x === Infinity) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+  return x;
 }
 
-export function constructTree(
-  eventTypes: EventTypeQualifiers,
+export function evaluateConstraints(
+  nodes: Node<EventTypeNodeData>[],
   edges: Edge<EventTypeLinkData>[],
 ) {
   const treeNodes: Record<string, TreeNode> = Object.fromEntries(
-    Object.keys(eventTypes).map((evt) => [
-      evt,
+    nodes.map((evtNode) => [
+      evtNode.id,
       {
-        eventType: evt,
+        eventType: evtNode.id,
         parents: [],
         children: [],
-      },
+        variables: evtNode.data.selectedVariables,
+        countConstraint: {
+          min: replaceInfinity(evtNode.data.countConstraint.min),
+          max: replaceInfinity(evtNode.data.countConstraint.max),
+        },
+      } satisfies TreeNode,
     ]),
   );
+
   for (const e of edges) {
     if (e.sourceHandle == null || e.targetHandle == null || e.data == null) {
       console.warn("No source/target handle or no data on edge", e);
       continue;
     }
-    const sourceHandleInfo = extractFromHandleID(e.sourceHandle);
-    const targetHandleInfo = extractFromHandleID(e.targetHandle);
-    const isSourceMultiple =
-      eventTypes[e.source][sourceHandleInfo.qualifier].multiple;
-    const isTargetMultiple =
-      eventTypes[e.target][targetHandleInfo.qualifier].multiple;
-    const dependency: NodeDependency = {
-      sourceQualifier: sourceHandleInfo.qualifier,
-      targetQualifier: targetHandleInfo.qualifier,
-      objectType: sourceHandleInfo.objectType,
-      dependencyType: getDependencyType(isSourceMultiple, isTargetMultiple),
-      // TODO: Update NodeDependency to reflect changed bindings (with in and out variables)
-      variableName: e.data?.inVariable,
-      constraintType: e.data.constraintType,
-    };
-    treeNodes[e.source].children.push({ dependency, eventType: e.target });
-    treeNodes[e.target].parents.push({ dependency, eventType: e.source });
+    const dependencyConnection: Connection = { type: e.data.constraintType };
+
+    treeNodes[e.target].parents.push({
+      connection: dependencyConnection,
+      eventType: e.source,
+    });
+    treeNodes[e.source].children.push({
+      connection: dependencyConnection,
+      eventType: e.target,
+    });
   }
 
   const disconnectedTreeNodes: Record<string, TreeNode> = {};
@@ -88,8 +71,8 @@ export function constructTree(
 
   for (const eventType of Object.keys(treeNodes)) {
     if (
-      treeNodes[eventType].children.length === 0 &&
-      treeNodes[eventType].parents.length === 0
+      treeNodes[eventType].parents.length === 0 &&
+      treeNodes[eventType].children.length === 0
     ) {
       disconnectedTreeNodes[eventType] = treeNodes[eventType];
     } else {
