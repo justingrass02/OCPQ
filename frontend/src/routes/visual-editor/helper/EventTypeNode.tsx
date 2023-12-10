@@ -135,7 +135,7 @@ export default function EventTypeNode({
             <Button
               className="text-xs px-2 my-0 py-0"
               variant="ghost"
-              onClick={(ev) => {
+              onClick={() => {
                 selectedVar.bound = !selectedVar.bound;
                 data.onDataChange(id, {
                   selectedVariables: [...data.selectedVariables],

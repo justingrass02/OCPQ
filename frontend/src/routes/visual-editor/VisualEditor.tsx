@@ -435,7 +435,7 @@ export default function VisualEditorOuter() {
       <div className="flex flex-wrap justify-between">
         {ocelInfo !== undefined &&
           qualifiers !== undefined &&
-          constraints.map((c, i) => (
+          constraints.map((_, i) => (
             <ConstraintContainer
               key={i}
               ocelInfo={ocelInfo}
