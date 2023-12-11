@@ -1,4 +1,11 @@
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -16,6 +23,13 @@ import { OcelInfoContext } from "@/App";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { ImageIcon } from "@radix-ui/react-icons";
 import { toPng } from "html-to-image";
 import toast from "react-hot-toast";
@@ -32,8 +46,11 @@ import EventTypeLink, {
 } from "./helper/EventTypeLink";
 import EventTypeNode, { type EventTypeNodeData } from "./helper/EventTypeNode";
 import { useLayoutedElements } from "./helper/LayoutFlow";
-import { ViolationsContext } from "./helper/ViolationsContext";
-import type { ObjectVariable, ViolationsPerNodes } from "./helper/types";
+import {
+  ViolationsContext,
+  type ViolationsContextValue,
+} from "./helper/ViolationsContext";
+import type { ObjectVariable, ViolationsPerNode } from "./helper/types";
 
 interface VisualEditorProps {
   ocelInfo: OCELInfo;
@@ -60,9 +77,14 @@ function VisualEditor(props: VisualEditorProps) {
   const [mode, setMode] = useState<"normal" | "view-tree" | "readonly">(
     "normal",
   );
-  const [violationInfo, setViolationInfo] = useState<{
-    violationsPerNode: ViolationsPerNodes;
-  }>();
+  const [violationDetails, setViolationDetails] = useState<ViolationsPerNode>();
+
+  const [violationInfo, setViolationInfo] = useState<ViolationsContextValue>({
+    showViolationsFor: (d) => {
+      console.log({ d });
+      setViolationDetails(d);
+    },
+  });
 
   const objectTypeToColor: Record<string, string> = useMemo(() => {
     const ret: Record<string, string> = {};
@@ -258,7 +280,7 @@ function VisualEditor(props: VisualEditorProps) {
             className="bg-white"
             onClick={async () => {
               const res = await evaluateConstraints(nodes, edges);
-              setViolationInfo({ violationsPerNode: res });
+              setViolationInfo((vi) => ({ ...vi, violationsPerNode: res }));
             }}
           >
             {mode !== "view-tree" && <TbBinaryTree />}
@@ -286,9 +308,80 @@ function VisualEditor(props: VisualEditorProps) {
         </Panel>
         <Background />
       </ReactFlow>
+      {violationDetails !== undefined && (
+        <ViolationDetailsSheet
+          violationDetails={violationDetails}
+          setViolationDetails={setViolationDetails}
+        />
+      )}
     </ViolationsContext.Provider>
   );
 }
+
+const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
+  violationDetails,
+  setViolationDetails,
+}: {
+  violationDetails: ViolationsPerNode;
+  setViolationDetails: React.Dispatch<
+    React.SetStateAction<ViolationsPerNode | undefined>
+  >;
+}) {
+  return (
+    <Sheet
+      modal={false}
+      open={violationDetails !== undefined}
+      onOpenChange={(o) => {
+        if (!o) {
+          setViolationDetails(undefined);
+        }
+      }}
+    >
+      {violationDetails !== undefined && (
+        <SheetContent
+          overlay={false}
+          onInteractOutside={(ev) => {
+            ev.preventDefault();
+          }}
+        >
+          <SheetHeader>
+            <SheetTitle>
+              Violations for{" "}
+              <span className="text-blue-900">{violationDetails?.nodeID}</span>
+            </SheetTitle>
+            <SheetDescription>
+              {violationDetails?.violations.length} Violations
+            </SheetDescription>
+          </SheetHeader>
+          <ul className="overflow-auto h-[80vh] bg-slate-50 border rounded-sm mt-2 px-2 py-0.5 text-xs">
+            {violationDetails.violations.map(([[info, binding], reason], i) => (
+              <li
+                key={i}
+                className="border mx-1 my-2 px-1 py-1 rounded-sm bg-blue-50"
+              >
+                <div>
+                  <span className="text-emerald-700">Past events:</span>{" "}
+                  <span className="font-mono">
+                    {info.past_events.join(",")}
+                  </span>
+                  <h3 className="text-blue-700">Objects:</h3>
+                  <ul className="flex flex-col ml-6 list-disc">
+                    {Object.entries(binding).map(([variable, value]) => (
+                      <li key={variable}>
+                        <span className="text-cyan-700">{variable}:</span>{" "}
+                        {"Single" in value ? value.Single : "?"}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </SheetContent>
+      )}
+    </Sheet>
+  );
+});
 
 interface ConstraintContainerProps {
   qualifiers: EventTypeQualifiers;

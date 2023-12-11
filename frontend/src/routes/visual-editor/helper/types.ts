@@ -9,7 +9,10 @@ export type SelectedVariables = {
   bound: boolean;
 }[];
 export type ViolationReason = "TooFewMatchingEvents" | "TooManyMatchingEvents";
-export type Binding = unknown;
+export type Binding = [
+  { past_events: string[] },
+  Record<string, { Single: string } | { Multiple: unknown }>,
+];
 export type Violation = [Binding, ViolationReason];
 export type ViolationsPerNode = {
   violations: Violation[];

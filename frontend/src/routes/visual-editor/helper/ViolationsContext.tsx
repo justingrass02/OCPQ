@@ -1,9 +1,9 @@
 import { createContext } from "react";
-import type { ViolationsPerNodes } from "./types";
+import type { ViolationsPerNode, ViolationsPerNodes } from "./types";
 
-export const ViolationsContext = createContext<
-  | {
-      violationsPerNode: ViolationsPerNodes;
-    }
-  | undefined
->(undefined);
+export type ViolationsContextValue = {
+  violationsPerNode?: ViolationsPerNodes;
+  showViolationsFor?: (data: ViolationsPerNode) => unknown;
+};
+
+export const ViolationsContext = createContext<ViolationsContextValue>({});

@@ -149,7 +149,7 @@ export async function evaluateConstraints(
     }
     invalid = true;
     toast(
-    <span>
+      <span>
         <b>Nodes not reachable from root:</b>
         <br />
         {unreachableNodeIDs.join(", ")}

@@ -199,7 +199,6 @@ fn event_has_correct_objects(
 fn match_and_add_new_bindings<'a>(
     prev_bindings_opt: Option<Bindings>,
     node: &'a TreeNode,
-    nodes_map: &'a HashMap<String, &'a TreeNode>,
     events_of_type: &'a HashMap<String, Vec<&'a OCELEvent>>,
     event_map: &HashMap<String, &OCELEvent>,
     _object_map: &HashMap<String, &OCELObject>,
@@ -361,8 +360,6 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Vi
     } = link_ocel_info(ocel);
     let mut binding_sizes: Vec<usize> = Vec::new();
     let mut violation_sizes: Vec<usize> = Vec::new();
-    let nodes_map: HashMap<String, &TreeNode> =
-        nodes.iter().map(|n| (n.event_type.clone(), n)).collect();
     let mut violations : Vec<Violations> = Vec::new();
     if nodes.len() > 0 {
         let mut bindings: Bindings = vec![(
@@ -411,7 +408,6 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Vi
             let x = Some(match_and_add_new_bindings(
                 Some(bindings),
                 node,
-                &nodes_map,
                 &events_of_type,
                 &event_map,
                 &object_map,

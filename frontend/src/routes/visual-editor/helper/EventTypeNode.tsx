@@ -1,16 +1,16 @@
-import type { EventTypeQualifierInfo, EventTypeQualifier } from "@/types/ocel";
-import { useContext } from "react";
-import { Handle, Position, type NodeProps } from "reactflow";
-import { ConstraintInfoContext } from "./ConstraintInfoContext";
-import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
-import { LuLink, LuUnlink } from "react-icons/lu";
-import type { CountConstraint, SelectedVariables } from "./types";
-import { ViolationsContext } from "./ViolationsContext";
+import { Combobox } from "@/components/ui/combobox";
+import type { EventTypeQualifier, EventTypeQualifierInfo } from "@/types/ocel";
 import {
   CheckCircledIcon,
   ExclamationTriangleIcon,
 } from "@radix-ui/react-icons";
+import { useContext } from "react";
+import { LuLink, LuUnlink } from "react-icons/lu";
+import { Handle, Position, type NodeProps } from "reactflow";
+import { ConstraintInfoContext } from "./ConstraintInfoContext";
+import { ViolationsContext } from "./ViolationsContext";
+import type { CountConstraint, SelectedVariables } from "./types";
 
 export type EventTypeNodeData = {
   label: string;
@@ -47,10 +47,9 @@ export default function EventTypeNode({
     );
   }
 
-  const violationsContext = useContext(ViolationsContext);
-  const violations = violationsContext?.violationsPerNode.find(
-    (v) => v.nodeID === id,
-  );
+  const { violationsPerNode, showViolationsFor } =
+    useContext(ViolationsContext);
+  const violations = violationsPerNode?.find((v) => v.nodeID === id);
 
   const { objectVariables } = useContext(ConstraintInfoContext);
   const hasAssociatedObjects = data.selectedVariables.length > 0;
@@ -103,8 +102,14 @@ export default function EventTypeNode({
       }`}
     >
       {violations?.violations !== undefined && (
-        <div
-          className={`absolute right-1 top-1 text-xs flex flex-col items-center gap-x-1`}
+        <button
+          onClick={() => {
+            console.log({ showViolationsFor });
+            if (showViolationsFor !== undefined) {
+              showViolationsFor(violations);
+            }
+          }}
+          className={`absolute right-1 top-1 text-xs flex flex-col items-center gap-x-1 border border-transparent px-1 py-0.5 rounded-sm hover:bg-amber-100/70 hover:border-gray-400/50`}
           title={`${violations.violations.length} violations found`}
         >
           {violations.violations.length > 0 && (
@@ -114,7 +119,7 @@ export default function EventTypeNode({
             <CheckCircledIcon className="text-green-400 h-3" />
           )}
           <span>{violations.violations.length}</span>
-        </div>
+        </button>
       )}
       <div className="absolute left-2 -top-[1.1rem] px-1 border border-b-0 border-inherit bg-inherit text-xs">
         <input
