@@ -84,7 +84,7 @@ struct TreeNodeConnection {
     event_type: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BoundValue {
     Single(String),
     Multiple(Vec<String>),
@@ -147,7 +147,7 @@ fn link_ocel_info(ocel: &OCEL) -> LinkedOCEL {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AdditionalBindingInfo {
     past_events: Vec<String>,
 }
@@ -342,17 +342,17 @@ fn match_and_add_new_bindings<'a>(
 
 type Binding = (AdditionalBindingInfo, HashMap<String, BoundValue>);
 type Bindings = Vec<Binding>;
-#[derive(Clone, Debug)]
-enum ViolationReason {
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum ViolationReason {
     TooFewMatchingEvents,
     TooManyMatchingEvents,
-    NoMatchingEvents,
-    MultipleMatchingEvents,
-    MatchingEvents,
+    // NoMatchingEvents,
+    // MultipleMatchingEvents,
+    // MatchingEvents,
 }
 type Violations = Vec<(Binding, ViolationReason)>;
 
-pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<usize>) {
+pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Violations>) {
     let LinkedOCEL {
         event_map,
         object_map,
@@ -363,7 +363,7 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<us
     let mut violation_sizes: Vec<usize> = Vec::new();
     let nodes_map: HashMap<String, &TreeNode> =
         nodes.iter().map(|n| (n.event_type.clone(), n)).collect();
-
+    let mut violations : Vec<Violations> = Vec::new();
     if nodes.len() > 0 {
         let mut bindings: Bindings = vec![(
             AdditionalBindingInfo {
@@ -442,19 +442,20 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<us
                 } else {
                     None
                 }
-            )
+            );
+            violations.push(new_violations);
         }
     } else {
         println!("Finished with check (nothing to do)");
     }
     println!("No connected node left!");
-    return (binding_sizes, violation_sizes);
+    return (binding_sizes, violations);
 }
 
 pub async fn check_with_tree_req(
     state: State<AppState>,
     Json(nodes): Json<Vec<TreeNode>>,
-) -> (StatusCode, Json<Option<(Vec<usize>, Vec<usize>)>>) {
+) -> (StatusCode, Json<Option<(Vec<usize>, Vec<Violations>)>>) {
     with_ocel_from_state(&state, |ocel| {
         return (StatusCode::OK, Json(Some(check_with_tree(nodes, ocel))));
     })

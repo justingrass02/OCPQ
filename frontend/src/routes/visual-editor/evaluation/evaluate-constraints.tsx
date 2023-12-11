@@ -5,7 +5,12 @@ import {
 } from "../helper/EventTypeLink";
 import type { Node, Edge } from "reactflow";
 import toast from "react-hot-toast";
-import type { CountConstraint, SelectedVariables } from "../helper/types";
+import type {
+  CountConstraint,
+  SelectedVariables,
+  Violation,
+  ViolationsPerNodes,
+} from "../helper/types";
 import type { EventTypeNodeData } from "../helper/EventTypeNode";
 
 type Connection = {
@@ -30,10 +35,10 @@ function replaceInfinity(x: number) {
   return x;
 }
 
-export function evaluateConstraints(
+export async function evaluateConstraints(
   nodes: Node<EventTypeNodeData>[],
   edges: Edge<EventTypeLinkData>[],
-) {
+): Promise<ViolationsPerNodes> {
   const treeNodes: Record<string, TreeNode> = Object.fromEntries(
     nodes.map((evtNode) => [
       evtNode.id,
@@ -144,7 +149,7 @@ export function evaluateConstraints(
     }
     invalid = true;
     toast(
-      <span>
+    <span>
         <b>Nodes not reachable from root:</b>
         <br />
         {unreachableNodeIDs.join(", ")}
@@ -155,7 +160,8 @@ export function evaluateConstraints(
   }
   console.log({ connectedTreeNodes, rootTreeNodes, reachableFromRootIDs });
 
-  void toast.promise(
+  // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+  const [_sizes, violations] = await toast.promise(
     callCheckConstraintsEndpoint(
       reachableFromRootIDs.map((id) => connectedTreeNodes[id]),
     ),
@@ -172,13 +178,19 @@ export function evaluateConstraints(
             <br />
             Violations per step:
             <br />
-            <span className="font-mono">{violations.join(", ")}</span>
+            <span className="font-mono">
+              {violations.map((vs) => vs.length).join(", ")}
+            </span>
           </span>
         </span>
       ),
       error: "Evaluation failed",
     },
   );
+  return violations.map((vs, i) => ({
+    nodeID: reachableFromRootIDs[i],
+    violations: vs,
+  }));
 }
 
 async function callCheckConstraintsEndpoint(nodesOrder: TreeNode[]) {
@@ -187,6 +199,8 @@ async function callCheckConstraintsEndpoint(nodesOrder: TreeNode[]) {
     body: JSON.stringify(nodesOrder),
     headers: { "Content-Type": "application/json" },
   });
-  const matchingSizesAndViolations: [number[], number[]] = await res.json();
+  const matchingSizesAndViolations: [number[], Violation[][]] =
+    await res.json();
+  console.log({ matchingSizesAndViolations });
   return matchingSizesAndViolations;
 }

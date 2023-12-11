@@ -155,12 +155,19 @@ function TimeDurationChangeDialog({
     <Dialog>
       <DialogTrigger asChild>
         <button
-          className="flex items-center gap-x-1 px-1 py-0.5 rounded-md hover:bg-blue-200/70"
+          className="flex flex-col items-center px-1 my-1 py-0.5 rounded-md bg-blue-50/60 hover:bg-blue-200/70"
           title="Update time constraint..."
         >
           <LuClock />
-          {formatSeconds(data.timeConstraint.minSeconds)} -{" "}
-          {formatSeconds(data.timeConstraint.maxSeconds)}
+          <div className="grid gap-x-1 grid-cols-[1fr_auto_1fr]">
+            <span className="text-right">
+              {formatSeconds(data.timeConstraint.minSeconds)}
+            </span>
+            <span className="mx-0.5 text-gray-500">-</span>
+            <span className="text-left">
+              {formatSeconds(data.timeConstraint.maxSeconds)}
+            </span>
+          </div>
         </button>
       </DialogTrigger>
       <DialogPortal>
@@ -168,8 +175,10 @@ function TimeDurationChangeDialog({
           <DialogHeader>
             <DialogTitle>Update time constraints</DialogTitle>
             <DialogDescription>
-              This action cannot be undone. This will permanently delete your
-              account and remove your data from our servers.
+              Update the minimum and maximum time duration between the events
+              below.
+              <br />
+              Negative values are allowed, as well as ∞ (inf) and -∞ (-inf).
             </DialogDescription>
           </DialogHeader>
           <h3>From</h3>

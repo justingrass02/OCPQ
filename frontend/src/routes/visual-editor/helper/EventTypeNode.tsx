@@ -6,6 +6,11 @@ import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { LuLink, LuUnlink } from "react-icons/lu";
 import type { CountConstraint, SelectedVariables } from "./types";
+import { ViolationsContext } from "./ViolationsContext";
+import {
+  CheckCircledIcon,
+  ExclamationTriangleIcon,
+} from "@radix-ui/react-icons";
 
 export type EventTypeNodeData = {
   label: string;
@@ -41,6 +46,11 @@ export default function EventTypeNode({
       data.eventTypeQualifier[q].object_types.includes(ot),
     );
   }
+
+  const violationsContext = useContext(ViolationsContext);
+  const violations = violationsContext?.violationsPerNode.find(
+    (v) => v.nodeID === id,
+  );
 
   const { objectVariables } = useContext(ConstraintInfoContext);
   const hasAssociatedObjects = data.selectedVariables.length > 0;
@@ -85,8 +95,28 @@ export default function EventTypeNode({
   }
   const countConstraint = getCountConstraint();
   return (
-    <div className="border border-blue-200 shadow backdrop-blur flex flex-col bg-blue-50/70 bg-blue-50 py-2 px-0.5 rounded-md relative">
-      <div className="absolute left-2 -top-[1rem] px-1 border border-b-0 border-blue-200 bg-blue-50 text-xs">
+    <div
+      className={`border shadow backdrop-blur flex flex-col py-2 px-0.5 rounded-md relative ${
+        violations !== undefined && violations.violations.length > 0
+          ? "bg-red-100/70  border-red-200"
+          : "bg-blue-50/70  border-blue-200"
+      }`}
+    >
+      {violations?.violations !== undefined && (
+        <div
+          className={`absolute right-1 top-1 text-xs flex flex-col items-center gap-x-1`}
+          title={`${violations.violations.length} violations found`}
+        >
+          {violations.violations.length > 0 && (
+            <ExclamationTriangleIcon className="text-red-400 h-3 mt-1" />
+          )}
+          {violations.violations.length === 0 && (
+            <CheckCircledIcon className="text-green-400 h-3" />
+          )}
+          <span>{violations.violations.length}</span>
+        </div>
+      )}
+      <div className="absolute left-2 -top-[1.1rem] px-1 border border-b-0 border-inherit bg-inherit text-xs">
         <input
           disabled={!hasAssociatedObjects}
           onBlur={(ev) => {
@@ -125,7 +155,7 @@ export default function EventTypeNode({
           }
         />
       </div>
-      <div className="text-large font-semibold mx-4 flex justify-center items-center">
+      <div className="text-large font-semibold mt-1 mx-4 flex justify-center items-center">
         <span>{id}</span>
       </div>
       <div className="mb-1">

@@ -14,28 +14,26 @@ import ReactFlow, {
 
 import { OcelInfoContext } from "@/App";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
+import { Input } from "@/components/ui/input";
+import { ImageIcon } from "@radix-ui/react-icons";
+import { toPng } from "html-to-image";
 import toast from "react-hot-toast";
 import { LuLayoutDashboard } from "react-icons/lu";
 import { RxPlus, RxReset } from "react-icons/rx";
 import { TbBinaryTree, TbRestore } from "react-icons/tb";
 import "reactflow/dist/style.css";
 import type { EventTypeQualifiers, OCELInfo } from "../../types/ocel";
-// import ConnectionLine from "./helper/ConnectionLine";
+import { evaluateConstraints } from "./evaluation/evaluate-constraints";
+import { ConstraintInfoContext } from "./helper/ConstraintInfoContext";
 import EventTypeLink, {
   EVENT_TYPE_LINK_TYPE,
   type EventTypeLinkData,
 } from "./helper/EventTypeLink";
 import EventTypeNode, { type EventTypeNodeData } from "./helper/EventTypeNode";
 import { useLayoutedElements } from "./helper/LayoutFlow";
-// import { VisualEditorContext } from "./helper/visual-editor-context";
-// import { extractFromHandleID } from "./helper/visual-editor-utils";
-import { ImageIcon } from "@radix-ui/react-icons";
-import { toPng } from "html-to-image";
-import { Combobox } from "@/components/ui/combobox";
-import { Input } from "@/components/ui/input";
-import type { ObjectVariable } from "./helper/types";
-import { ConstraintInfoContext } from "./helper/ConstraintInfoContext";
-import { evaluateConstraints } from "./evaluation/evaluate-constraints";
+import { ViolationsContext } from "./helper/ViolationsContext";
+import type { ObjectVariable, ViolationsPerNodes } from "./helper/types";
 
 interface VisualEditorProps {
   ocelInfo: OCELInfo;
@@ -62,6 +60,9 @@ function VisualEditor(props: VisualEditorProps) {
   const [mode, setMode] = useState<"normal" | "view-tree" | "readonly">(
     "normal",
   );
+  const [violationInfo, setViolationInfo] = useState<{
+    violationsPerNode: ViolationsPerNodes;
+  }>();
 
   const objectTypeToColor: Record<string, string> = useMemo(() => {
     const ret: Record<string, string> = {};
@@ -165,124 +166,127 @@ function VisualEditor(props: VisualEditorProps) {
   const { getLayoutedElements } = useLayoutedElements();
 
   return (
-    <ReactFlow
-      onInit={(flow) => {
-        getLayoutedElements(
-          {
-            "elk.algorithm": "layered",
-            "elk.direction": "RIGHT",
-          },
-          false,
-        );
-        setTimeout(() => {
-          flow.fitView({ duration: 300 });
-        }, 200);
-      }}
-      edgeTypes={edgeTypes}
-      nodeTypes={nodeTypes}
-      nodes={nodes}
-      edges={edges}
-      nodesConnectable={mode === "normal"}
-      nodesDraggable={mode === "normal" || mode === "view-tree"}
-      elementsSelectable={mode === "normal"}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      onConnect={onConnect}
-      proOptions={{ hideAttribution: true }}
-      // connectionLineComponent={(props) => (
-      //   <ConnectionLine {...props} objectTypeToColor={objectTypeToColor} />
-      // )}
-    >
-      <Controls
-        onInteractiveChange={(status) => {
-          if (status) {
-            setMode("normal");
-          } else {
-            setMode("readonly");
-          }
+    <ViolationsContext.Provider value={violationInfo}>
+      <ReactFlow
+        onInit={(flow) => {
+          getLayoutedElements(
+            {
+              "elk.algorithm": "layered",
+              "elk.direction": "RIGHT",
+            },
+            false,
+          );
+          setTimeout(() => {
+            flow.fitView({ duration: 300 });
+          }, 200);
         }}
-      />
-      <Panel position="top-right" className="flex gap-x-2">
-        <Button
-          disabled={edges.length === 0 || mode !== "normal"}
-          variant="outline"
-          size="icon"
-          title="Reset edges"
-          className="text-red-600 bg-white hover:bg-red-400"
-          onClick={() => {
-            setEdges([]);
+        edgeTypes={edgeTypes}
+        nodeTypes={nodeTypes}
+        nodes={nodes}
+        edges={edges}
+        nodesConnectable={mode === "normal"}
+        nodesDraggable={mode === "normal" || mode === "view-tree"}
+        elementsSelectable={mode === "normal"}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        proOptions={{ hideAttribution: true }}
+        // connectionLineComponent={(props) => (
+        //   <ConnectionLine {...props} objectTypeToColor={objectTypeToColor} />
+        // )}
+      >
+        <Controls
+          onInteractiveChange={(status) => {
+            if (status) {
+              setMode("normal");
+            } else {
+              setMode("readonly");
+            }
           }}
-        >
-          <RxReset />
-        </Button>
+        />
+        <Panel position="top-right" className="flex gap-x-2">
+          <Button
+            disabled={edges.length === 0 || mode !== "normal"}
+            variant="outline"
+            size="icon"
+            title="Reset edges"
+            className="text-red-600 bg-white hover:bg-red-400"
+            onClick={() => {
+              setEdges([]);
+            }}
+          >
+            <RxReset />
+          </Button>
 
-        <Button
-          disabled={mode !== "normal"}
-          variant="outline"
-          size="icon"
-          title="Save PNG"
-          className="bg-white"
-          onClick={(ev) => {
-            const button = ev.currentTarget;
-            button.disabled = true;
-            const scaleFactor = 2.0;
-            const viewPort = document.querySelector(
-              ".react-flow__viewport",
-            ) as HTMLElement;
-            setTimeout(() => {
-              void toPng(viewPort, {
-                canvasHeight: viewPort.clientHeight * scaleFactor,
-                canvasWidth: viewPort.clientWidth * scaleFactor,
-              })
-                .then((dataURL) => {
-                  const a = document.createElement("a");
-                  a.setAttribute("download", "oced-declare-export.png");
-                  a.setAttribute("href", dataURL);
-                  a.click();
+          <Button
+            disabled={mode !== "normal"}
+            variant="outline"
+            size="icon"
+            title="Save PNG"
+            className="bg-white"
+            onClick={(ev) => {
+              const button = ev.currentTarget;
+              button.disabled = true;
+              const scaleFactor = 2.0;
+              const viewPort = document.querySelector(
+                ".react-flow__viewport",
+              ) as HTMLElement;
+              setTimeout(() => {
+                void toPng(viewPort, {
+                  canvasHeight: viewPort.clientHeight * scaleFactor,
+                  canvasWidth: viewPort.clientWidth * scaleFactor,
                 })
-                .finally(() => {
-                  button.disabled = false;
-                });
-            }, 50);
-          }}
-        >
-          <ImageIcon />
-        </Button>
+                  .then((dataURL) => {
+                    const a = document.createElement("a");
+                    a.setAttribute("download", "oced-declare-export.png");
+                    a.setAttribute("href", dataURL);
+                    a.click();
+                  })
+                  .finally(() => {
+                    button.disabled = false;
+                  });
+              }, 50);
+            }}
+          >
+            <ImageIcon />
+          </Button>
 
-        <Button
-          variant="outline"
-          size="icon"
-          title={mode !== "view-tree" ? "Construct tree" : "Edit"}
-          className="bg-white"
-          onClick={() => {
-            evaluateConstraints(nodes, edges);
-          }}
-        >
-          {mode !== "view-tree" && <TbBinaryTree />}
-          {mode === "view-tree" && <TbRestore />}
-        </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            title={mode !== "view-tree" ? "Construct tree" : "Edit"}
+            className="bg-white"
+            onClick={async () => {
+              const res = await evaluateConstraints(nodes, edges);
+              setViolationInfo({ violationsPerNode: res });
+            }}
+          >
+            {mode !== "view-tree" && <TbBinaryTree />}
+            {mode === "view-tree" && <TbRestore />}
+          </Button>
 
-        <Button
-          disabled={mode !== "normal"}
-          variant="outline"
-          size="icon"
-          title="Apply automatic layout"
-          className="bg-white"
-          onClick={() => {
-            getLayoutedElements(
-              {
-                "elk.algorithm": "layered",
-                "elk.direction": "DOWN",
-              },
-              true,
-            );
-          }}
-        >
-          <LuLayoutDashboard />
-        </Button>
-      </Panel>
-      <Background />
-    </ReactFlow>
+          <Button
+            disabled={mode !== "normal"}
+            variant="outline"
+            size="icon"
+            title="Apply automatic layout"
+            className="bg-white"
+            onClick={() => {
+              getLayoutedElements(
+                {
+                  "elk.algorithm": "layered",
+                  "elk.direction": "DOWN",
+                },
+                true,
+              );
+            }}
+          >
+            <LuLayoutDashboard />
+          </Button>
+        </Panel>
+        <Background />
+      </ReactFlow>
+    </ViolationsContext.Provider>
   );
 }
 

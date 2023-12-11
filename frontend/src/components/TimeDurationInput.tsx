@@ -36,13 +36,17 @@ export function getFittingUnit(seconds: number) {
 
 export function formatSeconds(seconds: number) {
   if (seconds === Infinity) return "∞";
+  if (seconds === -Infinity) return "-∞";
   if (seconds === 0) return "0";
   const reversedUnits = [...TIME_DURATION_UNITS];
   reversedUnits.reverse();
   for (const unit of reversedUnits) {
     const val = Math.abs(seconds / unitFactorFromSeconds(unit));
     if (val >= 1.0) {
-      return Math.round(val * 100) / 100.0 + unit.substring(0, 1);
+      return (
+        (Math.sign(seconds) * Math.round(val * 100)) / 100.0 +
+        unit.substring(0, 1)
+      );
     }
   }
   return Math.round(seconds * 100) / 100.0 + "s";
@@ -62,7 +66,9 @@ export default function TimeDurationInput({
   const [value, setValue] = useState(
     durationSeconds / unitFactorFromSeconds(unit),
   );
-  const [valueString, setValueString] = useState(value.toString());
+  const [valueString, setValueString] = useState(
+    value === Infinity ? "∞" : value === -Infinity ? "-∞" : value.toString(),
+  );
 
   function handleValueChange(inputValue: string) {
     if (
@@ -74,6 +80,17 @@ export default function TimeDurationInput({
       setValue(Infinity);
       onChange(Infinity);
       setValueString("∞");
+      return;
+    }
+    if (
+      inputValue === "-∞" ||
+      inputValue === "-inf" ||
+      inputValue === "-infinity" ||
+      inputValue === "-infty"
+    ) {
+      setValue(-Infinity);
+      onChange(-Infinity);
+      setValueString("-∞");
       return;
     }
     const val = parseFloat(inputValue);
