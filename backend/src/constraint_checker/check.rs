@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use axum::{extract::State, http::StatusCode, Json};
 use itertools::Itertools;
@@ -46,7 +46,7 @@ struct Connection {
     time_constraint: TimeConstraint,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ObjectVariable {
     name: String,
     #[serde(rename = "type")]
@@ -360,7 +360,7 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Vi
     } = link_ocel_info(ocel);
     let mut binding_sizes: Vec<usize> = Vec::new();
     let mut violation_sizes: Vec<usize> = Vec::new();
-    let mut violations : Vec<Violations> = Vec::new();
+    let mut violations: Vec<Violations> = Vec::new();
     if nodes.len() > 0 {
         let mut bindings: Bindings = vec![(
             AdditionalBindingInfo {
@@ -368,33 +368,42 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Vi
             },
             HashMap::new(),
         )];
-
-        // TODO: For now just start with unbound variables of first node
-        // This should be updated later (bc. we might have some unbound variables at a later node)
-
-        let first_node = nodes.get(0).unwrap();
-        for v in &first_node.variables {
-            if !v.bound {
-                bindings = bindings
-                    .into_iter()
-                    .flat_map(|(add_info, bound_val)| {
-                        objects_of_type
-                            .get(&v.variable.object_type)
-                            .unwrap()
-                            .iter()
-                            .map(|obj| {
-                                let mut new_bound_val = bound_val.clone();
-                                new_bound_val.insert(
-                                    v.variable.name.clone(),
-                                    BoundValue::Single(obj.id.clone()),
-                                );
-                                return (add_info.clone(), new_bound_val);
-                            })
-                            .collect_vec()
-                        // vec![b]
-                    })
-                    .collect();
-            }
+        let bound_vars: HashSet<ObjectVariable> = nodes
+            .iter()
+            .flat_map(|n| {
+                n.variables
+                    .iter()
+                    .filter(|v| v.bound)
+                    .map(|v| v.variable.clone())
+            })
+            .collect();
+        let unbound_vars: HashSet<ObjectVariable> = nodes
+            .iter()
+            .flat_map(|n| {
+                n.variables
+                    .iter()
+                    .filter(|v| !bound_vars.contains(&v.variable))
+                    .map(|v| v.variable.clone())
+            })
+            .collect();
+        for v in unbound_vars {
+            bindings = bindings
+                .into_iter()
+                .flat_map(|(add_info, bound_val)| {
+                    objects_of_type
+                        .get(&v.object_type)
+                        .unwrap()
+                        .iter()
+                        .map(|obj| {
+                            let mut new_bound_val = bound_val.clone();
+                            new_bound_val
+                                .insert(v.name.clone(), BoundValue::Single(obj.id.clone()));
+                            return (add_info.clone(), new_bound_val);
+                        })
+                        .collect_vec()
+                    // vec![b]
+                })
+                .collect();
         }
 
         println!("#Bindings (initial): {}", bindings.len());
@@ -402,7 +411,28 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Vi
         for i in 0..nodes.len() {
             let node = &nodes[i];
             if node.children.is_empty() && node.parents.is_empty() {
-                println!("Node {} has no child/parent", { i });
+                // Here we just check the count constraints & do not update bindings
+                // Instead, we only gather first violations
+                if node.count_constraint.min > 0 || node.count_constraint.max < usize::MAX {
+                    println!("Node {} has no child/parent", { i });
+                    let x = match_and_add_new_bindings(
+                        Some(bindings.clone()),
+                        node,
+                        &events_of_type,
+                        &event_map,
+                        &object_map,
+                    );
+                    violations.push(
+                        x.into_iter()
+                            .filter_map(|(b, violation)| match violation {
+                                Some(v) => Some(((b), v)),
+                                None => None,
+                            })
+                            .collect_vec(),
+                    );
+                } else {
+                    violations.push(Vec::new());
+                }
                 continue;
             }
             let x = Some(match_and_add_new_bindings(

@@ -31,6 +31,8 @@ type TreeNode = {
 function replaceInfinity(x: number) {
   if (x === Infinity) {
     return Number.MAX_SAFE_INTEGER;
+  } else if (x === -Infinity) {
+    return Number.MIN_SAFE_INTEGER;
   }
   return x;
 }
@@ -158,13 +160,19 @@ export async function evaluateConstraints(
   } else {
     console.log(`Constructed tree with ${rootTreeNodes.length} root nodes`);
   }
-  console.log({ connectedTreeNodes, rootTreeNodes, reachableFromRootIDs });
-
+  console.log({
+    connectedTreeNodes,
+    rootTreeNodes,
+    reachableFromRootIDs,
+    disconnectedTreeNodes,
+  });
+  const inputNodes = [
+    ...reachableFromRootIDs.map((id) => connectedTreeNodes[id]),
+    ...Object.values(disconnectedTreeNodes),
+  ].filter((n) => n.variables.length > 0);
   // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
   const [_sizes, violations] = await toast.promise(
-    callCheckConstraintsEndpoint(
-      reachableFromRootIDs.map((id) => connectedTreeNodes[id]),
-    ),
+    callCheckConstraintsEndpoint(inputNodes),
     {
       loading: "Evaluating...",
       success: ([sizes, violations]) => (
@@ -188,7 +196,7 @@ export async function evaluateConstraints(
     },
   );
   return violations.map((vs, i) => ({
-    nodeID: reachableFromRootIDs[i],
+    nodeID: inputNodes[i].eventType,
     violations: vs,
   }));
 }
