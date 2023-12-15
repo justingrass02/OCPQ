@@ -21,7 +21,7 @@ use load_ocel::load_ocel::{
     get_available_ocels, load_ocel_file, load_ocel_file_req, DEFAULT_OCEL_FILE,
 };
 use ocel_qualifiers::qualifiers::get_qualifiers_for_event_types;
-use pm_rust::event_log::ocel::ocel_struct::{OCELType, OCEL};
+use process_mining::event_log::ocel::ocel_struct::{OCELType, OCEL};
 use serde::{Deserialize, Serialize};
 use tower_http::cors::CorsLayer;
 

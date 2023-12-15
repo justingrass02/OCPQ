@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use axum::{extract::State, http::StatusCode, Json};
 use itertools::Itertools;
-use pm_rust::event_log::ocel::ocel_struct::{OCELEvent, OCELObject, OCEL};
+use process_mining::event_log::ocel::ocel_struct::{OCELEvent, OCELObject, OCEL};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 

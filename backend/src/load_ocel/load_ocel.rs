@@ -3,7 +3,7 @@ use std::{fs::File, io::BufReader};
 use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 
-use pm_rust::event_log::ocel::ocel_struct::OCEL;
+use process_mining::event_log::ocel::ocel_struct::OCEL;
 
 use crate::{AppState, OCELInfo};
 
