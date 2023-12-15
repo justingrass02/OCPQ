@@ -33,7 +33,7 @@ import {
 import { ImageIcon } from "@radix-ui/react-icons";
 import { toPng } from "html-to-image";
 import toast from "react-hot-toast";
-import { LuLayoutDashboard } from "react-icons/lu";
+import { LuLayoutDashboard, LuX } from "react-icons/lu";
 import { RxPlus, RxReset } from "react-icons/rx";
 import { TbBinaryTree, TbRestore } from "react-icons/tb";
 import "reactflow/dist/style.css";
@@ -327,6 +327,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
     React.SetStateAction<ViolationsPerNode | undefined>
   >;
 }) {
+  const VIOLATIONS_TO_SHOW = 100;
   return (
     <Sheet
       modal={false}
@@ -351,31 +352,42 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
             </SheetTitle>
             <SheetDescription>
               {violationDetails?.violations.length} Violations
+              {violationDetails?.violations.length > VIOLATIONS_TO_SHOW && (
+                <>
+                  <br />
+                  <span className="text-xs">
+                    Showing only the first {VIOLATIONS_TO_SHOW} Violations
+                  </span>
+                </>
+              )}
             </SheetDescription>
           </SheetHeader>
           <ul className="overflow-auto h-[80vh] bg-slate-50 border rounded-sm mt-2 px-2 py-0.5 text-xs">
-            {violationDetails.violations.map(([[info, binding], reason], i) => (
-              <li
-                key={i}
-                className="border mx-1 my-2 px-1 py-1 rounded-sm bg-blue-50"
-              >
-                <div>
-                  <span className="text-emerald-700">Past events:</span>{" "}
-                  <span className="font-mono">
-                    {info.past_events.join(",")}
-                  </span>
-                  <h3 className="text-blue-700">Objects:</h3>
-                  <ul className="flex flex-col ml-6 list-disc">
-                    {Object.entries(binding).map(([variable, value]) => (
-                      <li key={variable}>
-                        <span className="text-cyan-700">{variable}:</span>{" "}
-                        {"Single" in value ? value.Single : "?"}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </li>
-            ))}
+            {violationDetails.violations
+              .slice(0, VIOLATIONS_TO_SHOW)
+              .map(([[info, binding], reason], i) => (
+                <li
+                  key={i}
+                  className="border mx-1 my-2 px-1 py-1 rounded-sm bg-blue-50"
+                >
+                  <div>
+                    <p className="text-orange-600">{reason}</p>
+                    <span className="text-emerald-700">Past events:</span>{" "}
+                    <span className="font-mono">
+                      {info.past_events.join(",")}
+                    </span>
+                    <h3 className="text-blue-700">Objects:</h3>
+                    <ul className="flex flex-col ml-6 list-disc">
+                      {Object.entries(binding).map(([variable, value]) => (
+                        <li key={variable}>
+                          <span className="text-cyan-700">{variable}:</span>{" "}
+                          {"Single" in value ? value.Single : "?"}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </li>
+              ))}
           </ul>
         </SheetContent>
       )}
@@ -403,6 +415,7 @@ function ConstraintContainer({
   return (
     <div className="relative">
       <div>
+        <span className="text-lg text-gray-600">Add Object Variables</span>
         <div className="flex items-center gap-x-2 w-fit mx-auto mb-1">
           <Combobox
             value={editMetaInfoData.type}
@@ -469,15 +482,30 @@ function ConstraintContainer({
             <RxPlus />
           </Button>
         </div>
-        <div className="flex flex-wrap divide-x-2 absolute mt-1 z-10">
+        <div className="flex flex-wrap gap-x-2 absolute ml-1 mt-1 z-10">
           {info.objectVariables.map((m, i) => (
-            <div className="text-center px-2" key={i} title={m.type}>
+            <div
+              className="text-center flex items-center px-1 bg-slate-100 rounded-md border cursor-help"
+              key={i}
+              title={m.type}
+            >
+              <button
+                title="Remove"
+                className="cursor-pointer text-xs mr-1 my-0 rounded-full transition-colors hover:bg-red-50 hover:outline hover:outline-1 hover:outline-red-400 hover:text-red-400 focus:text-red-500"
+                onClick={() => {
+                  const newObjectVariables = [...info.objectVariables];
+                  newObjectVariables.splice(i, 1);
+                  setInfo({ ...info, objectVariables: newObjectVariables });
+                }}
+              >
+                <LuX />
+              </button>
               {m.name}
             </div>
           ))}
         </div>
       </div>
-      <div className="w-[50rem] h-[50rem] border p-2">
+      <div className="w-[50rem] xl:w-[70rem] h-[50rem] border p-2">
         <ReactFlowProvider>
           <ConstraintInfoContext.Provider value={info}>
             {qualifiers !== undefined && ocelInfo !== undefined && (
@@ -529,7 +557,7 @@ export default function VisualEditorOuter() {
       >
         Add...
       </Button>
-      <div className="flex flex-wrap justify-between">
+      <div className="flex flex-wrap justify-around">
         {ocelInfo !== undefined &&
           qualifiers !== undefined &&
           constraints.map((_, i) => (

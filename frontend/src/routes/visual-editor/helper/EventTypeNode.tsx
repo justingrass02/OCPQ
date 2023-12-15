@@ -1,16 +1,19 @@
-import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import type { EventTypeQualifier, EventTypeQualifierInfo } from "@/types/ocel";
 import {
   CheckCircledIcon,
   ExclamationTriangleIcon,
 } from "@radix-ui/react-icons";
-import { useContext } from "react";
-import { LuLink, LuUnlink } from "react-icons/lu";
+import { useContext, useEffect } from "react";
+import { LuLink, LuUnlink, LuX } from "react-icons/lu";
 import { Handle, Position, type NodeProps } from "reactflow";
 import { ConstraintInfoContext } from "./ConstraintInfoContext";
 import { ViolationsContext } from "./ViolationsContext";
-import type { CountConstraint, SelectedVariables } from "./types";
+import type {
+  CountConstraint,
+  ObjectVariable,
+  SelectedVariables,
+} from "./types";
 
 export type EventTypeNodeData = {
   label: string;
@@ -57,6 +60,17 @@ export default function EventTypeNode({
   function getCountConstraint(): CountConstraint {
     return data.countConstraint;
   }
+
+  useEffect(() => {
+    const newSelectedVariables = data.selectedVariables.filter((v) =>
+      objectVariables.includes(v.variable),
+    );
+    if (newSelectedVariables.length !== data.selectedVariables.length) {
+      data.onDataChange(id, {
+        selectedVariables: newSelectedVariables,
+      });
+    }
+  }, [objectVariables]);
 
   function handleCountInput(
     type: "min" | "max",
@@ -133,7 +147,7 @@ export default function EventTypeNode({
               ev.currentTarget.blur();
             }
           }}
-          className="bg-transparent disabled:cursor-not-allowed disabled:bg-gray-100 disabled:hover:bg-gray-100 hover:bg-blue-100 w-[4ch] text-center"
+          className="bg-transparent disabled:cursor-not-allowed disabled:hover:bg-transparent hover:bg-blue-100 w-[4ch] text-center"
           type="text"
           pattern="([0-9]|&#8734;)+"
           defaultValue={
@@ -152,7 +166,7 @@ export default function EventTypeNode({
               ev.currentTarget.blur();
             }
           }}
-          className="bg-transparent disabled:cursor-not-allowed disabled:bg-gray-100 disabled:hover:bg-gray-100 hover:bg-blue-100 w-[4ch] text-center"
+          className="bg-transparent disabled:cursor-not-allowed disabled:hover:bg-transparent hover:bg-blue-100 w-[4ch] text-center"
           type="text"
           pattern="([0-9]|&#8734;)+"
           defaultValue={
@@ -164,12 +178,39 @@ export default function EventTypeNode({
         <span>{id}</span>
       </div>
       <div className="mb-1">
-        {data.selectedVariables.map((selectedVar) => (
-          <div key={selectedVar.variable.name}>
-            {selectedVar.variable.name} - {selectedVar.qualifier}{" "}
-            <Button
-              className="text-xs px-2 my-0 py-0"
-              variant="ghost"
+        {data.selectedVariables.map((selectedVar, i) => (
+          <div
+            key={i}
+            className="grid grid-cols-[auto,6rem,auto] gap-x-2 items-center w-fit mx-auto"
+          >
+            <button
+              title="Remove"
+              className="text-xs my-0 rounded-full transition-colors hover:bg-red-50 hover:outline hover:outline-1 hover:outline-red-400 hover:text-red-400 focus:text-red-500"
+              onClick={() => {
+                const newSelectedVariables = [...data.selectedVariables];
+                newSelectedVariables.splice(i, 1);
+                data.onDataChange(id, {
+                  selectedVariables: newSelectedVariables,
+                });
+              }}
+            >
+              <LuX />
+            </button>
+            <span className="text-left mb-1">
+              <span title={"Object type: " + selectedVar.variable.type}>
+                {selectedVar.variable.name}
+              </span>
+              <span
+                className="text-gray-500"
+                title={"Qualifier: " + selectedVar.qualifier}
+              >
+                {" "}
+                @{selectedVar.qualifier}
+              </span>
+            </span>
+            <button
+              title="Toggle bound"
+              className="text-xs py-1 px-1 rounded-sm transition-colors hover:bg-cyan-50 hover:outline hover:outline-1 hover:outline-cyan-400 hover:text-cyan-400 focus:text-cyan-500"
               onClick={() => {
                 selectedVar.bound = !selectedVar.bound;
                 data.onDataChange(id, {
@@ -178,27 +219,32 @@ export default function EventTypeNode({
               }}
             >
               {selectedVar.bound ? <LuLink /> : <LuUnlink />}
-            </Button>
+            </button>
           </div>
         ))}
       </div>
       <div>
         <Combobox
-          options={objectVariables
-            .filter((ot) => qualifierPerObjectType[ot.type].length > 0)
-            .map((ot) => ({
-              value: ot.name,
-              label: `${ot.name} (${ot.type})`,
-            }))}
-          onChange={(value: string) => {
-            const type = objectVariables.find((ov) => ov.name === value)?.type;
-            if (type !== undefined) {
+          options={objectVariables.flatMap((ot) => {
+            return qualifierPerObjectType[ot.type].map((qualifier) => ({
+              value: JSON.stringify({ objectvariable: ot, qualifier }),
+              label: `${ot.name} @${qualifier} (${ot.type})`,
+            }));
+          })}
+          onChange={(jsonValue: string) => {
+            if (jsonValue !== undefined && jsonValue !== "") {
+              const {
+                objectvariable,
+                qualifier,
+              }: { objectvariable: ObjectVariable; qualifier: string } =
+                JSON.parse(jsonValue);
+              console.log({ objectvariable, qualifier, jsonValue });
               data.onDataChange(id, {
                 selectedVariables: [
                   ...data.selectedVariables,
                   {
-                    variable: { name: value, type },
-                    qualifier: qualifierPerObjectType[type][0],
+                    variable: objectvariable,
+                    qualifier,
                     bound: false,
                   },
                 ],
