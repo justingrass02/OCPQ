@@ -3,24 +3,19 @@ import TimeDurationInput, {
 } from "@/components/TimeDurationInput";
 import { Button } from "@/components/ui/button";
 import {
-  DialogHeader,
   Dialog,
-  DialogTrigger,
-  DialogPortal,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
   DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogPortal,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { useState } from "react";
 import { LuClock } from "react-icons/lu";
 
-import {
-  MdDoNotDisturb,
-  MdKeyboardArrowRight,
-  MdKeyboardDoubleArrowRight,
-  MdRemoveCircleOutline,
-} from "react-icons/md";
+import { MdRemoveCircleOutline } from "react-icons/md";
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -96,7 +91,7 @@ export default function EventTypeLink({
             }}
             className="nodrag nopan flex flex-col items-center -mt-1"
           >
-            <button
+            {/* <button
               onClick={() => {
                 const newIndex =
                   (CONSTRAINT_TYPES.indexOf(data.constraintType) + 1) %
@@ -120,7 +115,7 @@ export default function EventTypeLink({
                   </div>
                 )}
               </span>
-            </button>
+            </button> */}
             <button
               className="hover:text-red-500 text-red-400/30  rounded-lg text-sm"
               title="Delete edge"

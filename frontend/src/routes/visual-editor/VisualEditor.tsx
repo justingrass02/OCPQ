@@ -555,7 +555,7 @@ export default function VisualEditorOuter() {
           setConstraints((cs) => [...cs, "new"]);
         }}
       >
-        Add...
+        Add Constraints
       </Button>
       <div className="flex flex-wrap justify-around">
         {ocelInfo !== undefined &&
