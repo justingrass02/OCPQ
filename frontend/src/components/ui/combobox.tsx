@@ -17,23 +17,30 @@ import {
 } from "@/components/ui/popover";
 import { RxCheck, RxChevronUp } from "react-icons/rx";
 
+interface ComboboxProps {
+  options: { value: string; label: string }[];
+  onChange: (value: string) => unknown;
+  name: string;
+  value: string;
+  disabled?: boolean | undefined;
+  title?: string | undefined;
+}
 export function Combobox({
   options,
   onChange,
   name,
   value,
-}: {
-  options: { value: string; label: string }[];
-  onChange: (value: string) => unknown;
-  name: string;
-  value: string;
-}) {
+  disabled,
+  title,
+}: ComboboxProps) {
   const [open, setOpen] = React.useState(false);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+      <PopoverTrigger asChild disabled={disabled}>
         <Button
+          title={title}
+          disabled={disabled}
           variant="outline"
           role="combobox"
           aria-expanded={open}

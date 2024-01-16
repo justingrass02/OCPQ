@@ -68,6 +68,7 @@ pub struct CountConstraint {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TreeNode {
+    id: String,
     #[serde(rename = "eventType")]
     event_type: String,
     parents: Vec<TreeNodeConnection>,
@@ -80,6 +81,7 @@ pub struct TreeNode {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct TreeNodeConnection {
     connection: Connection,
+    id: String,
     #[serde(rename = "eventType")]
     event_type: String,
 }

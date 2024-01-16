@@ -18,6 +18,13 @@ import ReactFlow, {
   type Connection,
   type Edge,
 } from "reactflow";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { OcelInfoContext } from "@/App";
 import { Button } from "@/components/ui/button";
@@ -34,23 +41,26 @@ import { ImageIcon } from "@radix-ui/react-icons";
 import { toPng } from "html-to-image";
 import toast from "react-hot-toast";
 import { LuLayoutDashboard, LuX } from "react-icons/lu";
+import { MdAdd } from "react-icons/md";
 import { RxPlus, RxReset } from "react-icons/rx";
 import { TbBinaryTree, TbRestore } from "react-icons/tb";
 import "reactflow/dist/style.css";
 import type { EventTypeQualifiers, OCELInfo } from "../../types/ocel";
 import { evaluateConstraints } from "./evaluation/evaluate-constraints";
 import { ConstraintInfoContext } from "./helper/ConstraintInfoContext";
-import EventTypeLink, {
-  EVENT_TYPE_LINK_TYPE,
-  type EventTypeLinkData,
-} from "./helper/EventTypeLink";
-import EventTypeNode, { type EventTypeNodeData } from "./helper/EventTypeNode";
 import { useLayoutedElements } from "./helper/LayoutFlow";
 import {
   ViolationsContext,
   type ViolationsContextValue,
 } from "./helper/ViolationsContext";
-import type { ObjectVariable, ViolationsPerNode } from "./helper/types";
+import { EVENT_TYPE_LINK_TYPE, edgeTypes, nodeTypes } from "./helper/const";
+import type {
+  EventTypeLinkData,
+  EventTypeNodeData,
+  ObjectVariable,
+  ViolationsPerNode,
+} from "./helper/types";
+import AlertHelper from "@/components/AlertHelper";
 
 interface VisualEditorProps {
   ocelInfo: OCELInfo;
@@ -68,10 +78,6 @@ const COLORS = [
   "#cab2d6", // Light Purple
   "#ffff99", // Yellow
 ];
-const nodeTypes = { eventType: EventTypeNode };
-const edgeTypes = {
-  [EVENT_TYPE_LINK_TYPE]: EventTypeLink,
-};
 
 function VisualEditor(props: VisualEditorProps) {
   const [mode, setMode] = useState<"normal" | "view-tree" | "readonly">(
@@ -97,11 +103,11 @@ function VisualEditor(props: VisualEditorProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<EventTypeNodeData>(
     Object.keys(props.eventTypeQualifiers).map((eventType) => {
       return {
-        id: eventType,
+        id: eventType + "-01",
         type: "eventType",
         position: { x: 0, y: 0 },
         data: {
-          label: eventType,
+          eventType,
           eventTypeQualifier: props.eventTypeQualifiers[eventType],
           objectTypeToColor,
           selectedVariables: [],
@@ -186,7 +192,6 @@ function VisualEditor(props: VisualEditorProps) {
   );
 
   const { getLayoutedElements } = useLayoutedElements();
-
   return (
     <ViolationsContext.Provider value={violationInfo}>
       <ReactFlow
@@ -227,18 +232,108 @@ function VisualEditor(props: VisualEditorProps) {
           }}
         />
         <Panel position="top-right" className="flex gap-x-2">
-          <Button
-            disabled={edges.length === 0 || mode !== "normal"}
-            variant="outline"
-            size="icon"
-            title="Reset edges"
-            className="text-red-600 bg-white hover:bg-red-400"
-            onClick={() => {
-              setEdges([]);
+          <AlertHelper
+            initialData={{ eventType: props.ocelInfo.event_types[0].name }}
+            trigger={
+              <Button
+                disabled={mode !== "normal"}
+                variant="outline"
+                size="icon"
+                title="Add node"
+                className="bg-white"
+                onClick={() => {}}
+              >
+                <MdAdd />
+              </Button>
+            }
+            title={"Add Node"}
+            submitAction={"Submit"}
+            onSubmit={(data) => {
+              setNodes((nodes) => {
+                return [
+                  ...nodes,
+                  {
+                    id: data.eventType + Date.now(),
+                    type: "eventType",
+                    position: { x: 0, y: 0 },
+                    data: {
+                      eventType: data.eventType,
+                      eventTypeQualifier:
+                        props.eventTypeQualifiers[data.eventType],
+                      objectTypeToColor,
+                      selectedVariables: [],
+                      countConstraint: { min: 0, max: Infinity },
+                      onDataChange: (id, newData) => {
+                        setNodes((ns) => {
+                          const newNodes = [...ns];
+                          const changedNode = newNodes.find((n) => n.id === id);
+                          if (changedNode?.data !== undefined) {
+                            changedNode.data = {
+                              ...changedNode.data,
+                              ...newData,
+                            };
+                          } else {
+                            console.warn("Did not find changed node data");
+                          }
+                          return newNodes;
+                        });
+                      },
+                    },
+                  },
+                ];
+              });
+              console.log({ data });
             }}
-          >
-            <RxReset />
-          </Button>
+            content={({ data, setData }) => {
+              return (
+                <>
+                  <span>Please select the node type to add below.</span>
+                  <Select
+                    value={data.eventType}
+                    onValueChange={(v) => {
+                      setData({ ...data, eventType: v });
+                    }}
+                  >
+                    <SelectTrigger className={"my-2"}>
+                      <SelectValue placeholder="Select an event type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {props.ocelInfo.event_types.map((t) => (
+                        <SelectItem key={t.name} value={t.name}>
+                          {t.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </>
+              );
+            }}
+          />
+          <AlertHelper
+            trigger={
+              <Button
+                disabled={mode !== "normal"}
+                variant="outline"
+                size="icon"
+                title="Reset edges"
+                className="text-red-600 bg-white hover:bg-red-400"
+              >
+                <RxReset />
+              </Button>
+            }
+            title={"Reset all nodes and edges"}
+            initialData={undefined}
+            content={() => (
+              <span>
+                This will delete all current nodes and edges. Are you sure?
+              </span>
+            )}
+            submitAction={"Yes"}
+            onSubmit={() => {
+              setEdges([]);
+              setNodes([]);
+            }}
+          />
 
           <Button
             disabled={mode !== "normal"}

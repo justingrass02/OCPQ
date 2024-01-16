@@ -1,5 +1,5 @@
 import { Combobox } from "@/components/ui/combobox";
-import type { EventTypeQualifier, EventTypeQualifierInfo } from "@/types/ocel";
+import type { EventTypeQualifierInfo } from "@/types/ocel";
 import {
   CheckCircledIcon,
   ExclamationTriangleIcon,
@@ -11,18 +11,9 @@ import { ConstraintInfoContext } from "./ConstraintInfoContext";
 import { ViolationsContext } from "./ViolationsContext";
 import type {
   CountConstraint,
+  EventTypeNodeData,
   ObjectVariable,
-  SelectedVariables,
 } from "./types";
-
-export type EventTypeNodeData = {
-  label: string;
-  eventTypeQualifier: EventTypeQualifier;
-  objectTypeToColor: Record<string, string>;
-  countConstraint: CountConstraint;
-  selectedVariables: SelectedVariables;
-  onDataChange: (id: string, newData: Partial<EventTypeNodeData>) => unknown;
-};
 
 function getObjectType(qualInfo: EventTypeQualifierInfo) {
   if (qualInfo.object_types.length > 1) {
@@ -107,6 +98,10 @@ export default function EventTypeNode({
     });
   }
   const countConstraint = getCountConstraint();
+
+  const canAddObjects =
+    objectVariables.filter((ot) => qualifierPerObjectType[ot.type].length > 0)
+      .length > 0;
   return (
     <div
       className={`border shadow backdrop-blur flex flex-col py-2 px-0.5 rounded-md relative ${
@@ -175,7 +170,7 @@ export default function EventTypeNode({
         />
       </div>
       <div className="text-large font-semibold mt-1 mx-4 flex justify-center items-center">
-        <span>{id}</span>
+        <span>{data.eventType}</span>
       </div>
       <div className="mb-1">
         {data.selectedVariables.map((selectedVar, i) => (
@@ -225,6 +220,11 @@ export default function EventTypeNode({
       </div>
       <div>
         <Combobox
+          title={
+            canAddObjects
+              ? "Link object variables..."
+              : "No options available. Please first add object variables above!"
+          }
           options={objectVariables.flatMap((ot) => {
             return qualifierPerObjectType[ot.type].map((qualifier) => ({
               value: JSON.stringify({ objectvariable: ot, qualifier }),

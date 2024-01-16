@@ -22,22 +22,7 @@ import {
   getBezierPath,
   type EdgeProps,
 } from "reactflow";
-
-export const EVENT_TYPE_LINK_TYPE = "eventTypeLink";
-
-export const CONSTRAINT_TYPES = [
-  "response",
-  "unary-response",
-  "non-response",
-] as const;
-export type TimeConstraint = { minSeconds: number; maxSeconds: number };
-export type EventTypeLinkData = {
-  color: string;
-  constraintType: (typeof CONSTRAINT_TYPES)[number];
-  timeConstraint: TimeConstraint;
-  onDataChange: (id: string, newData: Partial<EventTypeLinkData>) => unknown;
-  onDelete: (id: string) => unknown;
-};
+import type { EventTypeLinkData, TimeConstraint } from "./types";
 
 export default function EventTypeLink({
   id,

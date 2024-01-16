@@ -1,26 +1,29 @@
-import {
-  type TimeConstraint,
-  type CONSTRAINT_TYPES,
-  type EventTypeLinkData,
-} from "../helper/EventTypeLink";
-import type { Node, Edge } from "reactflow";
 import toast from "react-hot-toast";
+import type { Edge, Node } from "reactflow";
+import type { CONSTRAINT_TYPES } from "../helper/const";
 import type {
   CountConstraint,
+  EventTypeLinkData,
+  EventTypeNodeData,
   SelectedVariables,
+  TimeConstraint,
   Violation,
   ViolationsPerNodes,
 } from "../helper/types";
-import type { EventTypeNodeData } from "../helper/EventTypeNode";
 
 type Connection = {
   type: (typeof CONSTRAINT_TYPES)[number];
   timeConstraint: TimeConstraint;
 };
 
-type TreeNodeConnection = { connection: Connection; eventType: string };
+type TreeNodeConnection = {
+  connection: Connection;
+  id: string;
+  eventType: string;
+};
 
 type TreeNode = {
+  id: string;
   eventType: string;
   parents: TreeNodeConnection[];
   children: TreeNodeConnection[];
@@ -45,7 +48,8 @@ export async function evaluateConstraints(
     nodes.map((evtNode) => [
       evtNode.id,
       {
-        eventType: evtNode.id,
+        id: evtNode.id,
+        eventType: evtNode.data.eventType,
         parents: [],
         children: [],
         variables: evtNode.data.selectedVariables,
@@ -72,11 +76,13 @@ export async function evaluateConstraints(
 
     treeNodes[e.target].parents.push({
       connection: dependencyConnection,
-      eventType: e.source,
+      id: e.source,
+      eventType: treeNodes[e.source].eventType,
     });
     treeNodes[e.source].children.push({
       connection: dependencyConnection,
-      eventType: e.target,
+      id: e.target,
+      eventType: treeNodes[e.target].eventType,
     });
   }
 
@@ -104,9 +110,11 @@ export async function evaluateConstraints(
   ): number | undefined {
     for (let i = 0; i < queue.length; i++) {
       const node = queue[i];
-      if (
-        node.parents.every((p) => reachableFromRootIDs.includes(p.eventType))
-      ) {
+      console.log(
+        { node },
+        node.parents.every((p) => reachableFromRootIDs.includes(p.id)),
+      );
+      if (node.parents.every((p) => reachableFromRootIDs.includes(p.id))) {
         return i;
       }
     }
@@ -126,10 +134,10 @@ export async function evaluateConstraints(
     );
     if (indexInqueue !== undefined) {
       const [node] = queue.splice(indexInqueue, 1);
-      if (!reachableFromRootIDs.includes(node.eventType)) {
-        reachableFromRootIDs.push(node.eventType);
+      if (!reachableFromRootIDs.includes(node.id)) {
+        reachableFromRootIDs.push(node.id);
       }
-      queue = queue.concat(node.children.map((c) => treeNodes[c.eventType]));
+      queue = queue.concat(node.children.map((c) => treeNodes[c.id]));
     } else {
       toast.error("Invalid requirements: Cycle detected!");
       invalid = true;
@@ -196,7 +204,7 @@ export async function evaluateConstraints(
     },
   );
   return violations.map((vs, i) => ({
-    nodeID: inputNodes[i].eventType,
+    nodeID: inputNodes[i].id,
     violations: vs,
   }));
 }

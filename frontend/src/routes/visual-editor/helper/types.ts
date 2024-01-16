@@ -1,3 +1,6 @@
+import type { EventTypeQualifier } from "@/types/ocel";
+import { type CONSTRAINT_TYPES } from "./const";
+
 export interface ObjectVariable {
   name: string;
   type: string;
@@ -20,3 +23,21 @@ export type ViolationsPerNode = {
 };
 export type ViolationsPerNodes = ViolationsPerNode[];
 export type CountConstraint = { min: number; max: number };
+
+export type EventTypeNodeData = {
+  eventType: string;
+  eventTypeQualifier: EventTypeQualifier;
+  objectTypeToColor: Record<string, string>;
+  countConstraint: CountConstraint;
+  selectedVariables: SelectedVariables;
+  onDataChange: (id: string, newData: Partial<EventTypeNodeData>) => unknown;
+};
+
+export type TimeConstraint = { minSeconds: number; maxSeconds: number };
+export type EventTypeLinkData = {
+  color: string;
+  constraintType: (typeof CONSTRAINT_TYPES)[number];
+  timeConstraint: TimeConstraint;
+  onDataChange: (id: string, newData: Partial<EventTypeLinkData>) => unknown;
+  onDelete: (id: string) => unknown;
+};
