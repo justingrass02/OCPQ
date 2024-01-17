@@ -151,7 +151,13 @@ fn link_ocel_info(ocel: &OCEL) -> LinkedOCEL {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AdditionalBindingInfo {
-    past_events: Vec<String>,
+    past_events: Vec<PastEventInfo>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct PastEventInfo {
+    pub event_id: String,
+    pub node_id: String,
 }
 
 ///
@@ -215,7 +221,10 @@ fn match_and_add_new_bindings<'a>(
             .map(|ev| {
                 (
                     AdditionalBindingInfo {
-                        past_events: vec![ev.id.clone()],
+                        past_events: vec![PastEventInfo {
+                            event_id: ev.id.clone(),
+                            node_id: node.id.clone(),
+                        }],
                     },
                     HashMap::new(),
                 )
@@ -243,15 +252,16 @@ fn match_and_add_new_bindings<'a>(
 
                 // Then check time difference
                 for p in &node.parents {
-                    let last_ev_id = info
+                    let last_prev_ev = info
                         .past_events
                         .iter()
-                        .filter(|ev| event_map.get(*ev).unwrap().event_type == p.event_type)
+                        .filter(|ev| ev.node_id == p.id)
                         .last();
-                    match last_ev_id {
-                        Some(ev_id) => {
-                            let second_diff =
-                                (ev.time - event_map.get(ev_id).unwrap().time).num_seconds();
+                    match last_prev_ev {
+                        Some(prev_ev) => {
+                            let second_diff = (ev.time
+                                - event_map.get(&prev_ev.event_id).unwrap().time)
+                                .num_seconds();
                             if (second_diff as f64) < p.connection.time_constraint.min_seconds
                                 || (second_diff as f64) > p.connection.time_constraint.max_seconds
                             {
@@ -293,7 +303,10 @@ fn match_and_add_new_bindings<'a>(
                     // We now got one or more matching event(s)!
                     // We can now update the corresponding info...
                     // if !is_initial_binding {
-                    info_cc.past_events.push(matching_event.id.clone());
+                    info_cc.past_events.push(PastEventInfo {
+                        event_id: matching_event.id.clone(),
+                        node_id: node.id.clone(),
+                    });
                     // }
 
                     let mut bindings: Vec<(Binding, Option<ViolationReason>)> =
