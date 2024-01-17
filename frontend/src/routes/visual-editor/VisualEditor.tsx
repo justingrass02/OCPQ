@@ -17,6 +17,7 @@ import ReactFlow, {
   useNodesState,
   type Connection,
   type Edge,
+  type Node,
 } from "reactflow";
 import {
   Select,
@@ -99,35 +100,38 @@ function VisualEditor(props: VisualEditorProps) {
     });
     return ret;
   }, [props.eventTypeQualifiers]);
-
-  const [nodes, setNodes, onNodesChange] = useNodesState<EventTypeNodeData>(
-    Object.keys(props.eventTypeQualifiers).map((eventType) => {
-      return {
-        id: eventType + "-01",
-        type: "eventType",
-        position: { x: 0, y: 0 },
-        data: {
-          eventType,
-          eventTypeQualifier: props.eventTypeQualifiers[eventType],
-          objectTypeToColor,
-          selectedVariables: [],
-          countConstraint: { min: 0, max: Infinity },
-          onDataChange: (id, newData) => {
-            setNodes((ns) => {
-              const newNodes = [...ns];
-              const changedNode = newNodes.find((n) => n.id === id);
-              if (changedNode?.data !== undefined) {
-                changedNode.data = { ...changedNode.data, ...newData };
-              } else {
-                console.warn("Did not find changed node data");
-              }
-              return newNodes;
-            });
+  const intitialNodes = useMemo<Node<EventTypeNodeData>[]>(
+    () =>
+      Object.keys(props.eventTypeQualifiers).map((eventType) => {
+        return {
+          id: eventType + "-01",
+          type: "eventType",
+          position: { x: 0, y: 0 },
+          data: {
+            eventType,
+            eventTypeQualifier: props.eventTypeQualifiers[eventType],
+            objectTypeToColor,
+            selectedVariables: [],
+            countConstraint: { min: 0, max: Infinity },
+            onDataChange: (id, newData) => {
+              setNodes((ns) => {
+                const newNodes = [...ns];
+                const changedNode = newNodes.find((n) => n.id === id);
+                if (changedNode?.data !== undefined) {
+                  changedNode.data = { ...changedNode.data, ...newData };
+                } else {
+                  console.warn("Did not find changed node data");
+                }
+                return newNodes;
+              });
+            },
           },
-        },
-      };
-    }),
+        };
+      }),
+    [props.eventTypeQualifiers],
   );
+  const [nodes, setNodes, onNodesChange] =
+    useNodesState<EventTypeNodeData>(intitialNodes);
 
   const [edges, setEdges, onEdgesChange] = useEdgesState<EventTypeLinkData>([]);
 
@@ -328,7 +332,7 @@ function VisualEditor(props: VisualEditorProps) {
                 This will delete all current nodes and edges. Are you sure?
               </span>
             )}
-            submitAction={"Yes"}
+            submitAction={"Yes, I am sure"}
             onSubmit={() => {
               setEdges([]);
               setNodes([]);

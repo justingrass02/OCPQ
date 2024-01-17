@@ -175,8 +175,8 @@ export async function evaluateConstraints(
     disconnectedTreeNodes,
   });
   const inputNodes = [
-    ...reachableFromRootIDs.map((id) => connectedTreeNodes[id]),
     ...Object.values(disconnectedTreeNodes),
+    ...reachableFromRootIDs.map((id) => connectedTreeNodes[id]),
   ].filter((n) => n.variables.length > 0);
   // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
   const [_sizes, violations] = await toast.promise(

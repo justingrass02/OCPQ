@@ -54,7 +54,9 @@ export default function EventTypeNode({
 
   useEffect(() => {
     const newSelectedVariables = data.selectedVariables.filter((v) =>
-      objectVariables.includes(v.variable),
+      objectVariables.find(
+        (ov) => ov.name === v.variable.name && ov.type === v.variable.type,
+      ),
     );
     if (newSelectedVariables.length !== data.selectedVariables.length) {
       data.onDataChange(id, {
@@ -98,7 +100,6 @@ export default function EventTypeNode({
     });
   }
   const countConstraint = getCountConstraint();
-
   const canAddObjects =
     objectVariables.filter((ot) => qualifierPerObjectType[ot.type].length > 0)
       .length > 0;
@@ -238,7 +239,6 @@ export default function EventTypeNode({
                 qualifier,
               }: { objectvariable: ObjectVariable; qualifier: string } =
                 JSON.parse(jsonValue);
-              console.log({ objectvariable, qualifier, jsonValue });
               data.onDataChange(id, {
                 selectedVariables: [
                   ...data.selectedVariables,
