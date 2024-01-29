@@ -10,106 +10,14 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    constraints::ObjectVariable,
     preprocessing::preprocess::{
         get_events_of_type_associated_with_objects, link_ocel_info, LinkedOCEL,
     },
     with_ocel_from_state, AppState,
 };
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-enum DependencyType {
-    #[serde(rename = "simple")]
-    Simple,
-    #[serde(rename = "all")]
-    All,
-    #[serde(rename = "existsInTarget")]
-    ExistsInTarget,
-    #[serde(rename = "existsInSource")]
-    ExistsInSource,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-enum ConstraintType {
-    #[serde(rename = "response")]
-    Response,
-    #[serde(rename = "unary-response")]
-    UnaryResponse,
-    #[serde(rename = "non-response")]
-    NonResponse,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct TimeConstraint {
-    #[serde(rename = "minSeconds")]
-    min_seconds: f64,
-    #[serde(rename = "maxSeconds")]
-    max_seconds: f64,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct Connection {
-    #[serde(rename = "type")]
-    connection_type: ConstraintType,
-    #[serde(rename = "timeConstraint")]
-    time_constraint: TimeConstraint,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ObjectVariable {
-    name: String,
-    #[serde(rename = "type")]
-    object_type: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SelectedVariable {
-    variable: ObjectVariable,
-    qualifier: String,
-    bound: bool,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct CountConstraint {
-    min: usize,
-    max: usize,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct TreeNode {
-    id: String,
-    #[serde(rename = "eventType")]
-    event_type: String,
-    parents: Vec<TreeNodeConnection>,
-    children: Vec<TreeNodeConnection>,
-    variables: Vec<SelectedVariable>,
-    #[serde(rename = "countConstraint")]
-    count_constraint: CountConstraint,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct TreeNodeConnection {
-    connection: Connection,
-    id: String,
-    #[serde(rename = "eventType")]
-    event_type: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum BoundValue {
-    Single(String),
-    Multiple(Vec<String>),
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct AdditionalBindingInfo {
-    past_events: Vec<PastEventInfo>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct PastEventInfo {
-    pub event_id: String,
-    pub node_id: String,
-}
+use super::{AdditionalBindingInfo, BoundValue, PastEventInfo, TreeNode};
 
 ///
 /// Check for all (unbound) variables of node if given event is associated with the correct qualified objects
@@ -306,7 +214,8 @@ fn get_object_ids_from_node_and_binding(
         .filter_map(|v| match binding.get(&v.variable.name).unwrap() {
             BoundValue::Single(s) => Some(s.clone()),
             BoundValue::Multiple(_) => {
-                todo!("Multiple objects?");
+                eprintln!("Multiple objects?");
+                None
             }
         })
         .collect_vec();
@@ -324,7 +233,7 @@ pub enum ViolationReason {
 }
 type Violations = Vec<(Binding, ViolationReason)>;
 
-pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Violations>) {
+fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Violations>) {
     let linked_ocel = link_ocel_info(ocel);
     let mut binding_sizes: Vec<usize> = Vec::new();
     let mut violation_sizes: Vec<usize> = Vec::new();
@@ -377,13 +286,13 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Vi
 
         println!("#Bindings (initial): {}", bindings.len());
 
-        for i in 0..nodes.len() {
-            let node = &nodes[i];
+        for node in &nodes {
+            // let node = &nodes[i];
             if node.children.is_empty() && node.parents.is_empty() {
                 // Here we just check the count constraints & do not update bindings
                 // Instead, we only gather first violations
                 if node.count_constraint.min > 0 || node.count_constraint.max < usize::MAX {
-                    println!("Node {} has no child/parent", { i });
+                    println!("Node {} has no child/parent", { &node.id });
                     let x = match_and_add_new_bindings(Some(bindings.clone()), node, &linked_ocel);
                     violations.push(
                         x.into_iter()
@@ -412,8 +321,8 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Vi
             violation_sizes.push(new_violations.len());
             bindings = new_bindings;
             println!(
-                "#Bindings for i={}: {};\nViolations: {}\n{:?}",
-                i,
+                "#Bindings for node {}: {};\nViolations: {}\n{:?}",
+                node.id,
                 bindings.len(),
                 new_violations.len(),
                 if !new_violations.is_empty() {

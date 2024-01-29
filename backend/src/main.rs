@@ -9,29 +9,25 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-mod load_ocel {
-    pub mod load_ocel;
-}
+pub mod load_ocel;
 mod ocel_qualifiers {
     pub mod qualifiers;
 }
-mod constraint_checker {
-    pub mod check;
-}
+mod constraints;
 mod preprocessing {
     pub mod preprocess;
     mod tests;
 }
 
-use constraint_checker::check::check_with_tree_req;
+use constraints::check_with_tree_req;
 use itertools::Itertools;
-use load_ocel::load_ocel::{get_available_ocels, load_ocel_file_req, DEFAULT_OCEL_FILE};
+use load_ocel::{get_available_ocels, load_ocel_file_req, DEFAULT_OCEL_FILE};
 use ocel_qualifiers::qualifiers::get_qualifiers_for_event_types;
 use process_mining::event_log::ocel::ocel_struct::{OCELType, OCEL};
 use serde::{Deserialize, Serialize};
 use tower_http::cors::CorsLayer;
 
-use crate::load_ocel::load_ocel::load_ocel_file_to_state;
+use crate::load_ocel::load_ocel_file_to_state;
 
 #[derive(Clone)]
 pub struct AppState {

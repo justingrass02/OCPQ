@@ -4,7 +4,7 @@ pub fn test() {
     use std::time::Instant;
 
     use crate::{
-        load_ocel::load_ocel::{load_ocel_file, DEFAULT_OCEL_FILE},
+        load_ocel::{load_ocel_file, DEFAULT_OCEL_FILE},
         preprocessing::preprocess::get_object_events_map,
     };
 

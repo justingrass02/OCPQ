@@ -49,8 +49,7 @@ pub fn get_events_of_type_associated_with_objects<'a>(
         .iter()
         .filter(|ev_id| &linked_ocel.event_map.get(*ev_id).unwrap().event_type == event_type)
         .collect();
-    for i in 1..sorted_object_ids.len() {
-        let other = &sorted_object_ids[i];
+    for other in sorted_object_ids.iter().skip(1) {
         let other_map: HashSet<&String> = linked_ocel
             .object_events_map
             .get(other)

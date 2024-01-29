@@ -13,7 +13,7 @@ pub struct QualifiersForEventType {
     object_types: Vec<String>,
     counts: Vec<i32>,
 }
-
+type QualifierAndObjectType = (String, String);
 pub async fn get_qualifiers_for_event_types(
     State(state): State<AppState>,
 ) -> (
@@ -23,40 +23,42 @@ pub async fn get_qualifiers_for_event_types(
     match with_ocel_from_state(
         &State(state),
         |ocel| -> HashMap<String, HashMap<String, QualifiersForEventType>> {
-            let qualifiers_per_event_type: Vec<(String, HashMap<(String, String), Vec<i32>>)> =
-                ocel.event_types
-                    .par_iter()
-                    .map(|et| {
-                        (
-                            et.name.clone(),
-                            ocel.events
-                                .iter()
-                                .filter(|ev| ev.event_type == et.name)
-                                .map(|ev| match ev.relationships.as_ref() {
-                                    Some(rs) => rs
-                                        .iter()
-                                        .filter_map(|r| {
-                                            let obj =
-                                                ocel.objects.iter().find(|o| o.id == r.object_id);
-                                            obj.map(|obj| {
-                                                (r.qualifier.clone(), obj.object_type.clone())
-                                            })
+            let qualifiers_per_event_type: Vec<(
+                String,
+                HashMap<QualifierAndObjectType, Vec<i32>>,
+            )> = ocel
+                .event_types
+                .par_iter()
+                .map(|et| {
+                    (
+                        et.name.clone(),
+                        ocel.events
+                            .iter()
+                            .filter(|ev| ev.event_type == et.name)
+                            .map(|ev| match ev.relationships.as_ref() {
+                                Some(rs) => rs
+                                    .iter()
+                                    .filter_map(|r| {
+                                        let obj = ocel.objects.iter().find(|o| o.id == r.object_id);
+                                        obj.map(|obj| {
+                                            (r.qualifier.clone(), obj.object_type.clone())
                                         })
-                                        .fold(HashMap::new(), |mut acc, c| {
-                                            *acc.entry(c).or_insert(0) += 1;
-                                            acc
-                                        }),
-                                    None => HashMap::new(),
-                                })
-                                .fold(HashMap::new(), |mut acc, c| {
-                                    c.into_iter().for_each(|(a, b)| {
-                                        acc.entry(a).or_insert(Vec::new()).push(b);
-                                    });
-                                    acc
-                                }),
-                        )
-                    })
-                    .collect();
+                                    })
+                                    .fold(HashMap::new(), |mut acc, c| {
+                                        *acc.entry(c).or_insert(0) += 1;
+                                        acc
+                                    }),
+                                None => HashMap::new(),
+                            })
+                            .fold(HashMap::new(), |mut acc, c| {
+                                c.into_iter().for_each(|(a, b)| {
+                                    acc.entry(a).or_insert(Vec::new()).push(b);
+                                });
+                                acc
+                            }),
+                    )
+                })
+                .collect();
             qualifiers_per_event_type
                 .into_iter()
                 .map(|(event_type, quals)| {
