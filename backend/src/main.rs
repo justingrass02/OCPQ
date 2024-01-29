@@ -1,4 +1,7 @@
-use std::{env, sync::{Arc, RwLock}};
+use std::{
+    env,
+    sync::{Arc, RwLock},
+};
 
 use axum::{
     extract::State,
@@ -22,9 +25,7 @@ mod preprocessing {
 
 use constraint_checker::check::check_with_tree_req;
 use itertools::Itertools;
-use load_ocel::load_ocel::{
-    get_available_ocels, load_ocel_file_req, DEFAULT_OCEL_FILE,
-};
+use load_ocel::load_ocel::{get_available_ocels, load_ocel_file_req, DEFAULT_OCEL_FILE};
 use ocel_qualifiers::qualifiers::get_qualifiers_for_event_types;
 use process_mining::event_log::ocel::ocel_struct::{OCELType, OCEL};
 use serde::{Deserialize, Serialize};
@@ -85,13 +86,13 @@ pub struct OCELInfo {
     pub event_types: Vec<OCELType>,
 }
 
-impl Into<OCELInfo> for &OCEL {
-    fn into(self) -> OCELInfo {
+impl From<&OCEL> for OCELInfo {
+    fn from(val: &OCEL) -> Self {
         OCELInfo {
-            num_objects: self.objects.len(),
-            num_events: self.events.len(),
-            object_types: self.object_types.clone(),
-            event_types: self.event_types.clone(),
+            num_objects: val.objects.len(),
+            num_events: val.events.len(),
+            object_types: val.object_types.clone(),
+            event_types: val.event_types.clone(),
         }
     }
 }

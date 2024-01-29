@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     preprocessing::preprocess::{
-        get_events_of_type_associated_with_objects, link_ocel_info, LinkedOCEL
+        get_events_of_type_associated_with_objects, link_ocel_info, LinkedOCEL,
     },
     with_ocel_from_state, AppState,
 };
@@ -130,18 +130,10 @@ fn event_has_correct_objects(
                         }
                         match binding.get(&v.variable.name) {
                             Some(bound_val) => match bound_val {
-                                BoundValue::Single(v) => {
-                                    if &r.object_id == v {
-                                        return true;
-                                    } else {
-                                        return false;
-                                    }
-                                }
+                                BoundValue::Single(v) => &r.object_id == v,
                                 BoundValue::Multiple(_) => todo!(),
                             },
-                            None => {
-                                return false;
-                            }
+                            None => false,
                         }
                     });
                 }
@@ -152,7 +144,7 @@ fn event_has_correct_objects(
             }
         }
     }
-    return true;
+    true
 }
 
 fn match_and_add_new_bindings<'a>(
@@ -190,12 +182,12 @@ fn match_and_add_new_bindings<'a>(
             let matching_events = get_events_of_type_associated_with_objects(
                 linked_ocel,
                 &node.event_type,
-                get_object_ids_from_node_and_binding(node,&binding)
+                get_object_ids_from_node_and_binding(node, binding),
             )
             .into_par_iter()
             .filter(|ev| {
                 // First check for correct related objects
-                if !event_has_correct_objects(node, ev, &binding) {
+                if !event_has_correct_objects(node, ev, binding) {
                     return false;
                 }
 
@@ -223,7 +215,7 @@ fn match_and_add_new_bindings<'a>(
                         }
                     }
                 }
-                return true;
+                true
             });
             let num_matching_events = matching_events.clone().count();
 
@@ -267,7 +259,7 @@ fn match_and_add_new_bindings<'a>(
                             match &matching_event.relationships {
                                 Some(rels) => {
                                     let matching_qualified_relationships = rels
-                                        .into_iter()
+                                        .iter()
                                         .filter(|rel| rel.qualifier == v.qualifier)
                                         .collect_vec();
                                     bindings = bindings
@@ -283,7 +275,7 @@ fn match_and_add_new_bindings<'a>(
                                                             matching_rel.object_id.clone(),
                                                         ),
                                                     );
-                                                    return cloned_bind;
+                                                    cloned_bind
                                                 })
                                                 .collect_vec()
                                         })
@@ -296,24 +288,28 @@ fn match_and_add_new_bindings<'a>(
                         }
                     }
                     // }
-                    return bindings;
+                    bindings
                 })
                 .collect::<Vec<(Binding, Option<ViolationReason>)>>()
         })
         .collect();
 }
 
-fn get_object_ids_from_node_and_binding(node: &TreeNode, binding: &HashMap<String, BoundValue>) -> Vec<String> {
-    return node.variables
-    .iter()
-    .filter(|v| !v.bound)
-    .filter_map(|v| match binding.get(&v.variable.name).unwrap() {
-        BoundValue::Single(s) => Some(s.clone()),
-        BoundValue::Multiple(_) => {
-            todo!("Multiple objects?");
-        },
-    })
-    .collect_vec();
+fn get_object_ids_from_node_and_binding(
+    node: &TreeNode,
+    binding: &HashMap<String, BoundValue>,
+) -> Vec<String> {
+    return node
+        .variables
+        .iter()
+        .filter(|v| !v.bound)
+        .filter_map(|v| match binding.get(&v.variable.name).unwrap() {
+            BoundValue::Single(s) => Some(s.clone()),
+            BoundValue::Multiple(_) => {
+                todo!("Multiple objects?");
+            }
+        })
+        .collect_vec();
 }
 
 type Binding = (AdditionalBindingInfo, HashMap<String, BoundValue>);
@@ -334,7 +330,7 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Vi
     let mut violation_sizes: Vec<usize> = Vec::new();
     let mut violations: Vec<Violations> = Vec::new();
     let now = Instant::now();
-    if nodes.len() > 0 {
+    if !nodes.is_empty() {
         let mut bindings: Bindings = vec![(
             AdditionalBindingInfo {
                 past_events: Vec::new(),
@@ -372,7 +368,7 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Vi
                             let mut new_bound_val = bound_val.clone();
                             new_bound_val
                                 .insert(v.name.clone(), BoundValue::Single(obj.id.clone()));
-                            return (add_info.clone(), new_bound_val);
+                            (add_info.clone(), new_bound_val)
                         })
                         .collect_vec()
                 })
@@ -391,10 +387,7 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Vi
                     let x = match_and_add_new_bindings(Some(bindings.clone()), node, &linked_ocel);
                     violations.push(
                         x.into_iter()
-                            .filter_map(|(b, violation)| match violation {
-                                Some(v) => Some(((b), v)),
-                                None => None,
-                            })
+                            .filter_map(|(b, violation)| violation.map(|v| ((b), v)))
                             .collect_vec(),
                     );
                 } else {
@@ -402,12 +395,7 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Vi
                 }
                 continue;
             }
-            let x = Some(match_and_add_new_bindings(
-                Some(bindings),
-                node,
-                &linked_ocel,
-            ))
-            .unwrap();
+            let x = match_and_add_new_bindings(Some(bindings), node, &linked_ocel);
             let mut new_bindings: Bindings = Vec::new();
             let mut new_violations: Violations = Vec::new();
             for (b, v) in x {
@@ -428,7 +416,7 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Vi
                 i,
                 bindings.len(),
                 new_violations.len(),
-                if new_violations.len() > 0 {
+                if !new_violations.is_empty() {
                     Some(new_violations[0].1.clone())
                 } else {
                     None
@@ -441,7 +429,7 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Vi
     }
     println!("No connected node left!");
     println!("Finished in {:?}", now.elapsed());
-    return (binding_sizes, violations);
+    (binding_sizes, violations)
 }
 
 pub async fn check_with_tree_req(
@@ -449,7 +437,7 @@ pub async fn check_with_tree_req(
     Json(nodes): Json<Vec<TreeNode>>,
 ) -> (StatusCode, Json<Option<(Vec<usize>, Vec<Violations>)>>) {
     with_ocel_from_state(&state, |ocel| {
-        return (StatusCode::OK, Json(Some(check_with_tree(nodes, ocel))));
+        (StatusCode::OK, Json(Some(check_with_tree(nodes, ocel))))
     })
     .unwrap_or((StatusCode::INTERNAL_SERVER_ERROR, Json(None)))
 }

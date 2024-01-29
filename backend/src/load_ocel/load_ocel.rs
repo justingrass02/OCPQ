@@ -20,7 +20,7 @@ pub struct OCELFilePath {
 
 pub const DEFAULT_OCEL_FILE: &str = "order-management";
 
-const OCEL_PATHS: &'static [OCELFilePath] = &[
+const OCEL_PATHS: &[OCELFilePath] = &[
     OCELFilePath {
         name: "ContainerLogistics",
         path: "./data/ContainerLogistics.json",
@@ -66,15 +66,13 @@ pub fn load_ocel_file_to_state(name: &str, state: &AppState) -> Option<OCELInfo>
 }
 
 pub fn load_ocel_file(name: &str) -> Option<OCEL> {
-    match OCEL_PATHS.into_iter().find(|op| op.name == name) {
+    match OCEL_PATHS.iter().find(|op| op.name == name) {
         Some(ocel_path) => {
             let file = File::open(ocel_path.path).unwrap();
             let reader = BufReader::new(file);
             let ocel: OCEL = serde_json::from_reader(reader).unwrap();
-            return Some(ocel);
+            Some(ocel)
         }
-        None => {
-            return None;
-        }
+        None => None,
     }
 }

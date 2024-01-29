@@ -1,10 +1,12 @@
 #[cfg(test)]
-
 #[test]
 pub fn test() {
     use std::time::Instant;
 
-    use crate::{load_ocel::load_ocel::{load_ocel_file, DEFAULT_OCEL_FILE}, preprocessing::preprocess::get_object_events_map};
+    use crate::{
+        load_ocel::load_ocel::{load_ocel_file, DEFAULT_OCEL_FILE},
+        preprocessing::preprocess::get_object_events_map,
+    };
 
     let mut now = Instant::now();
     let ocel = load_ocel_file(DEFAULT_OCEL_FILE).unwrap();

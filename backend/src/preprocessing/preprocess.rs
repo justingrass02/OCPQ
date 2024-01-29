@@ -6,7 +6,6 @@ use process_mining::{
 };
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-
 pub fn get_object_events_map(ocel: &OCEL) -> HashMap<String, Vec<String>> {
     let mut object_events_map: HashMap<String, Vec<String>> = ocel
         .objects
@@ -15,7 +14,7 @@ pub fn get_object_events_map(ocel: &OCEL) -> HashMap<String, Vec<String>> {
         .collect();
 
     for e in &ocel.events {
-        let rels = get_relationships(&e);
+        let rels = get_relationships(e);
         for r in rels {
             object_events_map
                 .get_mut(&r.object_id)
@@ -23,7 +22,7 @@ pub fn get_object_events_map(ocel: &OCEL) -> HashMap<String, Vec<String>> {
                 .push(e.id.clone());
         }
     }
-    return object_events_map;
+    object_events_map
 }
 
 pub fn get_events_of_type_associated_with_objects<'a>(
@@ -31,7 +30,7 @@ pub fn get_events_of_type_associated_with_objects<'a>(
     event_type: &String,
     object_ids: Vec<String>,
 ) -> Vec<&'a OCELEvent> {
-    if object_ids.len() == 0 {
+    if object_ids.is_empty() {
         return linked_ocel.events_of_type.get(event_type).unwrap().clone();
     }
     let mut sorted_object_ids = object_ids.clone();
@@ -73,7 +72,6 @@ pub fn get_relationships(ev: &OCELEvent) -> Vec<OCELRelationship> {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct LinkedOCEL<'a> {
     pub event_map: HashMap<String, &'a OCELEvent>,
@@ -105,7 +103,6 @@ pub fn link_ocel_info(ocel: &OCEL) -> LinkedOCEL {
                 ocel.events
                     .iter()
                     .filter(|ev| ev.event_type == ev_type.name)
-                    .map(|ev| ev)
                     .collect(),
             )
         })
@@ -120,12 +117,11 @@ pub fn link_ocel_info(ocel: &OCEL) -> LinkedOCEL {
                 ocel.objects
                     .iter()
                     .filter(|ev| ev.object_type == obj_type.name)
-                    .map(|ev| ev)
                     .collect(),
             )
         })
         .collect();
-    let object_events_map = get_object_events_map(&ocel);
+    let object_events_map = get_object_events_map(ocel);
     LinkedOCEL {
         event_map,
         object_map,

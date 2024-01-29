@@ -38,19 +38,15 @@ pub async fn get_qualifiers_for_event_types(
                                         .filter_map(|r| {
                                             let obj =
                                                 ocel.objects.iter().find(|o| o.id == r.object_id);
-                                            match obj {
-                                                Some(obj) => Some((
-                                                    r.qualifier.clone(),
-                                                    obj.object_type.clone(),
-                                                )),
-                                                None => None,
-                                            }
+                                            obj.map(|obj| {
+                                                (r.qualifier.clone(), obj.object_type.clone())
+                                            })
                                         })
                                         .fold(HashMap::new(), |mut acc, c| {
                                             *acc.entry(c).or_insert(0) += 1;
                                             acc
                                         }),
-                                    None => return HashMap::new(),
+                                    None => HashMap::new(),
                                 })
                                 .fold(HashMap::new(), |mut acc, c| {
                                     c.into_iter().for_each(|(a, b)| {
@@ -61,7 +57,7 @@ pub async fn get_qualifiers_for_event_types(
                         )
                     })
                     .collect();
-            return qualifiers_per_event_type
+            qualifiers_per_event_type
                 .into_iter()
                 .map(|(event_type, quals)| {
                     let mut ret: HashMap<String, QualifiersForEventType> = HashMap::new();
@@ -94,10 +90,10 @@ pub async fn get_qualifiers_for_event_types(
 
                     (event_type, ret)
                 })
-                .collect();
+                .collect()
         },
     ) {
-        Some(x) => return (StatusCode::OK, Json(Some(x))),
-        None => return (StatusCode::BAD_REQUEST, Json(None)),
+        Some(x) => (StatusCode::OK, Json(Some(x))),
+        None => (StatusCode::BAD_REQUEST, Json(None)),
     }
 }
