@@ -473,7 +473,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                     <p className="text-orange-600">{reason}</p>
                     <span className="text-emerald-700">Past events:</span>{" "}
                     <span className="font-mono">
-                      {info.past_events.join(",")}
+                      {info.past_events.map((e) => e.event_id).join(",")}
                     </span>
                     <h3 className="text-blue-700">Objects:</h3>
                     <ul className="flex flex-col ml-6 list-disc">

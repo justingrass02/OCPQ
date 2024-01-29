@@ -13,7 +13,7 @@ export type SelectedVariables = {
 }[];
 export type ViolationReason = "TooFewMatchingEvents" | "TooManyMatchingEvents";
 export type Binding = [
-  { past_events: string[] },
+  { past_events: {event_id: string, node_id: string}[] },
   Record<string, { Single: string } | { Multiple: unknown }>,
 ];
 export type Violation = [Binding, ViolationReason];
