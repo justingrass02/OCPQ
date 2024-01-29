@@ -6,6 +6,8 @@ use process_mining::{
 };
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
+use crate::ocel_qualifiers::qualifiers::QualifierAndObjectType;
+
 pub fn get_object_events_map(ocel: &OCEL) -> HashMap<String, Vec<String>> {
     let mut object_events_map: HashMap<String, Vec<String>> = ocel
         .objects
@@ -14,12 +16,14 @@ pub fn get_object_events_map(ocel: &OCEL) -> HashMap<String, Vec<String>> {
         .collect();
 
     for e in &ocel.events {
-        let rels = get_relationships(e);
+        let rels = get_event_relationships(e);
         for r in rels {
-            object_events_map
-                .get_mut(&r.object_id)
-                .unwrap()
-                .push(e.id.clone());
+            match object_events_map.get_mut(&r.object_id) {
+                Some(o_evs) => o_evs.push(e.id.clone()),
+                None => {
+                    eprintln!("Malformed OCEL: Event {} relates to object ID {}, which does not belong to any object.",e.id,r.object_id)
+                }
+            }
         }
     }
     object_events_map
@@ -64,11 +68,45 @@ pub fn get_events_of_type_associated_with_objects<'a>(
         .collect();
 }
 
-pub fn get_relationships(ev: &OCELEvent) -> Vec<OCELRelationship> {
+pub fn get_event_relationships(ev: &OCELEvent) -> Vec<OCELRelationship> {
     match &ev.relationships {
         Some(rels) => rels.clone(),
         None => Vec::default(),
     }
+}
+
+pub fn get_object_relationships(obj: &OCELObject) -> Vec<OCELRelationship> {
+    match &obj.relationships {
+        Some(rels) => rels.clone(),
+        None => Vec::new(),
+    }
+}
+
+pub fn get_object_rels_per_type(
+    ocel: &OCEL,
+    object_map: &HashMap<String, &OCELObject>,
+) -> HashMap<String, HashSet<QualifierAndObjectType>> {
+    let mut object_to_object_rels_per_type: HashMap<String, HashSet<QualifierAndObjectType>> = ocel
+        .object_types
+        .iter()
+        .map(|t| (t.name.clone(), HashSet::new()))
+        .collect();
+    for o in &ocel.objects {
+        let rels_for_type = object_to_object_rels_per_type
+            .get_mut(&o.object_type)
+            .unwrap();
+        for rels in get_object_relationships(&o) {
+            match object_map.get(&rels.object_id) {
+                Some(rel_obj) => {
+                    rels_for_type.insert((rels.qualifier, rel_obj.object_type.clone()));
+                }
+                None => {
+                    eprintln!("Malformed OCEL: Object {} has relationship to object ID {}, which does not belong to any object",o.id, rels.object_id);
+                }
+            }
+        }
+    }
+    return object_to_object_rels_per_type;
 }
 
 #[derive(Debug, Clone)]
@@ -79,6 +117,7 @@ pub struct LinkedOCEL<'a> {
     #[allow(dead_code)]
     pub objects_of_type: HashMap<String, Vec<&'a OCELObject>>,
     pub object_events_map: HashMap<String, Vec<String>>,
+    pub object_rels_per_type: HashMap<String, HashSet<QualifierAndObjectType>>,
 }
 
 pub fn link_ocel_info(ocel: &OCEL) -> LinkedOCEL {
@@ -121,11 +160,13 @@ pub fn link_ocel_info(ocel: &OCEL) -> LinkedOCEL {
         })
         .collect();
     let object_events_map = get_object_events_map(ocel);
+    let object_rels_per_type = get_object_rels_per_type(ocel, &object_map);
     LinkedOCEL {
         event_map,
         object_map,
         events_of_type,
         objects_of_type,
         object_events_map,
+        object_rels_per_type,
     }
 }

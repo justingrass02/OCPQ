@@ -13,7 +13,7 @@ pub struct QualifiersForEventType {
     object_types: Vec<String>,
     counts: Vec<i32>,
 }
-type QualifierAndObjectType = (String, String);
+pub type QualifierAndObjectType = (String, String);
 pub async fn get_qualifiers_for_event_types(
     State(state): State<AppState>,
 ) -> (
