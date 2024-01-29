@@ -1,4 +1,4 @@
-use std::sync::{Arc, RwLock};
+use std::{env, sync::{Arc, RwLock}};
 
 use axum::{
     extract::State,
@@ -15,15 +15,22 @@ mod ocel_qualifiers {
 mod constraint_checker {
     pub mod check;
 }
+mod preprocessing {
+    pub mod preprocess;
+    mod tests;
+}
 
 use constraint_checker::check::check_with_tree_req;
+use itertools::Itertools;
 use load_ocel::load_ocel::{
-    get_available_ocels, load_ocel_file, load_ocel_file_req, DEFAULT_OCEL_FILE,
+    get_available_ocels, load_ocel_file_req, DEFAULT_OCEL_FILE,
 };
 use ocel_qualifiers::qualifiers::get_qualifiers_for_event_types;
 use process_mining::event_log::ocel::ocel_struct::{OCELType, OCEL};
 use serde::{Deserialize, Serialize};
 use tower_http::cors::CorsLayer;
+
+use crate::load_ocel::load_ocel::load_ocel_file_to_state;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -32,6 +39,8 @@ pub struct AppState {
 
 #[tokio::main]
 async fn main() {
+    let args = env::args().collect_vec();
+    dbg!(args);
     let state = AppState {
         ocel: Arc::new(RwLock::new(None)),
     };
@@ -40,7 +49,7 @@ async fn main() {
         .allow_headers([CONTENT_TYPE])
         .allow_origin(tower_http::cors::Any);
 
-    load_ocel_file(DEFAULT_OCEL_FILE, &state);
+    load_ocel_file_to_state(DEFAULT_OCEL_FILE, &state);
 
     // build our application with a single route
     let app = Router::new()

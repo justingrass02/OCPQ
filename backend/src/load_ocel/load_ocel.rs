@@ -46,25 +46,35 @@ pub async fn load_ocel_file_req(
     State(state): State<AppState>,
     Json(payload): Json<LoadOcel>,
 ) -> (StatusCode, Json<Option<OCELInfo>>) {
-    match load_ocel_file(&payload.name, &state) {
+    match load_ocel_file_to_state(&payload.name, &state) {
         Some(ocel_info) => (StatusCode::OK, Json(Some(ocel_info))),
         None => (StatusCode::BAD_REQUEST, Json(None)),
     }
 }
 
-pub fn load_ocel_file(name: &str, state: &AppState) -> Option<OCELInfo> {
+pub fn load_ocel_file_to_state(name: &str, state: &AppState) -> Option<OCELInfo> {
+    match load_ocel_file(name) {
+        Some(ocel) => {
+            let ocel_info: OCELInfo = (&ocel).into();
+
+            let mut x = state.ocel.write().unwrap();
+            *x = Some(ocel);
+            Some(ocel_info)
+        }
+        None => None,
+    }
+}
+
+pub fn load_ocel_file(name: &str) -> Option<OCEL> {
     match OCEL_PATHS.into_iter().find(|op| op.name == name) {
         Some(ocel_path) => {
             let file = File::open(ocel_path.path).unwrap();
             let reader = BufReader::new(file);
             let ocel: OCEL = serde_json::from_reader(reader).unwrap();
-            let ocel_info: OCELInfo = (&ocel).into();
-
-            let mut x = state.ocel.write().unwrap();
-            *x = Some(ocel);
-
-            Some(ocel_info)
+            return Some(ocel);
         }
-        None => None,
+        None => {
+            return None;
+        }
     }
 }

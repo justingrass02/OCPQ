@@ -1,12 +1,20 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    time::Instant,
+};
 
 use axum::{extract::State, http::StatusCode, Json};
 use itertools::Itertools;
-use process_mining::event_log::ocel::ocel_struct::{OCELEvent, OCELObject, OCEL};
+use process_mining::event_log::ocel::ocel_struct::{OCELEvent, OCEL};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::{with_ocel_from_state, AppState};
+use crate::{
+    preprocessing::preprocess::{
+        get_events_of_type_associated_with_objects, link_ocel_info, LinkedOCEL
+    },
+    with_ocel_from_state, AppState,
+};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 enum DependencyType {
@@ -92,63 +100,6 @@ pub enum BoundValue {
     Multiple(Vec<String>),
 }
 
-struct LinkedOCEL<'a> {
-    pub event_map: HashMap<String, &'a OCELEvent>,
-    pub object_map: HashMap<String, &'a OCELObject>,
-    pub events_of_type: HashMap<String, Vec<&'a OCELEvent>>,
-    #[allow(dead_code)]
-    pub objects_of_type: HashMap<String, Vec<&'a OCELObject>>,
-}
-
-fn link_ocel_info(ocel: &OCEL) -> LinkedOCEL {
-    let event_map: HashMap<String, &OCELEvent> = ocel
-        .events
-        .par_iter()
-        .map(|ev| (ev.id.clone(), ev))
-        .collect();
-    let object_map: HashMap<String, &OCELObject> = ocel
-        .objects
-        .par_iter()
-        .map(|obj| (obj.id.clone(), obj))
-        .collect();
-
-    let events_of_type: HashMap<String, Vec<&OCELEvent>> = ocel
-        .event_types
-        .par_iter()
-        .map(|ev_type| {
-            (
-                ev_type.name.clone(),
-                ocel.events
-                    .iter()
-                    .filter(|ev| ev.event_type == ev_type.name)
-                    .map(|ev| ev)
-                    .collect(),
-            )
-        })
-        .collect();
-
-    let objects_of_type: HashMap<String, Vec<&OCELObject>> = ocel
-        .object_types
-        .par_iter()
-        .map(|obj_type| {
-            (
-                obj_type.name.clone(),
-                ocel.objects
-                    .iter()
-                    .filter(|ev| ev.object_type == obj_type.name)
-                    .map(|ev| ev)
-                    .collect(),
-            )
-        })
-        .collect();
-    LinkedOCEL {
-        event_map: event_map,
-        object_map: object_map,
-        events_of_type: events_of_type,
-        objects_of_type: objects_of_type,
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AdditionalBindingInfo {
     past_events: Vec<PastEventInfo>,
@@ -207,44 +158,42 @@ fn event_has_correct_objects(
 fn match_and_add_new_bindings<'a>(
     prev_bindings_opt: Option<Bindings>,
     node: &'a TreeNode,
-    events_of_type: &'a HashMap<String, Vec<&'a OCELEvent>>,
-    event_map: &HashMap<String, &OCELEvent>,
-    _object_map: &HashMap<String, &OCELObject>,
+    linked_ocel: &'a LinkedOCEL,
 ) -> Vec<(Binding, Option<ViolationReason>)> {
     // Get all events of the corresponding event type (determined by node)
-    let events = events_of_type.get(&node.event_type).unwrap();
+    // let events = linked_ocel.events_of_type.get(&node.event_type).unwrap();
     // let is_initial_binding = prev_bindings_opt.is_none();
     let mut prev_bindings: Bindings = match prev_bindings_opt {
         Some(p) => p,
-        None => events
-            .iter()
-            .map(|ev| {
-                (
-                    AdditionalBindingInfo {
-                        past_events: vec![PastEventInfo {
-                            event_id: ev.id.clone(),
-                            node_id: node.id.clone(),
-                        }],
-                    },
-                    HashMap::new(),
-                )
-            })
-            .collect(),
+        None => {
+            get_events_of_type_associated_with_objects(linked_ocel, &node.event_type, Vec::new())
+                .iter()
+                .map(|ev| {
+                    (
+                        AdditionalBindingInfo {
+                            past_events: vec![PastEventInfo {
+                                event_id: ev.id.clone(),
+                                node_id: node.id.clone(),
+                            }],
+                        },
+                        HashMap::new(),
+                    )
+                })
+                .collect()
+        }
     };
-    // println!(
-    //     "is_initial_binding: {}; prev_bindings.len: {}, parents: {:#?}\n\n children: {:#?}\n\n",
-    //     is_initial_binding,
-    //     prev_bindings.len(),
-    //     node.parents,
-    //     node.children
-    // );
-
     // Iterate over all bindings, updating them
     return prev_bindings
         .par_iter_mut()
         .flat_map(|(info, binding)| {
             // Get all matching events (i.e. events with correct association to unbound objects)
-            let matching_events = events.into_par_iter().filter(|ev| {
+            let matching_events = get_events_of_type_associated_with_objects(
+                linked_ocel,
+                &node.event_type,
+                get_object_ids_from_node_and_binding(node,&binding)
+            )
+            .into_par_iter()
+            .filter(|ev| {
                 // First check for correct related objects
                 if !event_has_correct_objects(node, ev, &binding) {
                     return false;
@@ -260,7 +209,7 @@ fn match_and_add_new_bindings<'a>(
                     match last_prev_ev {
                         Some(prev_ev) => {
                             let second_diff = (ev.time
-                                - event_map.get(&prev_ev.event_id).unwrap().time)
+                                - linked_ocel.event_map.get(&prev_ev.event_id).unwrap().time)
                                 .num_seconds();
                             if (second_diff as f64) < p.connection.time_constraint.min_seconds
                                 || (second_diff as f64) > p.connection.time_constraint.max_seconds
@@ -292,7 +241,7 @@ fn match_and_add_new_bindings<'a>(
 
             let take = match node.parents.len() {
                 0 => 1,
-                _ => events.len(),
+                _ => num_matching_events,
             };
 
             matching_events
@@ -354,6 +303,19 @@ fn match_and_add_new_bindings<'a>(
         .collect();
 }
 
+fn get_object_ids_from_node_and_binding(node: &TreeNode, binding: &HashMap<String, BoundValue>) -> Vec<String> {
+    return node.variables
+    .iter()
+    .filter(|v| !v.bound)
+    .filter_map(|v| match binding.get(&v.variable.name).unwrap() {
+        BoundValue::Single(s) => Some(s.clone()),
+        BoundValue::Multiple(_) => {
+            todo!("Multiple objects?");
+        },
+    })
+    .collect_vec();
+}
+
 type Binding = (AdditionalBindingInfo, HashMap<String, BoundValue>);
 type Bindings = Vec<Binding>;
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -367,15 +329,11 @@ pub enum ViolationReason {
 type Violations = Vec<(Binding, ViolationReason)>;
 
 pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Violations>) {
-    let LinkedOCEL {
-        event_map,
-        object_map,
-        events_of_type,
-        objects_of_type,
-    } = link_ocel_info(ocel);
+    let linked_ocel = link_ocel_info(ocel);
     let mut binding_sizes: Vec<usize> = Vec::new();
     let mut violation_sizes: Vec<usize> = Vec::new();
     let mut violations: Vec<Violations> = Vec::new();
+    let now = Instant::now();
     if nodes.len() > 0 {
         let mut bindings: Bindings = vec![(
             AdditionalBindingInfo {
@@ -405,7 +363,8 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Vi
             bindings = bindings
                 .into_iter()
                 .flat_map(|(add_info, bound_val)| {
-                    objects_of_type
+                    linked_ocel
+                        .objects_of_type
                         .get(&v.object_type)
                         .unwrap()
                         .iter()
@@ -416,7 +375,6 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Vi
                             return (add_info.clone(), new_bound_val);
                         })
                         .collect_vec()
-                    // vec![b]
                 })
                 .collect();
         }
@@ -430,13 +388,7 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Vi
                 // Instead, we only gather first violations
                 if node.count_constraint.min > 0 || node.count_constraint.max < usize::MAX {
                     println!("Node {} has no child/parent", { i });
-                    let x = match_and_add_new_bindings(
-                        Some(bindings.clone()),
-                        node,
-                        &events_of_type,
-                        &event_map,
-                        &object_map,
-                    );
+                    let x = match_and_add_new_bindings(Some(bindings.clone()), node, &linked_ocel);
                     violations.push(
                         x.into_iter()
                             .filter_map(|(b, violation)| match violation {
@@ -453,9 +405,7 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Vi
             let x = Some(match_and_add_new_bindings(
                 Some(bindings),
                 node,
-                &events_of_type,
-                &event_map,
-                &object_map,
+                &linked_ocel,
             ))
             .unwrap();
             let mut new_bindings: Bindings = Vec::new();
@@ -490,6 +440,7 @@ pub fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Vi
         println!("Finished with check (nothing to do)");
     }
     println!("No connected node left!");
+    println!("Finished in {:?}", now.elapsed());
     return (binding_sizes, violations);
 }
 
