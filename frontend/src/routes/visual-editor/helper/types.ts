@@ -4,6 +4,8 @@ import { type CONSTRAINT_TYPES } from "./const";
 export interface ObjectVariable {
   name: string;
   type: string;
+  initiallyBound: boolean;
+  o2o?: undefined|{parentVariableName: string, qualifier: string}
 }
 
 export type SelectedVariables = {

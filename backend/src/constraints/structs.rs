@@ -37,10 +37,20 @@ pub struct Connection {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ObjectVariableO2O {
+    #[serde(rename = "parentVariableName")]
+    pub parent_variable_name: String,
+    pub qualifier: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ObjectVariable {
     pub name: String,
     #[serde(rename = "type")]
     pub object_type: String,
+    #[serde(rename = "initiallyBound")]
+    pub initially_bound: bool,
+    pub o2o: Option<ObjectVariableO2O>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

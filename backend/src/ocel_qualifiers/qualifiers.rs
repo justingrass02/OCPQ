@@ -1,10 +1,13 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use axum::{extract::State, http::StatusCode, Json};
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 
-use crate::{with_ocel_from_state, AppState};
+use crate::{
+    preprocessing::preprocess::{get_object_rels_per_type, link_ocel_info},
+    with_ocel_from_state, AppState,
+};
 
 #[derive(Serialize, Deserialize)]
 pub struct QualifiersForEventType {
@@ -14,6 +17,21 @@ pub struct QualifiersForEventType {
     counts: Vec<i32>,
 }
 pub type QualifierAndObjectType = (String, String);
+
+pub async fn get_qualifers_for_object_types(
+    State(state): State<AppState>,
+) -> (
+    StatusCode,
+    Json<Option<HashMap<String, HashSet<QualifierAndObjectType>>>>,
+) {
+    match with_ocel_from_state(&State(state), |ocel| {
+        let x = link_ocel_info(ocel);
+        return x.object_rels_per_type;
+    }) {
+        Some(x) => (StatusCode::OK, Json(Some(x))),
+        None => (StatusCode::BAD_REQUEST, Json(None)),
+    }
+}
 pub async fn get_qualifiers_for_event_types(
     State(state): State<AppState>,
 ) -> (

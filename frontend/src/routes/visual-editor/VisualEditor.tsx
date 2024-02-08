@@ -41,12 +41,16 @@ import {
 import { ImageIcon } from "@radix-ui/react-icons";
 import { toPng } from "html-to-image";
 import toast from "react-hot-toast";
-import { LuLayoutDashboard, LuX } from "react-icons/lu";
+import { LuLayoutDashboard, LuUnlink, LuX } from "react-icons/lu";
 import { MdAdd } from "react-icons/md";
 import { RxPlus, RxReset } from "react-icons/rx";
 import { TbBinaryTree, TbRestore } from "react-icons/tb";
 import "reactflow/dist/style.css";
-import type { EventTypeQualifiers, OCELInfo } from "../../types/ocel";
+import type {
+  EventTypeQualifiers,
+  OCELInfo,
+  ObjectTypeQualifiers,
+} from "../../types/ocel";
 import { evaluateConstraints } from "./evaluation/evaluate-constraints";
 import { ConstraintInfoContext } from "./helper/ConstraintInfoContext";
 import { useLayoutedElements } from "./helper/LayoutFlow";
@@ -134,6 +138,8 @@ function VisualEditor(props: VisualEditorProps) {
     useNodesState<EventTypeNodeData>(intitialNodes);
 
   const [edges, setEdges, onEdgesChange] = useEdgesState<EventTypeLinkData>([]);
+
+  const { objectVariables } = useContext(ConstraintInfoContext);
 
   const onConnect = useCallback(
     ({ source, sourceHandle, target, targetHandle }: Edge | Connection) => {
@@ -378,7 +384,11 @@ function VisualEditor(props: VisualEditorProps) {
             title={mode !== "view-tree" ? "Construct tree" : "Edit"}
             className="bg-white"
             onClick={async () => {
-              const res = await evaluateConstraints(nodes, edges);
+              const res = await evaluateConstraints(
+                objectVariables,
+                nodes,
+                edges,
+              );
               setViolationInfo((vi) => ({ ...vi, violationsPerNode: res }));
             }}
           >
@@ -496,11 +506,13 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
 
 interface ConstraintContainerProps {
   qualifiers: EventTypeQualifiers;
+  objectQualifiers: ObjectTypeQualifiers;
   ocelInfo: OCELInfo;
 }
 
 function ConstraintContainer({
   qualifiers,
+  objectQualifiers,
   ocelInfo,
 }: ConstraintContainerProps) {
   const [info, setInfo] = useState<{
@@ -509,7 +521,24 @@ function ConstraintContainer({
   const [editMetaInfoData, setEditMetaInfoData] = useState<ObjectVariable>({
     name: "",
     type: "",
+    initiallyBound: true,
+    o2o: undefined,
   });
+
+  function getPossibleO2O(forObjectType: string) {
+    const possibleO2O: { qualifier: string; parentVariableName: string }[] = [];
+    for (const v of info.objectVariables) {
+      const quals = objectQualifiers[v.type];
+      if (quals != null) {
+        for (const [q, t] of quals) {
+          if (t === forObjectType) {
+            possibleO2O.push({ qualifier: q, parentVariableName: v.name });
+          }
+        }
+      }
+    }
+    return possibleO2O;
+  }
 
   return (
     <div className="relative">
@@ -523,14 +552,29 @@ function ConstraintContainer({
               label: ot.name,
             }))}
             name="Object type"
-            onChange={(val) => {
+            onChange={(valWithCorrectCaps) => {
+              // TODO: Seems like this is scheduled to also be fixed upstream?!
+              // https://github.com/pacocoursey/cmdk/commit/3dae25da8ca8448ea5b101a50f5d5987fe27679c
+              // https://github.com/pacocoursey/cmdk/issues/150
+              // const valWithCorrectCaps = ocelInfo.object_types.find(
+              //   (o) => o.name.toLowerCase() === val,
+              // )?.name;
+              console.log({ valWithCorrectCaps });
+              if (valWithCorrectCaps == null || valWithCorrectCaps === "") {
+                return;
+              }
+              console.log({ valWithCorrectCaps }, ocelInfo.object_types);
               if (
                 editMetaInfoData.name === "" ||
                 editMetaInfoData.name.match(
-                  new RegExp(editMetaInfoData.type.substring(0, 2) + "_[0-9]$"),
+                  new RegExp(
+                    editMetaInfoData.type.toLowerCase().substring(0, 2) +
+                      "_[0-9]$",
+                  ),
                 ) != null
               ) {
-                let name = val.substring(0, 2) + "_";
+                let name =
+                  valWithCorrectCaps.toLowerCase().substring(0, 2) + "_";
                 for (let i = 0; i < 10; i++) {
                   if (
                     info.objectVariables.find((v) => v.name === name + i) ===
@@ -540,9 +584,27 @@ function ConstraintContainer({
                     break;
                   }
                 }
-                setEditMetaInfoData({ ...editMetaInfoData, type: val, name });
+                if (
+                  editMetaInfoData.o2o != null &&
+                  getPossibleO2O(valWithCorrectCaps).find(
+                    (va) =>
+                      va.parentVariableName ===
+                        editMetaInfoData.o2o!.parentVariableName &&
+                      va.qualifier === editMetaInfoData.o2o!.qualifier,
+                  ) === undefined
+                ) {
+                  editMetaInfoData.o2o = undefined;
+                }
+                setEditMetaInfoData({
+                  ...editMetaInfoData,
+                  type: valWithCorrectCaps,
+                  name,
+                });
               } else {
-                setEditMetaInfoData({ ...editMetaInfoData, type: val });
+                setEditMetaInfoData({
+                  ...editMetaInfoData,
+                  type: valWithCorrectCaps,
+                });
               }
             }}
           />
@@ -556,6 +618,59 @@ function ConstraintContainer({
             }}
             className="max-w-[20ch]"
             placeholder="Variable name"
+          />
+          <Combobox
+            value={
+              editMetaInfoData.initiallyBound
+                ? "Initially bound"
+                : "Initially unbound"
+            }
+            options={[
+              { value: "Initially bound", label: "Initially bound" },
+              { value: "Initially unbound", label: "Initially unbound" },
+            ]}
+            name="Initial Binding"
+            onChange={(val) => {
+              if (val != null && val !== "") {
+                const initiallyBound = val === "Initially bound";
+                setEditMetaInfoData({
+                  ...editMetaInfoData,
+                  initiallyBound,
+                  o2o: initiallyBound ? editMetaInfoData.o2o : undefined,
+                });
+              }
+            }}
+          />
+          <Combobox
+            disabled={
+              info.objectVariables.length === 0 ||
+              !editMetaInfoData.initiallyBound
+            }
+            value={
+              editMetaInfoData.o2o != null
+                ? JSON.stringify(editMetaInfoData.o2o)
+                : ""
+            }
+            options={[
+              ...getPossibleO2O(editMetaInfoData.type).map((p) => ({
+                value: JSON.stringify(p),
+                label: p.qualifier + "@" + p.parentVariableName,
+              })),
+            ]}
+            name="O2O Binding"
+            onChange={(val) => {
+              if (val != null && val !== "" && val !== "-") {
+                const valJson = JSON.parse(val);
+                console.log({ valJson });
+                // const [qualifier, parentVariableName] = val.split("@");
+                setEditMetaInfoData({
+                  ...editMetaInfoData,
+                  o2o: valJson,
+                });
+              } else {
+                setEditMetaInfoData({ ...editMetaInfoData, o2o: undefined });
+              }
+            }}
           />
           <Button
             disabled={
@@ -586,7 +701,14 @@ function ConstraintContainer({
             <div
               className="text-center flex items-center px-1 bg-slate-100 rounded-md border cursor-help"
               key={i}
-              title={m.type}
+              title={
+                "Type: " +
+                m.type +
+                (m.o2o != null
+                  ? "\nO2O: " + m.o2o.qualifier + "@" + m.o2o.parentVariableName
+                  : "\nO2O: -")
+                  + (m.initiallyBound ? "\nInitially bound" : "\nInitially unbound")
+              }
             >
               <button
                 title="Remove"
@@ -600,6 +722,12 @@ function ConstraintContainer({
                 <LuX />
               </button>
               {m.name}
+              {m.o2o != null && (
+                <span className="pl-2 text-gray-600">
+                  {m.o2o.qualifier}@{m.o2o.parentVariableName}
+                </span>
+              )}
+              {!m.initiallyBound && <LuUnlink className="ml-2"/>}
             </div>
           ))}
         </div>
@@ -624,22 +752,46 @@ function ConstraintContainer({
 
 export default function VisualEditorOuter() {
   const [qualifiers, setQualifiers] = useState<EventTypeQualifiers>();
+  const [objectQualifiers, setObjectQualifiers] =
+    useState<ObjectTypeQualifiers>();
   const ocelInfo = useContext(OcelInfoContext);
   const [constraints, setConstraints] = useState<string[]>([]);
   useEffect(() => {
     toast
       .promise(
-        fetch("http://localhost:3000/ocel/qualifiers", { method: "get" }),
+        fetch("http://localhost:3000/ocel/event-qualifiers", { method: "get" }),
         {
           loading: "Fetching qualifier info...",
           success: "Loaded qualifier info",
           error: "Failed to fetch qualifier info",
         },
-        { id: "fetch-qualifiers" },
+        { id: "fetch-event-qualifiers" },
       )
       .then(async (res) => {
         const json: EventTypeQualifiers = await res.json();
         setQualifiers(json);
+      })
+      .catch((e) => {
+        console.error(e);
+      });
+  }, []);
+
+  useEffect(() => {
+    toast
+      .promise(
+        fetch("http://localhost:3000/ocel/object-qualifiers", {
+          method: "get",
+        }),
+        {
+          loading: "Fetching object qualifier info...",
+          success: "Loaded object qualifier info",
+          error: "Failed to fetch object qualifier info",
+        },
+        { id: "fetch-object-qualifiers" },
+      )
+      .then(async (res) => {
+        const json: ObjectTypeQualifiers = await res.json();
+        setObjectQualifiers(json);
       })
       .catch((e) => {
         console.error(e);
@@ -659,10 +811,12 @@ export default function VisualEditorOuter() {
       <div className="flex flex-wrap justify-around">
         {ocelInfo !== undefined &&
           qualifiers !== undefined &&
+          objectQualifiers !== undefined &&
           constraints.map((_, i) => (
             <ConstraintContainer
               key={i}
               ocelInfo={ocelInfo}
+              objectQualifiers={objectQualifiers}
               qualifiers={qualifiers}
             />
           ))}

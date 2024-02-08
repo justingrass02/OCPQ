@@ -38,3 +38,6 @@ export type EventTypeQualifierInfo = {
 export type EventTypeQualifier = Record<string, EventTypeQualifierInfo>;
 
 export type EventTypeQualifiers = Record<string, EventTypeQualifier>;
+
+export type ObjectTypeQualifier = Set<[string,string]>;
+export type ObjectTypeQualifiers = Record<string, ObjectTypeQualifier>;

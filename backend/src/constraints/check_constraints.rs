@@ -211,10 +211,14 @@ fn get_object_ids_from_node_and_binding(
         .variables
         .iter()
         .filter(|v| !v.bound)
-        .filter_map(|v| match binding.get(&v.variable.name).unwrap() {
-            BoundValue::Single(s) => Some(s.clone()),
-            BoundValue::Multiple(_) => {
+        .filter_map(|v| match binding.get(&v.variable.name) {
+            Some(BoundValue::Single(s)) => Some(s.clone()),
+            Some(BoundValue::Multiple(_)) => {
                 eprintln!("Multiple objects?");
+                None
+            }
+            None => {
+                eprintln!("Variable unbound?");
                 None
             }
         })
@@ -233,11 +237,16 @@ pub enum ViolationReason {
 }
 type Violations = Vec<(Binding, ViolationReason)>;
 
-fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Violations>) {
+fn check_with_tree(
+    variables: Vec<ObjectVariable>,
+    nodes: Vec<TreeNode>,
+    ocel: &OCEL,
+) -> (Vec<usize>, Vec<Violations>) {
     let linked_ocel = link_ocel_info(ocel);
     let mut binding_sizes: Vec<usize> = Vec::new();
     let mut violation_sizes: Vec<usize> = Vec::new();
     let mut violations: Vec<Violations> = Vec::new();
+    println!("Variables: {:?}", variables);
     let now = Instant::now();
     if !nodes.is_empty() {
         let mut bindings: Bindings = vec![(
@@ -246,29 +255,39 @@ fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Violat
             },
             HashMap::new(),
         )];
-        let bound_vars: HashSet<ObjectVariable> = nodes
-            .iter()
-            .flat_map(|n| {
-                n.variables
-                    .iter()
-                    .filter(|v| v.bound)
-                    .map(|v| v.variable.clone())
-            })
-            .collect();
-        let unbound_vars: HashSet<ObjectVariable> = nodes
-            .iter()
-            .flat_map(|n| {
-                n.variables
-                    .iter()
-                    .filter(|v| !bound_vars.contains(&v.variable))
-                    .map(|v| v.variable.clone())
-            })
-            .collect();
-        for v in unbound_vars {
+        let initially_bound_vars = variables.iter().filter(|v| v.initially_bound).collect_vec();
+        for v in initially_bound_vars {
             bindings = bindings
                 .into_iter()
-                .flat_map(|(add_info, bound_val)| {
-                    linked_ocel
+                .flat_map(|(add_info, bound_val)| match &v.o2o {
+                    Some(o2o) => {
+                        // println!(bound_val)
+                        let bound_parent_object_val =
+                            bound_val.get(&o2o.parent_variable_name).unwrap();
+                        match bound_parent_object_val {
+                            BoundValue::Single(parent_object_id) => {
+                                let parent_object =
+                                    linked_ocel.object_map.get(parent_object_id).unwrap();
+                                match &parent_object.relationships {
+                                    Some(rels) => rels
+                                        .iter()
+                                        .filter(|r| r.qualifier == o2o.qualifier)
+                                        .map(|r| {
+                                            let mut new_bound_val = bound_val.clone();
+                                            new_bound_val.insert(
+                                                v.name.clone(),
+                                                BoundValue::Single(r.object_id.clone()),
+                                            );
+                                            (add_info.clone(), new_bound_val)
+                                        })
+                                        .collect_vec(),
+                                    None => todo!("No rels in parent {}", parent_object.id),
+                                }
+                            }
+                            BoundValue::Multiple(_) => todo!(),
+                        }
+                    }
+                    None => linked_ocel
                         .objects_of_type
                         .get(&v.object_type)
                         .unwrap()
@@ -279,7 +298,7 @@ fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Violat
                                 .insert(v.name.clone(), BoundValue::Single(obj.id.clone()));
                             (add_info.clone(), new_bound_val)
                         })
-                        .collect_vec()
+                        .collect_vec(),
                 })
                 .collect();
         }
@@ -321,15 +340,10 @@ fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Violat
             violation_sizes.push(new_violations.len());
             bindings = new_bindings;
             println!(
-                "#Bindings for node {}: {};\nViolations: {}\n{:?}",
+                "#Bindings for node {}: {};\nViolations: {}",
                 node.id,
                 bindings.len(),
                 new_violations.len(),
-                if !new_violations.is_empty() {
-                    Some(new_violations[0].1.clone())
-                } else {
-                    None
-                }
             );
             violations.push(new_violations);
         }
@@ -341,12 +355,21 @@ fn check_with_tree(nodes: Vec<TreeNode>, ocel: &OCEL) -> (Vec<usize>, Vec<Violat
     (binding_sizes, violations)
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct CheckWithTreeRequest {
+    pub variables: Vec<ObjectVariable>,
+    #[serde(rename = "nodesOrder")]
+    pub nodes_order: Vec<TreeNode>,
+}
 pub async fn check_with_tree_req(
     state: State<AppState>,
-    Json(nodes): Json<Vec<TreeNode>>,
+    Json(req): Json<CheckWithTreeRequest>,
 ) -> (StatusCode, Json<Option<(Vec<usize>, Vec<Violations>)>>) {
     with_ocel_from_state(&state, |ocel| {
-        (StatusCode::OK, Json(Some(check_with_tree(nodes, ocel))))
+        (
+            StatusCode::OK,
+            Json(Some(check_with_tree(req.variables, req.nodes_order, ocel))),
+        )
     })
     .unwrap_or((StatusCode::INTERNAL_SERVER_ERROR, Json(None)))
 }

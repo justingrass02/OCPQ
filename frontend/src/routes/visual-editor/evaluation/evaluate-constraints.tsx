@@ -5,6 +5,7 @@ import type {
   CountConstraint,
   EventTypeLinkData,
   EventTypeNodeData,
+  ObjectVariable,
   SelectedVariables,
   TimeConstraint,
   Violation,
@@ -41,9 +42,11 @@ function replaceInfinity(x: number) {
 }
 
 export async function evaluateConstraints(
+  variables: ObjectVariable[],
   nodes: Node<EventTypeNodeData>[],
   edges: Edge<EventTypeLinkData>[],
 ): Promise<ViolationsPerNodes> {
+  console.log({ variables });
   const treeNodes: Record<string, TreeNode> = Object.fromEntries(
     nodes.map((evtNode) => [
       evtNode.id,
@@ -180,7 +183,7 @@ export async function evaluateConstraints(
   ].filter((n) => n.variables.length > 0);
   // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
   const [_sizes, violations] = await toast.promise(
-    callCheckConstraintsEndpoint(inputNodes),
+    callCheckConstraintsEndpoint(variables, inputNodes),
     {
       loading: "Evaluating...",
       success: ([sizes, violations]) => (
@@ -209,10 +212,13 @@ export async function evaluateConstraints(
   }));
 }
 
-async function callCheckConstraintsEndpoint(nodesOrder: TreeNode[]) {
+async function callCheckConstraintsEndpoint(
+  variables: ObjectVariable[],
+  nodesOrder: TreeNode[],
+) {
   const res = await fetch("http://localhost:3000/ocel/check-constraints", {
     method: "post",
-    body: JSON.stringify(nodesOrder),
+    body: JSON.stringify({ variables, nodesOrder }),
     headers: { "Content-Type": "application/json" },
   });
   const matchingSizesAndViolations: [number[], Violation[][]] =

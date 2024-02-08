@@ -60,10 +60,10 @@ export function Combobox({
             {options.map((o) => (
               <CommandItem
                 key={o.value}
-                value={o.value}
+                value={o.value.toLowerCase()}
                 onSelect={(currentValue) => {
-                  // setValue(currentValue === value ? "" : currentValue)
-                  onChange(currentValue === value ? "" : currentValue);
+                  console.log(currentValue,o.value);
+                  onChange(o.value === value ? "" : o.value);
                   setOpen(false);
                 }}
               >

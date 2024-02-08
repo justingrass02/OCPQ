@@ -27,7 +27,9 @@ use process_mining::event_log::ocel::ocel_struct::{OCELType, OCEL};
 use serde::{Deserialize, Serialize};
 use tower_http::cors::CorsLayer;
 
-use crate::load_ocel::load_ocel_file_to_state;
+use crate::{
+    load_ocel::load_ocel_file_to_state, ocel_qualifiers::qualifiers::get_qualifers_for_object_types,
+};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -53,7 +55,14 @@ async fn main() {
         .route("/ocel/load", post(load_ocel_file_req))
         .route("/ocel/info", get(get_loaded_ocel_info))
         .route("/ocel/available", get(get_available_ocels))
-        .route("/ocel/qualifiers", get(get_qualifiers_for_event_types))
+        .route(
+            "/ocel/event-qualifiers",
+            get(get_qualifiers_for_event_types),
+        )
+        .route(
+            "/ocel/object-qualifiers",
+            get(get_qualifers_for_object_types),
+        )
         .route("/ocel/check-constraints", post(check_with_tree_req))
         .with_state(state)
         .route("/", get(|| async { "Hello, Aaron!" }))

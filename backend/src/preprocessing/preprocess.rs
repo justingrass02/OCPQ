@@ -82,6 +82,8 @@ pub fn get_object_relationships(obj: &OCELObject) -> Vec<OCELRelationship> {
     }
 }
 
+///
+/// Computes [HashMap] linking an object type to the [HashSet] of [QualifierAndObjectType] that objects of that type are linked to (through O2O Relationships)
 pub fn get_object_rels_per_type(
     ocel: &OCEL,
     object_map: &HashMap<String, &OCELObject>,
