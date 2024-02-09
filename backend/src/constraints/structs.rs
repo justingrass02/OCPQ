@@ -78,6 +78,16 @@ pub struct TreeNode {
     pub variables: Vec<SelectedVariable>,
     #[serde(rename = "countConstraint")]
     pub count_constraint: CountConstraint,
+    #[serde(rename = "firstOrLastEventOfType")]
+    pub first_or_last_event_of_type: Option<FirstOrLastEventOfType>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum FirstOrLastEventOfType {
+    #[serde(rename = "first")]
+    First,
+    #[serde(rename = "last")]
+    Last,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

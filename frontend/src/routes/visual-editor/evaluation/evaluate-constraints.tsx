@@ -30,6 +30,7 @@ type TreeNode = {
   children: TreeNodeConnection[];
   variables: SelectedVariables;
   countConstraint: CountConstraint;
+  firstOrLastEventOfType?: "first"|"last"|undefined
 };
 
 function replaceInfinity(x: number) {
@@ -46,7 +47,7 @@ export async function evaluateConstraints(
   nodes: Node<EventTypeNodeData>[],
   edges: Edge<EventTypeLinkData>[],
 ): Promise<ViolationsPerNodes> {
-  console.log({ variables });
+  console.log({ variables,nodes });
   const treeNodes: Record<string, TreeNode> = Object.fromEntries(
     nodes.map((evtNode) => [
       evtNode.id,
@@ -60,6 +61,7 @@ export async function evaluateConstraints(
           min: replaceInfinity(evtNode.data.countConstraint.min),
           max: replaceInfinity(evtNode.data.countConstraint.max),
         },
+        firstOrLastEventOfType: evtNode.data.firstOrLastEventOfType
       } satisfies TreeNode,
     ]),
   );

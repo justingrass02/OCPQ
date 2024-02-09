@@ -10,7 +10,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    constraints::ObjectVariable,
+    constraints::{FirstOrLastEventOfType, ObjectVariable},
     preprocessing::preprocess::{
         get_events_of_type_associated_with_objects, link_ocel_info, LinkedOCEL,
     },
@@ -87,7 +87,7 @@ fn match_and_add_new_bindings<'a>(
         .par_iter_mut()
         .flat_map(|(info, binding)| {
             // Get all matching events (i.e. events with correct association to unbound objects)
-            let matching_events = get_events_of_type_associated_with_objects(
+            let matching_events: Vec<&OCELEvent> = get_events_of_type_associated_with_objects(
                 linked_ocel,
                 &node.event_type,
                 get_object_ids_from_node_and_binding(node, binding),
@@ -124,28 +124,48 @@ fn match_and_add_new_bindings<'a>(
                     }
                 }
                 true
-            });
-            let num_matching_events = matching_events.clone().count();
+            }).collect();
+            let num_matching_events = matching_events.clone().len();
 
-            if num_matching_events < node.count_constraint.min {
+            let mut take = num_matching_events;
+            let mut skip = 0;
+            // let take = match node.parents.len() {
+            //     0 => 1,
+            //     _ => num_matching_events,
+            // };
+            match node.first_or_last_event_of_type {
+                Some(FirstOrLastEventOfType::First) => {
+                    take = 1.min(num_matching_events);
+                },
+                Some(FirstOrLastEventOfType::Last) => {
+                    take = 1.min(num_matching_events);
+                    skip = num_matching_events - 1;
+
+                },
+                None => {
+
+                }
+            }
+
+            if take < node.count_constraint.min {
                 return vec![(
                     (info.clone(), binding.clone()),
                     Some(ViolationReason::TooFewMatchingEvents),
                 )];
-            } else if num_matching_events > node.count_constraint.max {
+            } else if take > node.count_constraint.max {
                 return vec![(
                     (info.clone(), binding.clone()),
                     Some(ViolationReason::TooManyMatchingEvents),
                 )];
             }
 
-            let take = match node.parents.len() {
-                0 => 1,
-                _ => num_matching_events,
-            };
+            println!("Skip {} take {} (len: {})",skip,take,num_matching_events);
+            if num_matching_events > 1 {
+                println!("{:?}", matching_events);
+            }
 
             matching_events
-                .take_any(take)
+                .iter().sorted_by_key(|ev| ev.time).skip(skip).take(take)
                 .flat_map(|matching_event| {
                     let mut info_cc: AdditionalBindingInfo = info.clone();
                     let binding: HashMap<String, BoundValue> = binding.clone();

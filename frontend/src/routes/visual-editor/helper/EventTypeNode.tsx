@@ -1,4 +1,5 @@
 import { Combobox } from "@/components/ui/combobox";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { EventTypeQualifierInfo } from "@/types/ocel";
 import {
   CheckCircledIcon,
@@ -14,6 +15,8 @@ import type {
   EventTypeNodeData,
   ObjectVariable,
 } from "./types";
+import { CgRowFirst, CgRowLast, CgStopwatch } from "react-icons/cg";
+import { RxStopwatch } from "react-icons/rx";
 
 function getObjectType(qualInfo: EventTypeQualifierInfo) {
   if (qualInfo.object_types.length > 1) {
@@ -170,8 +173,58 @@ export default function EventTypeNode({
           }
         />
       </div>
-      <div className="text-large font-semibold mt-1 mx-4 flex justify-center items-center">
+      <div className="text-large font-semibold mt-1 mx-4 flex flex-col justify-center items-center">
         <span>{data.eventType}</span>
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          value={data.firstOrLastEventOfType ?? ""}
+          onValueChange={(val) => {
+            const newVal =
+              val === "first" ? "first" : val === "last" ? "last" : undefined;
+            data.onDataChange(id, { ...data, firstOrLastEventOfType: newVal });
+          }}
+        >
+          <ToggleGroupItem
+            title="First"
+            value="first"
+            className="flex w-6 h-6 p-0 data-[state=on]:bg-blue-200 data-[state=on]:border-blue-300"
+          >
+            <CgRowFirst />
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            title="Last"
+            value="last"
+            className="flex w-6 h-6 p-0 data-[state=on]:bg-blue-200 data-[state=on]:border-blue-300"
+          >
+            <CgRowLast />
+          </ToggleGroupItem>
+        </ToggleGroup>
+        <button className="flex my-0.5 items-center gap-x-1 font-light text-xs hover:bg-blue-400/50 p-1 rounded" title="Waiting time">
+          <CgStopwatch/> {0}s - {4}d
+        </button>
+        {/* <Select
+          value={data.firstOrLastEventOfType ?? "-"}
+          onValueChange={(v) => {
+            data.onDataChange(id, {
+              ...data,
+              firstOrLastEventOfType:
+                v === "first" ? "first" : v === "last" ? "last" : undefined,
+            });
+          }}
+        >
+          <SelectTrigger className={"h-6 w-[5rem] font-light text-xs"}>
+            <SelectValue placeholder="Select first/last activity" />
+          </SelectTrigger>
+          <SelectContent>
+            {["-", "first", "last"].map((t) => (
+              <SelectItem key={t} value={t}>
+                {t}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select> */}
       </div>
       <div className="mb-1">
         {data.selectedVariables.map((selectedVar, i) => (

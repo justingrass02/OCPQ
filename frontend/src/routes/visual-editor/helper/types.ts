@@ -31,6 +31,7 @@ export type EventTypeNodeData = {
   eventTypeQualifier: EventTypeQualifier;
   objectTypeToColor: Record<string, string>;
   countConstraint: CountConstraint;
+  firstOrLastEventOfType?: "first"|"last"|undefined,
   selectedVariables: SelectedVariables;
   onDataChange: (id: string, newData: Partial<EventTypeNodeData>) => unknown;
 };
