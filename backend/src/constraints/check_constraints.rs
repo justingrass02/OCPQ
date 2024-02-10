@@ -1,9 +1,7 @@
-use std::{
-    collections::{HashMap, HashSet},
-    time::Instant,
-};
+use std::{collections::HashMap, time::Instant};
 
 use axum::{extract::State, http::StatusCode, Json};
+use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use process_mining::event_log::ocel::ocel_struct::{OCELEvent, OCEL};
 use rayon::prelude::*;
@@ -98,6 +96,12 @@ fn match_and_add_new_bindings<'a>(
                 if !event_has_correct_objects(node, ev, binding) {
                     return false;
                 }
+                if !event_satisfies_num_qualifiers_constraint(node, ev) {
+                    return false;
+                }
+                if !event_satisfies_waiting_time_constraint(node, ev, linked_ocel) {
+                    return false;
+                }
 
                 // Then check time difference
                 for p in &node.parents {
@@ -124,7 +128,8 @@ fn match_and_add_new_bindings<'a>(
                     }
                 }
                 true
-            }).collect();
+            })
+            .collect();
             let num_matching_events = matching_events.clone().len();
 
             let mut take = num_matching_events;
@@ -136,15 +141,12 @@ fn match_and_add_new_bindings<'a>(
             match node.first_or_last_event_of_type {
                 Some(FirstOrLastEventOfType::First) => {
                     take = 1.min(num_matching_events);
-                },
+                }
                 Some(FirstOrLastEventOfType::Last) => {
                     take = 1.min(num_matching_events);
                     skip = num_matching_events - 1;
-
-                },
-                None => {
-
                 }
+                None => {}
             }
 
             if take < node.count_constraint.min {
@@ -159,13 +161,16 @@ fn match_and_add_new_bindings<'a>(
                 )];
             }
 
-            println!("Skip {} take {} (len: {})",skip,take,num_matching_events);
-            if num_matching_events > 1 {
-                println!("{:?}", matching_events);
-            }
+            // println!("Skip {} take {} (len: {})", skip, take, num_matching_events);
+            // if num_matching_events > 1 {
+            //     println!("{:?}", matching_events);
+            // }
 
             matching_events
-                .iter().sorted_by_key(|ev| ev.time).skip(skip).take(take)
+                .iter()
+                .sorted_by_key(|ev| ev.time)
+                .skip(skip)
+                .take(take)
                 .flat_map(|matching_event| {
                     let mut info_cc: AdditionalBindingInfo = info.clone();
                     let binding: HashMap<String, BoundValue> = binding.clone();
@@ -221,6 +226,73 @@ fn match_and_add_new_bindings<'a>(
                 .collect::<Vec<(Binding, Option<ViolationReason>)>>()
         })
         .collect();
+}
+fn event_satisfies_waiting_time_constraint<'a>(
+    node: &TreeNode,
+    ev: &&OCELEvent,
+    linked_ocel: &LinkedOCEL<'a>,
+) -> bool {
+    match &node.waiting_time_constraint {
+        Some(waiting_time_range) => {
+            let object_ids: Vec<String> = match &ev.relationships {
+                Some(rels) => rels.iter().map(|r| r.object_id.clone()).collect(),
+                None => Vec::new(),
+            };
+            let mut last_prev_event_time: Option<DateTime<Utc>> = None;
+            for object_id in &object_ids {
+                match linked_ocel.object_events_map.get(object_id) {
+                    None => {
+                        eprint!("Object ID {} has not entry in object_events_map", object_id)
+                    }
+                    Some(object_ids) => {
+                        for e_id in object_ids {
+                            match linked_ocel.event_map.get(e_id) {
+                                Some(e) => {
+                                    // Event has to happen before target event (to be considered for waiting time)
+                                    if e.time < ev.time {
+                                        if last_prev_event_time.is_none()
+                                            || e.time > last_prev_event_time.unwrap()
+                                        {
+                                            last_prev_event_time = Some(e.time.clone());
+                                        }
+                                    }
+                                }
+                                None => eprintln!("Event {} has no entry in event_map", e_id),
+                            }
+                        }
+                    }
+                }
+            }
+            let difference_seconds: i64 = match last_prev_event_time {
+                Some(prev_time) => (ev.time - prev_time).num_seconds(),
+                None => 0,
+            };
+            difference_seconds >= waiting_time_range.min_seconds
+                && difference_seconds <= waiting_time_range.max_seconds
+        }
+        None => true,
+    }
+}
+
+fn event_satisfies_num_qualifiers_constraint(node: &TreeNode, ev: &&OCELEvent) -> bool {
+    match &node.num_qualified_objects_constraint {
+        Some(num_qual_constr) => {
+            let mut ev_qualifier_nums: HashMap<&String, usize> = HashMap::new();
+            match &ev.relationships {
+                Some(rels) => {
+                    for r in rels {
+                        *ev_qualifier_nums.entry(&r.qualifier).or_insert(0) += 1;
+                    }
+                }
+                None => {}
+            }
+            num_qual_constr.iter().all(|(qual, num_constr)| {
+                let n = *ev_qualifier_nums.get(qual).unwrap_or(&0);
+                n <= num_constr.max && n >= num_constr.min
+            })
+        }
+        None => true,
+    }
 }
 
 fn get_object_ids_from_node_and_binding(

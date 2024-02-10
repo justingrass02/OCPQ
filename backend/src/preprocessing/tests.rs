@@ -1,16 +1,13 @@
 #[cfg(test)]
 #[test]
 pub fn test() {
-    use std::{
-        collections::{HashMap, HashSet},
-        time::Instant,
-    };
+    use std::time::Instant;
 
-    use process_mining::event_log::ocel::ocel_struct::OCELRelationship;
+    
 
     use crate::{
-        load_ocel::{load_ocel_file, DEFAULT_OCEL_FILE},
-        preprocessing::preprocess::{get_object_relationships, link_ocel_info},
+        load_ocel::load_ocel_file,
+        preprocessing::preprocess::link_ocel_info,
     };
 
     let mut now = Instant::now();

@@ -33,6 +33,9 @@ export type EventTypeNodeData = {
   countConstraint: CountConstraint;
   firstOrLastEventOfType?: "first"|"last"|undefined,
   selectedVariables: SelectedVariables;
+  waitingTimeConstraint?: {minSeconds: number, maxSeconds: number};
+  // Record of string (qualifier) and min/max number of associated objects wrt. that qualifier
+  numQualifiedObjectsConstraint?: Record<string,{min: number, max: number}>;
   onDataChange: (id: string, newData: Partial<EventTypeNodeData>) => unknown;
 };
 

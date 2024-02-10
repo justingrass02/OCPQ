@@ -62,7 +62,6 @@ export function Combobox({
                 key={o.value}
                 value={o.value.toLowerCase()}
                 onSelect={(currentValue) => {
-                  console.log(currentValue,o.value);
                   onChange(o.value === value ? "" : o.value);
                   setOpen(false);
                 }}

@@ -1,4 +1,11 @@
+import AlertHelper from "@/components/AlertHelper";
+import TimeDurationInput, {
+  formatSeconds,
+} from "@/components/TimeDurationInput";
+import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { EventTypeQualifierInfo } from "@/types/ocel";
 import {
@@ -6,7 +13,10 @@ import {
   ExclamationTriangleIcon,
 } from "@radix-ui/react-icons";
 import { useContext, useEffect } from "react";
-import { LuLink, LuUnlink, LuX } from "react-icons/lu";
+import toast from "react-hot-toast";
+import { AiOutlineNumber } from "react-icons/ai";
+import { CgRowFirst, CgRowLast, CgStopwatch } from "react-icons/cg";
+import { LuDelete, LuLink, LuUnlink, LuX } from "react-icons/lu";
 import { Handle, Position, type NodeProps } from "reactflow";
 import { ConstraintInfoContext } from "./ConstraintInfoContext";
 import { ViolationsContext } from "./ViolationsContext";
@@ -15,9 +25,6 @@ import type {
   EventTypeNodeData,
   ObjectVariable,
 } from "./types";
-import { CgRowFirst, CgRowLast, CgStopwatch } from "react-icons/cg";
-import { RxStopwatch } from "react-icons/rx";
-
 function getObjectType(qualInfo: EventTypeQualifierInfo) {
   if (qualInfo.object_types.length > 1) {
     console.warn(
@@ -54,6 +61,7 @@ export default function EventTypeNode({
   function getCountConstraint(): CountConstraint {
     return data.countConstraint;
   }
+  console.log("Re-render for " + id);
 
   useEffect(() => {
     const newSelectedVariables = data.selectedVariables.filter((v) =>
@@ -117,7 +125,6 @@ export default function EventTypeNode({
       {violations?.violations !== undefined && (
         <button
           onClick={() => {
-            console.log({ showViolationsFor });
             if (showViolationsFor !== undefined) {
               showViolationsFor(violations);
             }
@@ -201,30 +208,277 @@ export default function EventTypeNode({
             <CgRowLast />
           </ToggleGroupItem>
         </ToggleGroup>
-        <button className="flex my-0.5 items-center gap-x-1 font-light text-xs hover:bg-blue-400/50 p-1 rounded" title="Waiting time">
-          <CgStopwatch/> {0}s - {4}d
-        </button>
-        {/* <Select
-          value={data.firstOrLastEventOfType ?? "-"}
-          onValueChange={(v) => {
+        <AlertHelper
+          initialData={
+            data.waitingTimeConstraint != null
+              ? { ...data.waitingTimeConstraint }
+              : { minSeconds: 0, maxSeconds: Infinity }
+          }
+          trigger={
+            <button
+              title="Edit Waiting Time Constraint"
+              className="flex items-center gap-x-2 px-1 py-0.5 rounded border border-blue-300/30 my-1 hover:bg-blue-300/20 text-xs font-light"
+              onClick={() => {}}
+            >
+              <CgStopwatch />
+              {formatSeconds(data.waitingTimeConstraint?.minSeconds ?? 0)}
+              <span>-</span>
+              {formatSeconds(
+                data.waitingTimeConstraint?.maxSeconds ?? Infinity,
+              )}
+            </button>
+          }
+          title={"Waiting Time Constraint"}
+          submitAction={"Submit"}
+          onSubmit={(waitingTimeConstraintData, ev) => {
+            if (
+              waitingTimeConstraintData.minSeconds >
+              waitingTimeConstraintData.maxSeconds
+            ) {
+              toast(
+                "Maximal waiting time must not be smaller than minimal waiting time.",
+              );
+              ev.preventDefault();
+              return;
+            }
+            let newWaitingTimeConstraintData:
+              | { minSeconds: number; maxSeconds: number }
+              | undefined = waitingTimeConstraintData;
+            if (
+              waitingTimeConstraintData.minSeconds === 0 &&
+              waitingTimeConstraintData.maxSeconds === Infinity
+            ) {
+              newWaitingTimeConstraintData = undefined;
+            }
             data.onDataChange(id, {
               ...data,
-              firstOrLastEventOfType:
-                v === "first" ? "first" : v === "last" ? "last" : undefined,
+              waitingTimeConstraint: newWaitingTimeConstraintData,
             });
           }}
-        >
-          <SelectTrigger className={"h-6 w-[5rem] font-light text-xs"}>
-            <SelectValue placeholder="Select first/last activity" />
-          </SelectTrigger>
-          <SelectContent>
-            {["-", "first", "last"].map((t) => (
-              <SelectItem key={t} value={t}>
-                {t}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select> */}
+          content={({ data, setData }) => {
+            return (
+              <>
+                <span className="mb-2 block">
+                  Please select the minimal and maximal waiting time below.
+                </span>
+
+                <h3>Minimum</h3>
+                <TimeDurationInput
+                  durationSeconds={data.minSeconds ?? 0}
+                  onChange={(v) => {
+                    setData({ ...data, minSeconds: v });
+                  }}
+                />
+                <h3>Maximum</h3>
+                <TimeDurationInput
+                  durationSeconds={data.maxSeconds ?? Infinity}
+                  onChange={(v) => {
+                    setData({ ...data, maxSeconds: v });
+                  }}
+                />
+                <div className="mt-2"></div>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  disabled={
+                    data.minSeconds === 0 && data.maxSeconds === Infinity
+                  }
+                  onClick={() => {
+                    setData({ minSeconds: 0, maxSeconds: Infinity });
+                  }}
+                >
+                  Reset
+                </Button>
+              </>
+            );
+          }}
+        />
+        <AlertHelper
+          initialData={{
+            numQualifiedObjectsConstraint:
+              data.numQualifiedObjectsConstraint != null
+                ? { ...data.numQualifiedObjectsConstraint }
+                : {},
+            currentlyEditing: { qualifier: "", min: "0", max: "∞" },
+          }}
+          trigger={
+            <button
+              title="Edit Related Qualified Object Constraints"
+              className="flex items-center gap-x-2 px-1 py-0.5 rounded border border-blue-300/30 my-1 hover:bg-blue-300/20 text-xs font-light"
+              onClick={() => {}}
+            >
+              <AiOutlineNumber
+                className={
+                  data.numQualifiedObjectsConstraint === undefined
+                    ? "text-gray-500/50"
+                    : "text-blue-400"
+                }
+              />
+            </button>
+          }
+          title={"Edit Related Qualified Object Constraints"}
+          submitAction={"Submit"}
+          onSubmit={(qualifiedObjConstraintData, ev) => {
+            const newDataFields =
+              Object.keys(
+                qualifiedObjConstraintData.numQualifiedObjectsConstraint,
+              ).length === 0
+                ? { numQualifiedObjectsConstraint: undefined }
+                : {
+                    numQualifiedObjectsConstraint: {
+                      ...qualifiedObjConstraintData.numQualifiedObjectsConstraint,
+                    },
+                  };
+            data.onDataChange(id, {
+              ...data,
+              ...newDataFields,
+            });
+          }}
+          content={({ data: d, setData: setD }) => {
+            return (
+              <>
+                <span className="mb-2 block">
+                  Please select the qualifier and the minimal and maximal number
+                  of objects associated throught that qualifier below.
+                </span>
+                <ul className="list-disc pl-4 text-base my-4">
+                  {Object.entries(d.numQualifiedObjectsConstraint).map(
+                    ([qualifier, numObjectsConstraint], i) => (
+                      <li key={i} className="font-medium">
+                        <span className="inline-block w-[calc(100%-2rem)]">
+                          {qualifier}: {numObjectsConstraint.min} -{" "}
+                          {numObjectsConstraint.max === Infinity
+                            ? "∞"
+                            : numObjectsConstraint.max}
+                        </span>
+                        <Button
+                          size="icon"
+                          title="Remove"
+                          className="h-5 w-5 ml-2 text-red-500"
+                          variant="outline"
+                          onClick={() => {
+                            const newD = {
+                              ...d,
+                              numObjectsConstraint: {
+                                ...d.numQualifiedObjectsConstraint,
+                                [qualifier]: undefined,
+                              },
+                            };
+                            delete (
+                              // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+                              newD.numQualifiedObjectsConstraint[qualifier]
+                            );
+                            setD(newD);
+                          }}
+                        >
+                          <LuDelete />
+                        </Button>
+                      </li>
+                    ),
+                  )}
+                </ul>
+                <div className="flex gap-x-1 items-end mt-4">
+                  <Label className="w-[16rem] flex flex-col gap-y-1">
+                    Qualifier
+                    <Combobox
+                      value={d.currentlyEditing.qualifier}
+                      options={Object.keys(data.eventTypeQualifier)
+                        .filter((q) => !(q in d.numQualifiedObjectsConstraint))
+                        .map((q) => ({
+                          value: q,
+                          label: q,
+                        }))}
+                      name="Qualifier"
+                      onChange={(val) => {
+                        setD({
+                          ...d,
+                          currentlyEditing: {
+                            ...d.currentlyEditing,
+                            qualifier: val,
+                          },
+                        });
+                      }}
+                    />
+                  </Label>
+                  <Label className="flex flex-col gap-y-1">
+                    Minimum
+                    <Input
+                      type="text"
+                      value={d.currentlyEditing.min}
+                      onChange={(ev) => {
+                        setD({
+                          ...d,
+                          currentlyEditing: {
+                            ...d.currentlyEditing,
+                            min: ev.currentTarget.value,
+                          },
+                        });
+                      }}
+                    />
+                  </Label>
+                  <Label className="flex flex-col gap-y-1">
+                    Maximum
+                    <Input
+                      type="text"
+                      value={d.currentlyEditing.max}
+                      onChange={(ev) => {
+                        setD({
+                          ...d,
+                          currentlyEditing: {
+                            ...d.currentlyEditing,
+                            max:
+                              ev.currentTarget.value === "∞" ||
+                              ev.currentTarget.value === "infinity" ||
+                              ev.currentTarget.value === "inf"
+                                ? "∞"
+                                : ev.currentTarget.value,
+                          },
+                        });
+                      }}
+                    />
+                  </Label>
+                  <Button
+                    onClick={() => {
+                      if (d.currentlyEditing.qualifier === "") {
+                        toast("Please select a qualifier");
+                        return;
+                      }
+                      const parsedMin = parseInt(d.currentlyEditing.min);
+                      const parsedMax =
+                        d.currentlyEditing.max === "∞" ||
+                        d.currentlyEditing.max === "inf" ||
+                        d.currentlyEditing.max === "infinity"
+                          ? Infinity
+                          : parseInt(d.currentlyEditing.max);
+                      if (isNaN(parsedMin) || isNaN(parsedMax)) {
+                        toast("Invalid number");
+                        return;
+                      }
+
+                      setD({
+                        ...d,
+                        currentlyEditing: {
+                          qualifier: "",
+                          min: "0",
+                          max: "∞",
+                        },
+                        numQualifiedObjectsConstraint: {
+                          ...d.numQualifiedObjectsConstraint,
+                          [d.currentlyEditing.qualifier]: {
+                            min: parsedMin,
+                            max: parsedMax,
+                          },
+                        },
+                      });
+                    }}
+                  >
+                    Add
+                  </Button>
+                </div>
+              </>
+            );
+          }}
+        />
       </div>
       <div className="mb-1">
         {data.selectedVariables.map((selectedVar, i) => (

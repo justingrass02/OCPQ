@@ -66,6 +66,15 @@ pub struct CountConstraint {
     pub max: usize,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SecondsRange {
+    #[serde(rename = "minSeconds")]
+    pub min_seconds: i64,
+    #[serde(rename = "maxSeconds")]
+    pub max_seconds: i64,
+}
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -80,6 +89,10 @@ pub struct TreeNode {
     pub count_constraint: CountConstraint,
     #[serde(rename = "firstOrLastEventOfType")]
     pub first_or_last_event_of_type: Option<FirstOrLastEventOfType>,
+    #[serde(rename = "waitingTimeConstraint")]
+    pub waiting_time_constraint: Option<SecondsRange>,
+    #[serde(rename = "numQualifiedObjectsConstraint")]
+    pub num_qualified_objects_constraint: Option<HashMap<String,CountConstraint>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

@@ -14,3 +14,4 @@ process_mining = {path = "../../rust-bridge-process-mining/process_mining"}
 tower-http = { version = "0.4.3", features = ["cors"] }
 rayon = "1.8.0"
 itertools = "0.11.0"
+chrono = "0.4.33"

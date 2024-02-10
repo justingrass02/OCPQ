@@ -5,7 +5,7 @@ use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    preprocessing::preprocess::{get_object_rels_per_type, link_ocel_info},
+    preprocessing::preprocess::link_ocel_info,
     with_ocel_from_state, AppState,
 };
 

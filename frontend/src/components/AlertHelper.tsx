@@ -3,7 +3,6 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -18,7 +17,10 @@ interface AlertHelperProps<T> {
   content: React.FC<{ data: T; setData: (data: T) => unknown }>;
   submitAction: React.ReactNode;
   onCancel?: () => unknown;
-  onSubmit: (data: T) => unknown;
+  onSubmit: (
+    data: T,
+    ev: React.MouseEvent<HTMLButtonElement, MouseEvent>,
+  ) => unknown;
 }
 
 export default function AlertHelper<T>(props: AlertHelperProps<T>) {
@@ -29,21 +31,24 @@ export default function AlertHelper<T>(props: AlertHelperProps<T>) {
         if (!o && props.onCancel != null) {
           props.onCancel();
         }
+          setData(props.initialData);
       }}
     >
       <AlertDialogTrigger asChild>{props.trigger}</AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{props.title}</AlertDialogTitle>
-          <AlertDialogDescription>
+          {/* <AlertDialogDescription> */}
+          <div className="text-sm text-gray-700">
             {props.content({ data, setData })}
-          </AlertDialogDescription>
+          </div>
+          {/* </AlertDialogDescription> */}
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            onClick={() => {
-              props.onSubmit(data);
+            onClick={(ev) => {
+              props.onSubmit(data, ev);
             }}
           >
             {props.submitAction}

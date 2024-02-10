@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Combobox } from "./ui/combobox";
 import { Input } from "./ui/input";
 export const TIME_DURATION_UNITS = [
@@ -70,12 +70,19 @@ export default function TimeDurationInput({
     value === Infinity ? "∞" : value === -Infinity ? "-∞" : value.toString(),
   );
 
+  useEffect(() => {
+    const value = durationSeconds / unitFactorFromSeconds(unit);
+    setValue(value);
+    setValueString(
+      value === Infinity ? "∞" : value === -Infinity ? "-∞" : value.toString(),
+    );
+  }, [durationSeconds]);
+
   function handleValueChange(inputValue: string) {
     if (
       inputValue === "∞" ||
       inputValue === "inf" ||
-      inputValue === "infinity" ||
-      inputValue === "infty"
+      inputValue === "infinity"
     ) {
       setValue(Infinity);
       onChange(Infinity);
@@ -85,8 +92,7 @@ export default function TimeDurationInput({
     if (
       inputValue === "-∞" ||
       inputValue === "-inf" ||
-      inputValue === "-infinity" ||
-      inputValue === "-infty"
+      inputValue === "-infinity"
     ) {
       setValue(-Infinity);
       onChange(-Infinity);

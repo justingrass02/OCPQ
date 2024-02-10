@@ -30,7 +30,13 @@ type TreeNode = {
   children: TreeNodeConnection[];
   variables: SelectedVariables;
   countConstraint: CountConstraint;
-  firstOrLastEventOfType?: "first"|"last"|undefined
+  firstOrLastEventOfType?: "first" | "last" | undefined;
+  waitingTimeConstraint?:
+    | { minSeconds: number; maxSeconds: number }
+    | undefined;
+  numQualifiedObjectsConstraint?:
+    | Record<string, { max: number; min: number }>
+    | undefined;
 };
 
 function replaceInfinity(x: number) {
@@ -47,7 +53,7 @@ export async function evaluateConstraints(
   nodes: Node<EventTypeNodeData>[],
   edges: Edge<EventTypeLinkData>[],
 ): Promise<ViolationsPerNodes> {
-  console.log({ variables,nodes });
+  console.log({ variables, nodes });
   const treeNodes: Record<string, TreeNode> = Object.fromEntries(
     nodes.map((evtNode) => [
       evtNode.id,
@@ -61,7 +67,32 @@ export async function evaluateConstraints(
           min: replaceInfinity(evtNode.data.countConstraint.min),
           max: replaceInfinity(evtNode.data.countConstraint.max),
         },
-        firstOrLastEventOfType: evtNode.data.firstOrLastEventOfType
+        firstOrLastEventOfType: evtNode.data.firstOrLastEventOfType,
+        waitingTimeConstraint:
+          evtNode.data.waitingTimeConstraint !== undefined
+            ? {
+                minSeconds: replaceInfinity(
+                  evtNode.data.waitingTimeConstraint.minSeconds,
+                ),
+                maxSeconds: replaceInfinity(
+                  evtNode.data.waitingTimeConstraint.maxSeconds,
+                ),
+              }
+            : undefined,
+        numQualifiedObjectsConstraint:
+          evtNode.data.numQualifiedObjectsConstraint !== undefined
+            ? Object.fromEntries(
+                Object.entries(evtNode.data.numQualifiedObjectsConstraint).map(
+                  ([key, val]) => [
+                    key,
+                    {
+                      min: replaceInfinity(val.min),
+                      max: replaceInfinity(val.max),
+                    },
+                  ],
+                ),
+              )
+            : undefined,
       } satisfies TreeNode,
     ]),
   );
