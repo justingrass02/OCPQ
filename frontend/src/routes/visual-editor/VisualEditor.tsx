@@ -836,6 +836,25 @@ export default function VisualEditorOuter() {
       objectVariables?: ObjectVariable[];
     }[]
   >([]);
+
+  function changeIndex(newIndex: number, length = constraints.length) {
+    if (!isNaN(newIndex) && newIndex >= 0 && newIndex < length) {
+      if (
+        currentInstanceAndData.instance !== undefined &&
+        activeIndex !== undefined &&
+        currentInstanceAndData.getter !== undefined
+      ) {
+        const dataFromPrevIndex = currentInstanceAndData.instance.toObject();
+        const prevOtherData = currentInstanceAndData.getter();
+        prevDataRef.current[activeIndex] = {
+          flowJson: dataFromPrevIndex,
+          violations: prevOtherData?.violations,
+          objectVariables: prevOtherData?.objectVariables,
+        };
+      }
+      setActiveIndex(newIndex);
+    }
+  }
   return (
     <div>
       <FlowContext.Provider
@@ -882,8 +901,8 @@ export default function VisualEditorOuter() {
                   <Button
                     className="mb-2"
                     onClick={() => {
+                      changeIndex(constraints.length, constraints.length + 1);
                       setConstraints((cs) => [...cs, "new"]);
-                      setActiveIndex(constraints.length);
                     }}
                   >
                     Add {constraints.length === 0 && " Constraints"}
@@ -895,29 +914,7 @@ export default function VisualEditorOuter() {
                       value={activeIndex?.toString()}
                       onValueChange={(newVal) => {
                         const newIndex = parseInt(newVal);
-                        if (
-                          !isNaN(newIndex) &&
-                          newIndex >= 0 &&
-                          newIndex < constraints.length
-                        ) {
-                          if (
-                            currentInstanceAndData.instance !== undefined &&
-                            activeIndex !== undefined &&
-                            currentInstanceAndData.getter !== undefined
-                          ) {
-                            const dataFromPrevIndex =
-                              currentInstanceAndData.instance.toObject();
-                            const prevOtherData =
-                              currentInstanceAndData.getter();
-                            console.log({ prevOtherData });
-                            prevDataRef.current[activeIndex] = {
-                              flowJson: dataFromPrevIndex,
-                              violations: prevOtherData?.violations,
-                              objectVariables: prevOtherData?.objectVariables,
-                            };
-                            setActiveIndex(newIndex);
-                          }
-                        }
+                        changeIndex(newIndex);
                       }}
                     >
                       {constraints.map((_, i) => (
@@ -951,7 +948,7 @@ export default function VisualEditorOuter() {
                                 activeIndex !== undefined &&
                                 activeIndex >= constraints.length - 1
                               ) {
-                                setActiveIndex(activeIndex - 1);
+                                changeIndex(activeIndex - 1);
                               }
                               setConstraints((constraints) => {
                                 const newConstraints = [...constraints];
