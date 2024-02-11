@@ -36,7 +36,8 @@ export type EventTypeNodeData = {
   waitingTimeConstraint?: {minSeconds: number, maxSeconds: number};
   // Record of string (qualifier) and min/max number of associated objects wrt. that qualifier
   numQualifiedObjectsConstraint?: Record<string,{min: number, max: number}>;
-  onDataChange: (id: string, newData: Partial<EventTypeNodeData>) => unknown;
+  onDataChange: (id: string, newData: Partial<EventTypeNodeData>|undefined) => unknown;
+  hideViolations?: boolean;
 };
 
 export type TimeConstraint = { minSeconds: number; maxSeconds: number };

@@ -1,33 +1,37 @@
 import {
-  memo,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import ReactFlow, {
-  Background,
-  Controls,
-  MarkerType,
-  Panel,
-  ReactFlowProvider,
-  addEdge,
-  useEdgesState,
-  useNodesState,
-  type Connection,
-  type Edge,
-  type Node,
-} from "reactflow";
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  memo,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import ReactFlow, {
+  Background,
+  Controls,
+  MarkerType,
+  Panel,
+  type ReactFlowInstance,
+  type ReactFlowJsonObject,
+  ReactFlowProvider,
+  addEdge,
+  useEdgesState,
+  useNodesState,
+  type Connection,
+  type Edge,
+} from "reactflow";
 
 import { OcelInfoContext } from "@/App";
+import AlertHelper from "@/components/AlertHelper";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
@@ -38,13 +42,23 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ImageIcon } from "@radix-ui/react-icons";
 import { toPng } from "html-to-image";
 import toast from "react-hot-toast";
-import { LuLayoutDashboard, LuUnlink, LuX } from "react-icons/lu";
-import { MdAdd } from "react-icons/md";
-import { RxPlus, RxReset } from "react-icons/rx";
-import { TbBinaryTree, TbRestore } from "react-icons/tb";
+import {
+  LuLayoutDashboard,
+  LuSearchCheck,
+  LuUnlink,
+  LuX,
+} from "react-icons/lu";
+import { RxCrossCircled } from "react-icons/rx";
+import {
+  TbBinaryTree,
+  TbRestore,
+  TbSquarePlus,
+  TbVariablePlus,
+} from "react-icons/tb";
 import "reactflow/dist/style.css";
 import type {
   EventTypeQualifiers,
@@ -53,6 +67,7 @@ import type {
 } from "../../types/ocel";
 import { evaluateConstraints } from "./evaluation/evaluate-constraints";
 import { ConstraintInfoContext } from "./helper/ConstraintInfoContext";
+import { FlowContext } from "./helper/FlowContext";
 import { useLayoutedElements } from "./helper/LayoutFlow";
 import {
   ViolationsContext,
@@ -64,12 +79,14 @@ import type {
   EventTypeNodeData,
   ObjectVariable,
   ViolationsPerNode,
+  ViolationsPerNodes,
 } from "./helper/types";
-import AlertHelper from "@/components/AlertHelper";
+import { PiPlayFill } from "react-icons/pi";
 
 interface VisualEditorProps {
   ocelInfo: OCELInfo;
   eventTypeQualifiers: EventTypeQualifiers;
+  children?: ReactNode;
 }
 const COLORS = [
   "#1f78b4", // Blue
@@ -88,14 +105,6 @@ function VisualEditor(props: VisualEditorProps) {
   const [mode, setMode] = useState<"normal" | "view-tree" | "readonly">(
     "normal",
   );
-  const [violationDetails, setViolationDetails] = useState<ViolationsPerNode>();
-
-  const [violationInfo, setViolationInfo] = useState<ViolationsContextValue>({
-    showViolationsFor: (d) => {
-      console.log({ d });
-      setViolationDetails(d);
-    },
-  });
 
   const objectTypeToColor: Record<string, string> = useMemo(() => {
     const ret: Record<string, string> = {};
@@ -104,38 +113,8 @@ function VisualEditor(props: VisualEditorProps) {
     });
     return ret;
   }, [props.eventTypeQualifiers]);
-  const intitialNodes = useMemo<Node<EventTypeNodeData>[]>(
-    () =>
-      Object.keys(props.eventTypeQualifiers).map((eventType) => {
-        return {
-          id: eventType + "-01",
-          type: "eventType",
-          position: { x: 0, y: 0 },
-          data: {
-            eventType,
-            eventTypeQualifier: props.eventTypeQualifiers[eventType],
-            objectTypeToColor,
-            selectedVariables: [],
-            countConstraint: { min: 0, max: Infinity },
-            onDataChange: (id, newData) => {
-              setNodes((ns) => {
-                const newNodes = [...ns];
-                const changedNode = newNodes.find((n) => n.id === id);
-                if (changedNode?.data !== undefined) {
-                  changedNode.data = { ...changedNode.data, ...newData };
-                } else {
-                  console.warn("Did not find changed node data");
-                }
-                return newNodes;
-              });
-            },
-          },
-        };
-      }),
-    [props.eventTypeQualifiers],
-  );
-  const [nodes, setNodes, onNodesChange] =
-    useNodesState<EventTypeNodeData>(intitialNodes);
+
+  const [nodes, setNodes, onNodesChange] = useNodesState<EventTypeNodeData>([]);
 
   const [edges, setEdges, onEdgesChange] = useEdgesState<EventTypeLinkData>([]);
 
@@ -202,20 +181,35 @@ function VisualEditor(props: VisualEditorProps) {
   );
 
   const { getLayoutedElements } = useLayoutedElements();
+
+  const { setInstance, registerOtherDataGetter, otherData } =
+    useContext(FlowContext);
+
+  const [violationDetails, setViolationDetails] = useState<ViolationsPerNode>();
+
+  const [violationInfo, setViolationInfo] = useState<ViolationsContextValue>({
+    showViolationsFor: (d) => {
+      console.log({ d });
+      setViolationDetails(d);
+    },
+    violationsPerNode: otherData?.violations,
+  });
+
+  useEffect(() => {
+    registerOtherDataGetter(() => ({
+      violations: violationInfo.violationsPerNode,
+      objectVariables,
+    }));
+  }, [violationInfo, objectVariables]);
+  const initialized = useRef<boolean>(false);
   return (
     <ViolationsContext.Provider value={violationInfo}>
       <ReactFlow
         onInit={(flow) => {
-          getLayoutedElements(
-            {
-              "elk.algorithm": "layered",
-              "elk.direction": "RIGHT",
-            },
-            false,
-          );
-          setTimeout(() => {
-            flow.fitView({ duration: 300 });
-          }, 200);
+          initialized.current = true;
+          if (initialized.current) {
+            setInstance(flow);
+          }
         }}
         edgeTypes={edgeTypes}
         nodeTypes={nodeTypes}
@@ -242,21 +236,72 @@ function VisualEditor(props: VisualEditorProps) {
           }}
         />
         <Panel position="top-right" className="flex gap-x-2">
+          <Button
+            disabled={mode !== "normal"}
+            variant="outline"
+            size="icon"
+            title="Apply automatic layout"
+            className="bg-white"
+            onClick={() => {
+              getLayoutedElements(
+                {
+                  "elk.algorithm": "layered",
+                  "elk.direction": "DOWN",
+                },
+                true,
+              );
+            }}
+          >
+            <LuLayoutDashboard />
+          </Button>
+
+          <Button
+            disabled={mode !== "normal"}
+            variant="outline"
+            size="icon"
+            title="Save PNG"
+            className="bg-white"
+            onClick={(ev) => {
+              const button = ev.currentTarget;
+              button.disabled = true;
+              const scaleFactor = 2.0;
+              const viewPort = document.querySelector(
+                ".react-flow__viewport",
+              ) as HTMLElement;
+              setTimeout(() => {
+                void toPng(viewPort, {
+                  canvasHeight: viewPort.clientHeight * scaleFactor,
+                  canvasWidth: viewPort.clientWidth * scaleFactor,
+                })
+                  .then((dataURL) => {
+                    const a = document.createElement("a");
+                    a.setAttribute("download", "oced-declare-export.png");
+                    a.setAttribute("href", dataURL);
+                    a.click();
+                  })
+                  .finally(() => {
+                    button.disabled = false;
+                  });
+              }, 50);
+            }}
+          >
+            <ImageIcon />
+          </Button>
+          {props.children}
           <AlertHelper
             initialData={{ eventType: props.ocelInfo.event_types[0].name }}
             trigger={
               <Button
                 disabled={mode !== "normal"}
                 variant="outline"
-                size="icon"
-                title="Add node"
+                title="Add Event Node"
                 className="bg-white"
                 onClick={() => {}}
               >
-                <MdAdd />
+                <TbSquarePlus size={20} />
               </Button>
             }
-            title={"Add Node"}
+            title={"Add Event Node"}
             submitAction={"Submit"}
             onSubmit={(data) => {
               setNodes((nodes) => {
@@ -276,7 +321,14 @@ function VisualEditor(props: VisualEditorProps) {
                       onDataChange: (id, newData) => {
                         setNodes((ns) => {
                           const newNodes = [...ns];
-                          const changedNode = newNodes.find((n) => n.id === id);
+                          const changedNodeIndex = newNodes.findIndex(
+                            (n) => n.id === id,
+                          );
+                          if (newData === undefined) {
+                            newNodes.splice(changedNodeIndex, 1);
+                            return newNodes;
+                          }
+                          const changedNode = newNodes[changedNodeIndex];
                           if (changedNode?.data !== undefined) {
                             changedNode.data = {
                               ...changedNode.data,
@@ -319,70 +371,10 @@ function VisualEditor(props: VisualEditorProps) {
               );
             }}
           />
-          <AlertHelper
-            trigger={
-              <Button
-                disabled={mode !== "normal"}
-                variant="outline"
-                size="icon"
-                title="Reset edges"
-                className="text-red-600 bg-white hover:bg-red-400"
-              >
-                <RxReset />
-              </Button>
-            }
-            title={"Reset all nodes and edges"}
-            initialData={undefined}
-            content={() => (
-              <span>
-                This will delete all current nodes and edges. Are you sure?
-              </span>
-            )}
-            submitAction={"Yes, I am sure"}
-            onSubmit={() => {
-              setEdges([]);
-              setNodes([]);
-            }}
-          />
-
-          <Button
-            disabled={mode !== "normal"}
-            variant="outline"
-            size="icon"
-            title="Save PNG"
-            className="bg-white"
-            onClick={(ev) => {
-              const button = ev.currentTarget;
-              button.disabled = true;
-              const scaleFactor = 2.0;
-              const viewPort = document.querySelector(
-                ".react-flow__viewport",
-              ) as HTMLElement;
-              setTimeout(() => {
-                void toPng(viewPort, {
-                  canvasHeight: viewPort.clientHeight * scaleFactor,
-                  canvasWidth: viewPort.clientWidth * scaleFactor,
-                })
-                  .then((dataURL) => {
-                    const a = document.createElement("a");
-                    a.setAttribute("download", "oced-declare-export.png");
-                    a.setAttribute("href", dataURL);
-                    a.click();
-                  })
-                  .finally(() => {
-                    button.disabled = false;
-                  });
-              }, 50);
-            }}
-          >
-            <ImageIcon />
-          </Button>
-
           <Button
             variant="outline"
-            size="icon"
-            title={mode !== "view-tree" ? "Construct tree" : "Edit"}
-            className="bg-white"
+            title={mode !== "view-tree" ? "Evaluate" : "Edit"}
+            className="bg-fuchsia-100 border-fuchsia-300 hover:bg-fuchsia-200 hover:border-fuchsia-300"
             onClick={async () => {
               const res = await evaluateConstraints(
                 objectVariables,
@@ -392,27 +384,10 @@ function VisualEditor(props: VisualEditorProps) {
               setViolationInfo((vi) => ({ ...vi, violationsPerNode: res }));
             }}
           >
-            {mode !== "view-tree" && <TbBinaryTree />}
+            {mode !== "view-tree" && (
+              <PiPlayFill size={20} className="text-fuchsia-700" />
+            )}
             {mode === "view-tree" && <TbRestore />}
-          </Button>
-
-          <Button
-            disabled={mode !== "normal"}
-            variant="outline"
-            size="icon"
-            title="Apply automatic layout"
-            className="bg-white"
-            onClick={() => {
-              getLayoutedElements(
-                {
-                  "elk.algorithm": "layered",
-                  "elk.direction": "DOWN",
-                },
-                true,
-              );
-            }}
-          >
-            <LuLayoutDashboard />
           </Button>
         </Panel>
         <Background />
@@ -515,9 +490,10 @@ function ConstraintContainer({
   objectQualifiers,
   ocelInfo,
 }: ConstraintContainerProps) {
+  const { otherData } = useContext(FlowContext);
   const [info, setInfo] = useState<{
     objectVariables: ObjectVariable[];
-  }>({ objectVariables: [] });
+  }>({ objectVariables: otherData?.objectVariables ?? [] });
   const [editMetaInfoData, setEditMetaInfoData] = useState<ObjectVariable>({
     name: "",
     type: "",
@@ -543,159 +519,6 @@ function ConstraintContainer({
   return (
     <div className="relative">
       <div>
-        <span className="text-lg text-gray-600">Add Object Variables</span>
-        <div className="flex items-center gap-x-2 w-fit mx-auto mb-1">
-          <Combobox
-            value={editMetaInfoData.type}
-            options={ocelInfo.object_types.map((ot) => ({
-              value: ot.name,
-              label: ot.name,
-            }))}
-            name="Object type"
-            onChange={(valWithCorrectCaps) => {
-              // TODO: Seems like this is scheduled to also be fixed upstream?!
-              // https://github.com/pacocoursey/cmdk/commit/3dae25da8ca8448ea5b101a50f5d5987fe27679c
-              // https://github.com/pacocoursey/cmdk/issues/150
-              // const valWithCorrectCaps = ocelInfo.object_types.find(
-              //   (o) => o.name.toLowerCase() === val,
-              // )?.name;
-              console.log({ valWithCorrectCaps });
-              if (valWithCorrectCaps == null || valWithCorrectCaps === "") {
-                return;
-              }
-              console.log({ valWithCorrectCaps }, ocelInfo.object_types);
-              if (
-                editMetaInfoData.name === "" ||
-                editMetaInfoData.name.match(
-                  new RegExp(
-                    editMetaInfoData.type.toLowerCase().substring(0, 2) +
-                      "_[0-9]$",
-                  ),
-                ) != null
-              ) {
-                let name =
-                  valWithCorrectCaps.toLowerCase().substring(0, 2) + "_";
-                for (let i = 0; i < 10; i++) {
-                  if (
-                    info.objectVariables.find((v) => v.name === name + i) ===
-                    undefined
-                  ) {
-                    name = name + i;
-                    break;
-                  }
-                }
-                if (
-                  editMetaInfoData.o2o != null &&
-                  getPossibleO2O(valWithCorrectCaps).find(
-                    (va) =>
-                      va.parentVariableName ===
-                        editMetaInfoData.o2o!.parentVariableName &&
-                      va.qualifier === editMetaInfoData.o2o!.qualifier,
-                  ) === undefined
-                ) {
-                  editMetaInfoData.o2o = undefined;
-                }
-                setEditMetaInfoData({
-                  ...editMetaInfoData,
-                  type: valWithCorrectCaps,
-                  name,
-                });
-              } else {
-                setEditMetaInfoData({
-                  ...editMetaInfoData,
-                  type: valWithCorrectCaps,
-                });
-              }
-            }}
-          />
-          <Input
-            value={editMetaInfoData.name}
-            onChange={(ev) => {
-              setEditMetaInfoData({
-                ...editMetaInfoData,
-                name: ev.currentTarget.value,
-              });
-            }}
-            className="max-w-[20ch]"
-            placeholder="Variable name"
-          />
-          <Combobox
-            value={
-              editMetaInfoData.initiallyBound
-                ? "Initially bound"
-                : "Initially unbound"
-            }
-            options={[
-              { value: "Initially bound", label: "Initially bound" },
-              { value: "Initially unbound", label: "Initially unbound" },
-            ]}
-            name="Initial Binding"
-            onChange={(val) => {
-              if (val != null && val !== "") {
-                const initiallyBound = val === "Initially bound";
-                setEditMetaInfoData({
-                  ...editMetaInfoData,
-                  initiallyBound,
-                  o2o: initiallyBound ? editMetaInfoData.o2o : undefined,
-                });
-              }
-            }}
-          />
-          <Combobox
-            disabled={
-              info.objectVariables.length === 0 ||
-              !editMetaInfoData.initiallyBound
-            }
-            value={
-              editMetaInfoData.o2o != null
-                ? JSON.stringify(editMetaInfoData.o2o)
-                : ""
-            }
-            options={[
-              ...getPossibleO2O(editMetaInfoData.type).map((p) => ({
-                value: JSON.stringify(p),
-                label: p.qualifier + "@" + p.parentVariableName,
-              })),
-            ]}
-            name="O2O Binding"
-            onChange={(val) => {
-              if (val != null && val !== "" && val !== "-") {
-                const valJson = JSON.parse(val);
-                console.log({ valJson });
-                // const [qualifier, parentVariableName] = val.split("@");
-                setEditMetaInfoData({
-                  ...editMetaInfoData,
-                  o2o: valJson,
-                });
-              } else {
-                setEditMetaInfoData({ ...editMetaInfoData, o2o: undefined });
-              }
-            }}
-          />
-          <Button
-            disabled={
-              editMetaInfoData.name === "" ||
-              editMetaInfoData.type === "" ||
-              info.objectVariables.findIndex(
-                (c) => c.name === editMetaInfoData.name,
-              ) > -1
-            }
-            variant="outline"
-            size="icon"
-            title="Add variable"
-            onClick={() => {
-              setInfo((cs) => {
-                return {
-                  ...cs,
-                  objectVariables: [...cs.objectVariables, editMetaInfoData],
-                };
-              });
-              // setEditMetaInfoData({ name: "", type: "" });
-            }}
-          >
-            <RxPlus />
-          </Button>
-        </div>
         <div className="flex flex-wrap gap-x-2 absolute ml-1 mt-1 z-10">
           {info.objectVariables.map((m, i) => (
             <div
@@ -706,8 +529,8 @@ function ConstraintContainer({
                 m.type +
                 (m.o2o != null
                   ? "\nO2O: " + m.o2o.qualifier + "@" + m.o2o.parentVariableName
-                  : "\nO2O: -")
-                  + (m.initiallyBound ? "\nInitially bound" : "\nInitially unbound")
+                  : "\nO2O: -") +
+                (m.initiallyBound ? "\nInitially bound" : "\nInitially unbound")
               }
             >
               <button
@@ -727,7 +550,7 @@ function ConstraintContainer({
                   {m.o2o.qualifier}@{m.o2o.parentVariableName}
                 </span>
               )}
-              {!m.initiallyBound && <LuUnlink className="ml-2"/>}
+              {!m.initiallyBound && <LuUnlink className="ml-2" />}
             </div>
           ))}
         </div>
@@ -740,7 +563,205 @@ function ConstraintContainer({
                 <VisualEditor
                   eventTypeQualifiers={qualifiers}
                   ocelInfo={ocelInfo}
-                />
+                >
+                  <AlertHelper
+                    trigger={
+                      <Button
+                        variant="outline"
+                        title="Add Object Variable"
+                        className="bg-white"
+                      >
+                        <TbVariablePlus size={20} />
+                      </Button>
+                    }
+                    title="Add Object Variable"
+                    initialData={undefined}
+                    content={() => (
+                      <>
+                        <p className="mb-4">
+                          Select the object type and variable name below.
+                        </p>
+                        <div className="flex flex-wrap items-start gap-2">
+                          <Combobox
+                            value={editMetaInfoData.type}
+                            options={ocelInfo.object_types.map((ot) => ({
+                              value: ot.name,
+                              label: ot.name,
+                            }))}
+                            name="Object type"
+                            onChange={(valWithCorrectCaps) => {
+                              // TODO: Seems like this is scheduled to also be fixed upstream?!
+                              // https://github.com/pacocoursey/cmdk/commit/3dae25da8ca8448ea5b101a50f5d5987fe27679c
+                              // https://github.com/pacocoursey/cmdk/issues/150
+                              // const valWithCorrectCaps = ocelInfo.object_types.find(
+                              //   (o) => o.name.toLowerCase() === val,
+                              // )?.name;
+                              console.log({ valWithCorrectCaps });
+                              if (
+                                valWithCorrectCaps == null ||
+                                valWithCorrectCaps === ""
+                              ) {
+                                return;
+                              }
+                              console.log(
+                                { valWithCorrectCaps },
+                                ocelInfo.object_types,
+                              );
+                              if (
+                                editMetaInfoData.name === "" ||
+                                editMetaInfoData.name.match(
+                                  new RegExp(
+                                    editMetaInfoData.type
+                                      .toLowerCase()
+                                      .substring(0, 2) + "_[0-9]$",
+                                  ),
+                                ) != null
+                              ) {
+                                let name =
+                                  valWithCorrectCaps
+                                    .toLowerCase()
+                                    .substring(0, 2) + "_";
+                                for (let i = 0; i < 10; i++) {
+                                  if (
+                                    info.objectVariables.find(
+                                      (v) => v.name === name + i,
+                                    ) === undefined
+                                  ) {
+                                    name = name + i;
+                                    break;
+                                  }
+                                }
+                                if (
+                                  editMetaInfoData.o2o != null &&
+                                  getPossibleO2O(valWithCorrectCaps).find(
+                                    (va) =>
+                                      va.parentVariableName ===
+                                        editMetaInfoData.o2o!
+                                          .parentVariableName &&
+                                      va.qualifier ===
+                                        editMetaInfoData.o2o!.qualifier,
+                                  ) === undefined
+                                ) {
+                                  editMetaInfoData.o2o = undefined;
+                                }
+                                setEditMetaInfoData({
+                                  ...editMetaInfoData,
+                                  type: valWithCorrectCaps,
+                                  name,
+                                });
+                              } else {
+                                setEditMetaInfoData({
+                                  ...editMetaInfoData,
+                                  type: valWithCorrectCaps,
+                                });
+                              }
+                            }}
+                          />
+                          <Input
+                            value={editMetaInfoData.name}
+                            onChange={(ev) => {
+                              setEditMetaInfoData({
+                                ...editMetaInfoData,
+                                name: ev.currentTarget.value,
+                              });
+                            }}
+                            className="max-w-[20ch]"
+                            placeholder="Variable name"
+                          />
+                          <Combobox
+                            value={
+                              editMetaInfoData.initiallyBound
+                                ? "Initially bound"
+                                : "Initially unbound"
+                            }
+                            options={[
+                              {
+                                value: "Initially bound",
+                                label: "Initially bound",
+                              },
+                              {
+                                value: "Initially unbound",
+                                label: "Initially unbound",
+                              },
+                            ]}
+                            name="Initial Binding"
+                            onChange={(val) => {
+                              if (val != null && val !== "") {
+                                const initiallyBound =
+                                  val === "Initially bound";
+                                setEditMetaInfoData({
+                                  ...editMetaInfoData,
+                                  initiallyBound,
+                                  o2o: initiallyBound
+                                    ? editMetaInfoData.o2o
+                                    : undefined,
+                                });
+                              }
+                            }}
+                          />
+                          <Combobox
+                            disabled={
+                              info.objectVariables.length === 0 ||
+                              !editMetaInfoData.initiallyBound
+                            }
+                            value={
+                              editMetaInfoData.o2o != null
+                                ? JSON.stringify(editMetaInfoData.o2o)
+                                : ""
+                            }
+                            options={[
+                              ...getPossibleO2O(editMetaInfoData.type).map(
+                                (p) => ({
+                                  value: JSON.stringify(p),
+                                  label:
+                                    p.qualifier + "@" + p.parentVariableName,
+                                }),
+                              ),
+                            ]}
+                            name="O2O Binding"
+                            onChange={(val) => {
+                              if (val != null && val !== "" && val !== "-") {
+                                const valJson = JSON.parse(val);
+                                console.log({ valJson });
+                                // const [qualifier, parentVariableName] = val.split("@");
+                                setEditMetaInfoData({
+                                  ...editMetaInfoData,
+                                  o2o: valJson,
+                                });
+                              } else {
+                                setEditMetaInfoData({
+                                  ...editMetaInfoData,
+                                  o2o: undefined,
+                                });
+                              }
+                            }}
+                          />
+                        </div>
+                      </>
+                    )}
+                    submitAction={"Add"}
+                    onSubmit={(data, ev) => {
+                      console.log({ editMetaInfoData });
+                      if (
+                        editMetaInfoData.name === "" ||
+                        editMetaInfoData.type === ""
+                      ) {
+                        toast("Please input a name and object type");
+                        ev.preventDefault();
+                        return;
+                      }
+                      setInfo((cs) => {
+                        return {
+                          ...cs,
+                          objectVariables: [
+                            ...cs.objectVariables,
+                            editMetaInfoData,
+                          ],
+                        };
+                      });
+                    }}
+                  />
+                </VisualEditor>
               </>
             )}
           </ConstraintInfoContext.Provider>
@@ -756,6 +777,15 @@ export default function VisualEditorOuter() {
     useState<ObjectTypeQualifiers>();
   const ocelInfo = useContext(OcelInfoContext);
   const [constraints, setConstraints] = useState<string[]>([]);
+  const [currentInstanceAndData, setCurrentInstanceAndData] = useState<{
+    instance?: ReactFlowInstance | undefined;
+    getter?: () =>
+      | {
+          violations?: ViolationsPerNodes;
+          objectVariables?: ObjectVariable[];
+        }
+      | undefined;
+  }>({});
   useEffect(() => {
     toast
       .promise(
@@ -798,29 +828,158 @@ export default function VisualEditorOuter() {
       });
   }, []);
 
+  const [activeIndex, setActiveIndex] = useState<number>();
+  const prevDataRef = useRef<
+    {
+      flowJson: ReactFlowJsonObject<EventTypeNodeData, EventTypeLinkData>;
+      violations?: ViolationsPerNodes;
+      objectVariables?: ObjectVariable[];
+    }[]
+  >([]);
   return (
     <div>
-      <Button
-        className="mb-2"
-        onClick={() => {
-          setConstraints((cs) => [...cs, "new"]);
+      <FlowContext.Provider
+        value={{
+          instance: currentInstanceAndData?.instance,
+          setInstance: (i) => {
+            setCurrentInstanceAndData((ci) => ({
+              ...ci,
+              instance: i,
+            }));
+            // setReactFlowInstance(i);
+            if (activeIndex !== undefined && i !== undefined) {
+              const prevData = prevDataRef.current[activeIndex];
+              i.setNodes(prevData?.flowJson?.nodes ?? []);
+              i.setEdges(prevData?.flowJson?.edges ?? []);
+              i.setViewport(prevData?.flowJson?.viewport ?? {});
+            }
+          },
+          registerOtherDataGetter: (getter) => {
+            setCurrentInstanceAndData((ci) => ({ ...ci, getter }));
+          },
+          otherData:
+            activeIndex !== undefined
+              ? {
+                  objectVariables:
+                    prevDataRef.current[activeIndex]?.objectVariables,
+                  violations: prevDataRef.current[activeIndex]?.violations,
+                }
+              : undefined,
         }}
       >
-        Add Constraints
-      </Button>
-      <div className="flex flex-wrap justify-around">
-        {ocelInfo !== undefined &&
-          qualifiers !== undefined &&
-          objectQualifiers !== undefined &&
-          constraints.map((_, i) => (
-            <ConstraintContainer
-              key={i}
-              ocelInfo={ocelInfo}
-              objectQualifiers={objectQualifiers}
-              qualifiers={qualifiers}
-            />
-          ))}
-      </div>
+        <div className="flex flex-col justify-around items-center mb-2 gap-y-2">
+          {ocelInfo !== undefined &&
+            qualifiers !== undefined &&
+            objectQualifiers !== undefined && (
+              <>
+                <div
+                  className={`w-full max-w-lg gap-y-2 ${
+                    constraints.length > 0
+                      ? "justify-between"
+                      : "justify-center"
+                  }`}
+                >
+                  <Button
+                    className="mb-2"
+                    onClick={() => {
+                      setConstraints((cs) => [...cs, "new"]);
+                      setActiveIndex(constraints.length);
+                    }}
+                  >
+                    Add {constraints.length === 0 && " Constraints"}
+                  </Button>
+                  {constraints.length > 0 && (
+                    <ToggleGroup
+                      type="single"
+                      className="flex flex-wrap"
+                      value={activeIndex?.toString()}
+                      onValueChange={(newVal) => {
+                        const newIndex = parseInt(newVal);
+                        if (
+                          !isNaN(newIndex) &&
+                          newIndex >= 0 &&
+                          newIndex < constraints.length
+                        ) {
+                          if (
+                            currentInstanceAndData.instance !== undefined &&
+                            activeIndex !== undefined &&
+                            currentInstanceAndData.getter !== undefined
+                          ) {
+                            const dataFromPrevIndex =
+                              currentInstanceAndData.instance.toObject();
+                            const prevOtherData =
+                              currentInstanceAndData.getter();
+                            console.log({ prevOtherData });
+                            prevDataRef.current[activeIndex] = {
+                              flowJson: dataFromPrevIndex,
+                              violations: prevOtherData?.violations,
+                              objectVariables: prevOtherData?.objectVariables,
+                            };
+                            setActiveIndex(newIndex);
+                          }
+                        }
+                      }}
+                    >
+                      {constraints.map((_, i) => (
+                        <div key={i} className="relative">
+                          <ToggleGroupItem
+                            value={i.toString()}
+                            variant="outline"
+                          >
+                            Constraint {i + 1}{" "}
+                          </ToggleGroupItem>
+                          <AlertHelper
+                            trigger={
+                              <button
+                                className="absolute -right-1 -top-1 opacity-25 hover:opacity-100 hover:text-red-600"
+                                title="Remove constraint"
+                              >
+                                <RxCrossCircled />
+                              </button>
+                            }
+                            title="Are you sure?"
+                            initialData={undefined}
+                            content={() => (
+                              <>
+                                Deleting this constraint will delete all
+                                contained nodes.
+                              </>
+                            )}
+                            submitAction="Delete"
+                            onSubmit={() => {
+                              if (
+                                activeIndex !== undefined &&
+                                activeIndex >= constraints.length - 1
+                              ) {
+                                setActiveIndex(activeIndex - 1);
+                              }
+                              setConstraints((constraints) => {
+                                const newConstraints = [...constraints];
+                                newConstraints.splice(i, 1);
+                                return newConstraints;
+                              });
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </ToggleGroup>
+                  )}
+                </div>
+                {constraints.map((_, i) => (
+                  <div className={activeIndex === i ? "" : "hidden"} key={i}>
+                    {activeIndex === i && (
+                      <ConstraintContainer
+                        ocelInfo={ocelInfo}
+                        objectQualifiers={objectQualifiers}
+                        qualifiers={qualifiers}
+                      />
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
+        </div>
+      </FlowContext.Provider>
     </div>
   );
 }

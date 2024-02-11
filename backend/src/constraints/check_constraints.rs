@@ -263,12 +263,12 @@ fn event_satisfies_waiting_time_constraint<'a>(
                     }
                 }
             }
-            let difference_seconds: i64 = match last_prev_event_time {
+            let difference_seconds = match last_prev_event_time {
                 Some(prev_time) => (ev.time - prev_time).num_seconds(),
                 None => 0,
             };
-            difference_seconds >= waiting_time_range.min_seconds
-                && difference_seconds <= waiting_time_range.max_seconds
+            (difference_seconds as f64) >= waiting_time_range.min_seconds
+                && (difference_seconds as f64) <= waiting_time_range.max_seconds
         }
         None => true,
     }

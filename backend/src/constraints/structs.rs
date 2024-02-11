@@ -69,9 +69,9 @@ pub struct CountConstraint {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SecondsRange {
     #[serde(rename = "minSeconds")]
-    pub min_seconds: i64,
+    pub min_seconds: f64,
     #[serde(rename = "maxSeconds")]
-    pub max_seconds: i64,
+    pub max_seconds: f64,
 }
 use std::collections::HashMap;
 
