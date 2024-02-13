@@ -56,7 +56,7 @@ pub struct ObjectVariable {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SelectedVariable {
     pub variable: ObjectVariable,
-    pub qualifier: String,
+    pub qualifier: Option<String>,
     pub bound: bool,
 }
 
@@ -93,6 +93,19 @@ pub struct TreeNode {
     pub waiting_time_constraint: Option<SecondsRange>,
     #[serde(rename = "numQualifiedObjectsConstraint")]
     pub num_qualified_objects_constraint: Option<HashMap<String,CountConstraint>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(tag = "type")]
+pub enum EventType {
+    #[serde(rename = "any")]
+    Any,
+    #[serde(rename = "exactly")]
+    Exactly {value: String},
+    #[serde(rename = "anyOf")]
+    AnyOf {values: Vec<String>},
+    #[serde(rename = "anyExcept")]
+    AnyExcept {values: Vec<String>}
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

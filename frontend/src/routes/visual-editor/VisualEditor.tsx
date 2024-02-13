@@ -176,6 +176,7 @@ export default function VisualEditor(props: VisualEditorProps) {
   return (
     <VisualEditorContext.Provider
       value={{
+        ocelInfo: props.ocelInfo,
         violationsPerNode: violationInfo.violationsPerNode,
         showViolationsFor: violationInfo.showViolationsFor,
         onNodeDataChange: (id, newData) => {
@@ -310,7 +311,6 @@ export default function VisualEditor(props: VisualEditorProps) {
                 return;
               }
               setNodes((nodes) => {
-                console.log(instance?.getViewport());
                 const center =
                   instance != null
                     ? instance.screenToFlowPosition({
@@ -325,7 +325,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                     type: "eventType",
                     position: center,
                     data: {
-                      eventType: data.eventType,
+                      eventType: { type: "exactly", value: data.eventType },
                       eventTypeQualifier:
                         props.eventTypeQualifiers[data.eventType],
                       objectTypeToColor,

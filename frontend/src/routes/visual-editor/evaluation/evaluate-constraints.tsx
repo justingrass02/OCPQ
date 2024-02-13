@@ -20,12 +20,12 @@ type Connection = {
 type TreeNodeConnection = {
   connection: Connection;
   id: string;
-  eventType: string;
+  eventType: EventTypeNodeData["eventType"];
 };
 
 type TreeNode = {
   id: string;
-  eventType: string;
+  eventType: EventTypeNodeData["eventType"];
   parents: TreeNodeConnection[];
   children: TreeNodeConnection[];
   variables: SelectedVariables;

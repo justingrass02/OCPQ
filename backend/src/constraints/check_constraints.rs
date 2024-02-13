@@ -31,8 +31,14 @@ fn event_has_correct_objects(
                 Some(rel) => {
                     // Find relationship with corresponding qualifier
                     return rel.iter().any(|r| {
-                        if r.qualifier != v.qualifier {
-                            return false;
+                        match &v.qualifier {
+                            Some(q) => {
+                                if &r.qualifier != q {
+                                    return false;
+                                }
+                            },
+                            // If qualifier is None, then we do not want to filter based on qualifier
+                            None => {},
                         }
                         match binding.get(&v.variable.name) {
                             Some(bound_val) => match bound_val {
@@ -81,7 +87,7 @@ fn match_and_add_new_bindings<'a>(
         }
     };
     // Iterate over all bindings, updating them
-    return prev_bindings
+    prev_bindings
         .par_iter_mut()
         .flat_map(|(info, binding)| {
             // Get all matching events (i.e. events with correct association to unbound objects)
@@ -193,7 +199,10 @@ fn match_and_add_new_bindings<'a>(
                                 Some(rels) => {
                                     let matching_qualified_relationships = rels
                                         .iter()
-                                        .filter(|rel| rel.qualifier == v.qualifier)
+                                        .filter(|rel| match &v.qualifier {
+                                            Some(q) => &rel.qualifier == q,
+                                            None => true,
+                                        })
                                         .collect_vec();
                                     bindings = bindings
                                         .into_iter()
@@ -225,7 +234,7 @@ fn match_and_add_new_bindings<'a>(
                 })
                 .collect::<Vec<(Binding, Option<ViolationReason>)>>()
         })
-        .collect();
+        .collect()
 }
 fn event_satisfies_waiting_time_constraint<'a>(
     node: &TreeNode,

@@ -4,6 +4,7 @@ import type {
   ViolationsPerNode,
   ViolationsPerNodes,
 } from "./types";
+import type { OCELInfo } from "@/types/ocel";
 
 export type VisualEditorContextValue = {
   violationsPerNode?: ViolationsPerNodes;
@@ -12,6 +13,7 @@ export type VisualEditorContextValue = {
     id: string,
     newData: Partial<EventTypeNodeData> | undefined,
   ) => unknown;
+  ocelInfo?: OCELInfo
 };
 
 export const VisualEditorContext = createContext<VisualEditorContextValue>({
