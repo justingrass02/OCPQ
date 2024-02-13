@@ -242,7 +242,7 @@ export async function evaluateConstraints(
   return violations.map((vs, i) => ({
     nodeID: inputNodes[i].id,
     violations: vs,
-    numBindings: sizes[i]
+    numBindings: sizes[i],
   }));
 }
 

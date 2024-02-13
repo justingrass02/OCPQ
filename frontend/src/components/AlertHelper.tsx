@@ -31,7 +31,7 @@ export default function AlertHelper<T>(props: AlertHelperProps<T>) {
         if (!o && props.onCancel != null) {
           props.onCancel();
         }
-          setData(props.initialData);
+        setData(props.initialData);
       }}
     >
       <AlertDialogTrigger asChild>{props.trigger}</AlertDialogTrigger>

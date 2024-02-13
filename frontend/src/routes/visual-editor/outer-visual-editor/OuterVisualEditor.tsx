@@ -221,6 +221,7 @@ export default function VisualEditorOuter() {
                       <Fragment key={i}>
                         <div className="max-w-xs w-full flex flex-col gap-y-1">
                           <Input
+                            className="text-lg font-medium"
                             placeholder="Name"
                             type="text"
                             defaultValue={
@@ -238,21 +239,23 @@ export default function VisualEditorOuter() {
                               });
                             }}
                           />
-                          <Textarea
-                            defaultValue={c.description}
-                            placeholder="Description"
-                            onBlur={(ev) => {
-                              setConstraints((cs) => {
-                                if (ev.target != null) {
-                                  const newCs = [...cs];
-                                  newCs[i].description = ev.target.value;
-                                  return newCs;
-                                } else {
-                                  return cs;
-                                }
-                              });
-                            }}
-                          />
+                          <div className="px-2">
+                            <Textarea
+                              defaultValue={c.description}
+                              placeholder="Description"
+                              onBlur={(ev) => {
+                                setConstraints((cs) => {
+                                  if (ev.target != null) {
+                                    const newCs = [...cs];
+                                    newCs[i].description = ev.target.value;
+                                    return newCs;
+                                  } else {
+                                    return cs;
+                                  }
+                                });
+                              }}
+                            />
+                          </div>
                         </div>
                         <ConstraintContainer
                           ocelInfo={ocelInfo}

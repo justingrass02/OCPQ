@@ -5,7 +5,7 @@ export interface ObjectVariable {
   name: string;
   type: string;
   initiallyBound: boolean;
-  o2o?: undefined|{parentVariableName: string, qualifier: string}
+  o2o?: undefined | { parentVariableName: string; qualifier: string };
 }
 
 export type SelectedVariables = {
@@ -15,7 +15,7 @@ export type SelectedVariables = {
 }[];
 export type ViolationReason = "TooFewMatchingEvents" | "TooManyMatchingEvents";
 export type Binding = [
-  { past_events: {event_id: string, node_id: string}[] },
+  { past_events: { event_id: string; node_id: string }[] },
   Record<string, { Single: string } | { Multiple: unknown }>,
 ];
 export type Violation = [Binding, ViolationReason];
@@ -32,11 +32,11 @@ export type EventTypeNodeData = {
   eventTypeQualifier: EventTypeQualifier;
   objectTypeToColor: Record<string, string>;
   countConstraint: CountConstraint;
-  firstOrLastEventOfType?: "first"|"last"|undefined,
+  firstOrLastEventOfType?: "first" | "last" | undefined;
   selectedVariables: SelectedVariables;
-  waitingTimeConstraint?: {minSeconds: number, maxSeconds: number};
+  waitingTimeConstraint?: { minSeconds: number; maxSeconds: number };
   // Record of string (qualifier) and min/max number of associated objects wrt. that qualifier
-  numQualifiedObjectsConstraint?: Record<string,{min: number, max: number}>;
+  numQualifiedObjectsConstraint?: Record<string, { min: number; max: number }>;
   hideViolations?: boolean;
 };
 

@@ -42,9 +42,7 @@ import { evaluateConstraints } from "./evaluation/evaluate-constraints";
 import { ConstraintInfoContext } from "./helper/ConstraintInfoContext";
 import { FlowContext } from "./helper/FlowContext";
 import { useLayoutedElements } from "./helper/LayoutFlow";
-import {
-  VisualEditorContext
-} from "./helper/VisualEditorContext";
+import { VisualEditorContext } from "./helper/VisualEditorContext";
 import { EVENT_TYPE_LINK_TYPE, edgeTypes, nodeTypes } from "./helper/const";
 import type {
   EventTypeLinkData,
@@ -241,6 +239,7 @@ export default function VisualEditor(props: VisualEditorProps) {
             title="Apply automatic layout"
             className="bg-white"
             onClick={() => {
+              instance?.fitView();
               getLayoutedElements(
                 {
                   "elk.algorithm": "layered",
@@ -248,6 +247,9 @@ export default function VisualEditor(props: VisualEditorProps) {
                 },
                 true,
               );
+              setTimeout(() => {
+                instance?.fitView();
+              }, 200);
             }}
           >
             <LuLayoutDashboard />
@@ -308,8 +310,14 @@ export default function VisualEditor(props: VisualEditorProps) {
                 return;
               }
               setNodes((nodes) => {
-                console.log(instance?.getViewport())
-                const center = instance != null ? instance.screenToFlowPosition({x: window.innerWidth/2, y: window.innerHeight/2}): {x: 0, y: 0};
+                console.log(instance?.getViewport());
+                const center =
+                  instance != null
+                    ? instance.screenToFlowPosition({
+                        x: window.innerWidth / 2,
+                        y: window.innerHeight / 2,
+                      })
+                    : { x: 0, y: 0 };
                 return [
                   ...nodes,
                   {
