@@ -396,25 +396,25 @@ fn check_with_tree(
         }
 
         println!("#Bindings (initial): {}", bindings.len());
-
+        binding_sizes.push(bindings.len());
         for node in &nodes {
             // let node = &nodes[i];
-            if node.children.is_empty() && node.parents.is_empty() {
-                // Here we just check the count constraints & do not update bindings
-                // Instead, we only gather first violations
-                if node.count_constraint.min > 0 || node.count_constraint.max < usize::MAX {
-                    println!("Node {} has no child/parent", { &node.id });
-                    let x = match_and_add_new_bindings(Some(bindings.clone()), node, &linked_ocel);
-                    violations.push(
-                        x.into_iter()
-                            .filter_map(|(b, violation)| violation.map(|v| ((b), v)))
-                            .collect_vec(),
-                    );
-                } else {
-                    violations.push(Vec::new());
-                }
-                continue;
-            }
+            // if node.children.is_empty() && node.parents.is_empty() {
+            //     // Here we just check the count constraints & do not update bindings
+            //     // Instead, we only gather first violations
+            //     if node.count_constraint.min > 0 || node.count_constraint.max < usize::MAX {
+            //         println!("Node {} has no child/parent", { &node.id });
+            //         let x = match_and_add_new_bindings(Some(bindings.clone()), node, &linked_ocel);
+            //         violations.push(
+            //             x.into_iter()
+            //                 .filter_map(|(b, violation)| violation.map(|v| ((b), v)))
+            //                 .collect_vec(),
+            //         );
+            //     } else {
+            //         violations.push(Vec::new());
+            //     }
+            //     continue;
+            // }
             let x = match_and_add_new_bindings(Some(bindings), node, &linked_ocel);
             let mut new_bindings: Bindings = Vec::new();
             let mut new_violations: Violations = Vec::new();

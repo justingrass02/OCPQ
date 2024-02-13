@@ -215,7 +215,7 @@ export async function evaluateConstraints(
     ...reachableFromRootIDs.map((id) => connectedTreeNodes[id]),
   ].filter((n) => n.variables.length > 0);
   // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-  const [_sizes, violations] = await toast.promise(
+  const [sizes, violations] = await toast.promise(
     callCheckConstraintsEndpoint(variables, inputNodes),
     {
       loading: "Evaluating...",
@@ -242,6 +242,7 @@ export async function evaluateConstraints(
   return violations.map((vs, i) => ({
     nodeID: inputNodes[i].id,
     violations: vs,
+    numBindings: sizes[i]
   }));
 }
 

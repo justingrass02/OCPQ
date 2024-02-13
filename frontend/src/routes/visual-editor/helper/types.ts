@@ -21,6 +21,7 @@ export type Binding = [
 export type Violation = [Binding, ViolationReason];
 export type ViolationsPerNode = {
   violations: Violation[];
+  numBindings: number;
   nodeID: string;
 };
 export type ViolationsPerNodes = ViolationsPerNode[];
@@ -36,7 +37,6 @@ export type EventTypeNodeData = {
   waitingTimeConstraint?: {minSeconds: number, maxSeconds: number};
   // Record of string (qualifier) and min/max number of associated objects wrt. that qualifier
   numQualifiedObjectsConstraint?: Record<string,{min: number, max: number}>;
-  onDataChange: (id: string, newData: Partial<EventTypeNodeData>|undefined) => unknown;
   hideViolations?: boolean;
 };
 

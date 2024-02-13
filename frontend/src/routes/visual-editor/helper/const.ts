@@ -1,5 +1,5 @@
 import EventTypeLink from "./EventTypeLink";
-import EventTypeNode from "./EventTypeNode";
+import EventTypeNode from "./node/EventTypeNode";
 
 export const EVENT_TYPE_LINK_TYPE = "eventTypeLink";
 

@@ -31,12 +31,12 @@ export const useLayoutedElements = () => {
           });
           setNodes(children as Node<any>[]);
           if (fitViewAfter) {
-            window.requestAnimationFrame(() => {
-              fitView({ duration: 200 });
-              // setTimeout(() => {
-              //   fitView();
-              // },50)
-            });
+            // window.requestAnimationFrame(() => {
+            // fitView({ duration: 200 });
+            setTimeout(() => {
+              fitView();
+            }, 50);
+            // });
           }
         }
       });

@@ -5,7 +5,7 @@ import "./index.css";
 import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import ErrorPage from "./ErrorPage.tsx";
 import { Toaster } from "react-hot-toast";
-import VisualEditorOuter from "./routes/visual-editor/VisualEditor.tsx";
+import OuterVisualEditor from "./routes/visual-editor/outer-visual-editor/OuterVisualEditor.tsx";
 import OcelInfoViewer from "./routes/ocel-info/OcelInfoViewer.tsx";
 const router = createBrowserRouter([
   {
@@ -13,7 +13,7 @@ const router = createBrowserRouter([
     element: <App />,
     errorElement: <ErrorPage />,
     children: [
-      { path: "/beta", element: <VisualEditorOuter /> },
+      { path: "/beta", element: <OuterVisualEditor /> },
       { path: "/ocel-info", element: <OcelInfoViewer /> },
     ],
   },
