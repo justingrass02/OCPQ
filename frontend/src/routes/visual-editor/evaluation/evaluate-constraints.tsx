@@ -109,17 +109,18 @@ export async function evaluateConstraints(
         maxSeconds: replaceInfinity(e.data.timeConstraint.maxSeconds),
       },
     };
-
-    treeNodes[e.target].parents.push({
-      connection: dependencyConnection,
-      id: e.source,
-      eventType: treeNodes[e.source].eventType,
-    });
-    treeNodes[e.source].children.push({
-      connection: dependencyConnection,
-      id: e.target,
-      eventType: treeNodes[e.target].eventType,
-    });
+    if (treeNodes[e.target] !== undefined && treeNodes[e.source] !== undefined) {
+      treeNodes[e.target].parents.push({
+        connection: dependencyConnection,
+        id: e.source,
+        eventType: treeNodes[e.source].eventType,
+      });
+      treeNodes[e.source].children.push({
+        connection: dependencyConnection,
+        id: e.target,
+        eventType: treeNodes[e.target].eventType,
+      });
+    }
   }
 
   const disconnectedTreeNodes: Record<string, TreeNode> = {};

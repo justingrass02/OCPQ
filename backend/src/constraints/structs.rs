@@ -81,7 +81,7 @@ use serde::{Deserialize, Serialize};
 pub struct TreeNode {
     pub id: String,
     #[serde(rename = "eventType")]
-    pub event_type: String,
+    pub event_type: EventType,
     pub parents: Vec<TreeNodeConnection>,
     pub children: Vec<TreeNodeConnection>,
     pub variables: Vec<SelectedVariable>,
@@ -121,7 +121,7 @@ pub struct TreeNodeConnection {
     pub id: String,
     pub connection: Connection,
     #[serde(rename = "eventType")]
-    pub event_type: String,
+    pub event_type: EventType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

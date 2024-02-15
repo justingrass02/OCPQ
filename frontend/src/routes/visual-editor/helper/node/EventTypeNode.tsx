@@ -433,7 +433,7 @@ export default function EventTypeNode({
                 title={"Qualifier: " + selectedVar.qualifier}
               >
                 {" "}
-                @{selectedVar.qualifier}
+                {selectedVar.qualifier !== undefined ? `@${selectedVar.qualifier}` : ""}
               </span>
             </span>
             {!selectedVar.variable.initiallyBound && (
@@ -454,7 +454,6 @@ export default function EventTypeNode({
         ))}
       </div>
       <div>
-        {data.eventType.type !== "any" && (
           <Combobox
             title={
               canAddObjects
@@ -512,7 +511,6 @@ export default function EventTypeNode({
             name="Variable"
             value={""}
           />
-        )}
       </div>
       {hasAssociatedObjects && (
         <Handle

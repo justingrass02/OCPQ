@@ -91,7 +91,7 @@ fn match_and_add_new_bindings<'a>(
         .par_iter_mut()
         .flat_map(|(info, binding)| {
             // Get all matching events (i.e. events with correct association to unbound objects)
-            let matching_events: Vec<&OCELEvent> = get_events_of_type_associated_with_objects(
+            let mut matching_events: Vec<&OCELEvent> = get_events_of_type_associated_with_objects(
                 linked_ocel,
                 &node.event_type,
                 get_object_ids_from_node_and_binding(node, binding),
@@ -102,81 +102,71 @@ fn match_and_add_new_bindings<'a>(
                 if !event_has_correct_objects(node, ev, binding) {
                     return false;
                 }
-                if !event_satisfies_num_qualifiers_constraint(node, ev) {
-                    return false;
-                }
-                if !event_satisfies_waiting_time_constraint(node, ev, linked_ocel) {
-                    return false;
-                }
-
-                // Then check time difference
-                for p in &node.parents {
-                    let last_prev_ev = info
-                        .past_events
-                        .iter()
-                        .filter(|ev| ev.node_id == p.id)
-                        .last();
-                    match last_prev_ev {
-                        Some(prev_ev) => {
-                            let second_diff = (ev.time
-                                - linked_ocel.event_map.get(&prev_ev.event_id).unwrap().time)
-                                .num_seconds();
-                            if (second_diff as f64) < p.connection.time_constraint.min_seconds
-                                || (second_diff as f64) > p.connection.time_constraint.max_seconds
-                            {
-                                return false;
-                            }
-                        }
-                        None => {
-                            // Hmm weird... no matching parent found?!
-                            eprintln!("No matching parent found for event type {}", p.event_type);
-                        }
-                    }
-                }
                 true
             })
             .collect();
-            let num_matching_events = matching_events.clone().len();
-
-            let mut take = num_matching_events;
-            let mut skip = 0;
-            // let take = match node.parents.len() {
-            //     0 => 1,
-            //     _ => num_matching_events,
-            // };
-            match node.first_or_last_event_of_type {
-                Some(FirstOrLastEventOfType::First) => {
-                    take = 1.min(num_matching_events);
-                }
-                Some(FirstOrLastEventOfType::Last) => {
-                    take = 1.min(num_matching_events);
-                    skip = num_matching_events - 1;
-                }
-                None => {}
+        let num_matching_events = matching_events.clone().len();
+        let mut take = num_matching_events;
+        let mut skip = 0;
+        match node.first_or_last_event_of_type {
+            Some(FirstOrLastEventOfType::First) => {
+                take = 1.min(num_matching_events);
+            }
+            Some(FirstOrLastEventOfType::Last) => {
+                take = 1.min(num_matching_events);
+                skip = num_matching_events - 1;
+            }
+            None => {}
+        }
+        matching_events = matching_events.into_iter()
+        .sorted_by_key(|ev| ev.time).skip(skip).take(take).filter(|ev| {
+            if !event_satisfies_num_qualifiers_constraint(node, ev) {
+                return false;
+            }
+            if !event_satisfies_waiting_time_constraint(node, ev, linked_ocel) {
+                return false;
             }
 
-            if take < node.count_constraint.min {
+            // Then check time difference
+            for p in &node.parents {
+                let last_prev_ev = info
+                    .past_events
+                    .iter()
+                    .filter(|ev| ev.node_id == p.id)
+                    .last();
+                match last_prev_ev {
+                    Some(prev_ev) => {
+                        let second_diff = (ev.time
+                            - linked_ocel.event_map.get(&prev_ev.event_id).unwrap().time)
+                            .num_seconds();
+                        if (second_diff as f64) < p.connection.time_constraint.min_seconds
+                            || (second_diff as f64) > p.connection.time_constraint.max_seconds
+                        {
+                            return false;
+                        }
+                    }
+                    None => {
+                        // Hmm weird... no matching parent found?!
+                        eprintln!("No matching parent found for event type {:?}", p.event_type);
+                    }
+                }
+            }
+            true
+        }).collect();
+        let num_matching_events_after = matching_events.len();
+            if num_matching_events_after < node.count_constraint.min {
                 return vec![(
                     (info.clone(), binding.clone()),
                     Some(ViolationReason::TooFewMatchingEvents),
                 )];
-            } else if take > node.count_constraint.max {
+            } else if num_matching_events_after > node.count_constraint.max {
                 return vec![(
                     (info.clone(), binding.clone()),
                     Some(ViolationReason::TooManyMatchingEvents),
                 )];
             }
-
-            // println!("Skip {} take {} (len: {})", skip, take, num_matching_events);
-            // if num_matching_events > 1 {
-            //     println!("{:?}", matching_events);
-            // }
-
             matching_events
                 .iter()
-                .sorted_by_key(|ev| ev.time)
-                .skip(skip)
-                .take(take)
                 .flat_map(|matching_event| {
                     let mut info_cc: AdditionalBindingInfo = info.clone();
                     let binding: HashMap<String, BoundValue> = binding.clone();
