@@ -13,7 +13,7 @@ export type VisualEditorContextValue = {
     id: string,
     newData: Partial<EventTypeNodeData> | undefined,
   ) => unknown;
-  ocelInfo?: OCELInfo
+  ocelInfo?: OCELInfo;
 };
 
 export const VisualEditorContext = createContext<VisualEditorContextValue>({

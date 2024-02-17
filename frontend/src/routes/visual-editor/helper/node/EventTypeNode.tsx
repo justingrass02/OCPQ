@@ -49,15 +49,17 @@ export default function EventTypeNode({
       getObjectType(data.eventTypeQualifier[b]),
     ),
   );
-  const qualifierPerObjectType: Record<string, string[]> = {};
-  for (const ot of Object.keys(data.objectTypeToColor)) {
-    qualifierPerObjectType[ot] = qualifiers.filter((q) =>
-      data.eventTypeQualifier[q].object_types.includes(ot),
-    );
-  }
 
   const { violationsPerNode, showViolationsFor, onNodeDataChange, ocelInfo } =
     useContext(VisualEditorContext);
+  const qualifierPerObjectType: Record<string, string[]> = {};
+  if (ocelInfo !== undefined) {
+    for (const ot of ocelInfo.object_types) {
+      qualifierPerObjectType[ot.name] = qualifiers.filter((q) =>
+        data.eventTypeQualifier[q].object_types.includes(ot.name),
+      );
+    }
+  }
   const violations =
     data.hideViolations === true
       ? undefined
@@ -244,8 +246,11 @@ export default function EventTypeNode({
               )}
               {(data.eventType.type === "anyOf" ||
                 data.eventType.type === "anyExcept") && (
-                <p className="font-mono text-xs leading-none py-1">
-                  {data.eventType.type === "anyOf" ? "∈" : "∉"} {"{"}
+                <p className="text-xs leading-none py-1">
+                  <span className="font-mono">
+                    {data.eventType.type === "anyOf" ? "∈" : "∉"}
+                  </span>{" "}
+                  {"{"}
                   {data.eventType.values.map((et, i) => (
                     <span key={i}>
                       {et}
@@ -409,7 +414,7 @@ export default function EventTypeNode({
         {data.selectedVariables.map((selectedVar, i) => (
           <div
             key={i}
-            className="grid grid-cols-[auto,6rem,auto] gap-x-2 items-center w-fit mx-auto"
+            className="grid grid-cols-[auto,6rem,1.2rem] gap-x-2 items-center w-fit mx-auto"
           >
             <button
               title="Remove"
@@ -433,7 +438,9 @@ export default function EventTypeNode({
                 title={"Qualifier: " + selectedVar.qualifier}
               >
                 {" "}
-                {selectedVar.qualifier !== undefined ? `@${selectedVar.qualifier}` : ""}
+                {selectedVar.qualifier !== undefined
+                  ? `@${selectedVar.qualifier}`
+                  : ""}
               </span>
             </span>
             {!selectedVar.variable.initiallyBound && (
@@ -454,63 +461,72 @@ export default function EventTypeNode({
         ))}
       </div>
       <div>
-          <Combobox
-            title={
-              canAddObjects
-                ? "Link object variables..."
-                : "No options available. Please first add object variables above!"
-            }
-            options={
-              data.eventType.type === "anyExcept" ||
-              data.eventType.type === "anyOf"
-                ? objectVariables.filter((ov) => data.selectedVariables.find((v) => v.variable.name === ov.name) === undefined).map((ov) => ({
+        <Combobox
+          title={
+            canAddObjects
+              ? "Link object variables..."
+              : "No options available. Please first add object variables above!"
+          }
+          options={
+            data.eventType.type === "anyExcept" ||
+            data.eventType.type === "anyOf"
+              ? objectVariables
+                  .filter(
+                    (ov) =>
+                      data.selectedVariables.find(
+                        (v) => v.variable.name === ov.name,
+                      ) === undefined,
+                  )
+                  .map((ov) => ({
                     value: JSON.stringify({
                       objectvariable: ov,
                       qualifier: undefined,
                     }),
                     label: `${ov.name} (${ov.type})`,
                   }))
-                : objectVariables.flatMap((ot) => {
-                    return qualifierPerObjectType[ot.type]
-                      .filter(
-                        (qualifier) =>
-                          data.selectedVariables.find(
-                            (sv) =>
-                              sv.variable.name === ot.name &&
-                              sv.qualifier === qualifier,
-                          ) === undefined,
-                      )
-                      .map((qualifier) => ({
-                        value: JSON.stringify({
-                          objectvariable: ot,
-                          qualifier,
-                        }),
-                        label: `${ot.name} @${qualifier} (${ot.type})`,
-                      }));
-                  })
+              : objectVariables.flatMap((ot) => {
+                  return qualifierPerObjectType[ot.type]
+                    .filter(
+                      (qualifier) =>
+                        data.selectedVariables.find(
+                          (sv) =>
+                            sv.variable.name === ot.name &&
+                            sv.qualifier === qualifier,
+                        ) === undefined,
+                    )
+                    .map((qualifier) => ({
+                      value: JSON.stringify({
+                        objectvariable: ot,
+                        qualifier,
+                      }),
+                      label: `${ot.name} @${qualifier} (${ot.type})`,
+                    }));
+                })
+          }
+          onChange={(jsonValue: string) => {
+            if (jsonValue !== undefined && jsonValue !== "") {
+              const {
+                objectvariable,
+                qualifier,
+              }: {
+                objectvariable: ObjectVariable;
+                qualifier: string | undefined;
+              } = JSON.parse(jsonValue);
+              onNodeDataChange(id, {
+                selectedVariables: [
+                  ...data.selectedVariables,
+                  {
+                    variable: objectvariable,
+                    qualifier,
+                    bound: false,
+                  },
+                ],
+              });
             }
-            onChange={(jsonValue: string) => {
-              if (jsonValue !== undefined && jsonValue !== "") {
-                const {
-                  objectvariable,
-                  qualifier,
-                }: { objectvariable: ObjectVariable; qualifier: string|undefined } =
-                  JSON.parse(jsonValue);
-                onNodeDataChange(id, {
-                  selectedVariables: [
-                    ...data.selectedVariables,
-                    {
-                      variable: objectvariable,
-                      qualifier,
-                      bound: false,
-                    },
-                  ],
-                });
-              }
-            }}
-            name="Variable"
-            value={""}
-          />
+          }}
+          name="Variable"
+          value={""}
+        />
       </div>
       {hasAssociatedObjects && (
         <Handle

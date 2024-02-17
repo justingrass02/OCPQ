@@ -14,6 +14,7 @@ mod ocel_qualifiers {
     pub mod qualifiers;
 }
 mod constraints;
+mod discovery;
 mod preprocessing {
     pub mod preprocess;
     mod tests;
@@ -22,13 +23,13 @@ mod preprocessing {
 use constraints::check_with_tree_req;
 use itertools::Itertools;
 use load_ocel::{get_available_ocels, load_ocel_file_req, DEFAULT_OCEL_FILE};
-use ocel_qualifiers::qualifiers::get_qualifiers_for_event_types;
+use ocel_qualifiers::qualifiers::get_qualifiers_for_event_types_handler;
 use process_mining::event_log::ocel::ocel_struct::{OCELType, OCEL};
 use serde::{Deserialize, Serialize};
 use tower_http::cors::CorsLayer;
 
 use crate::{
-    load_ocel::load_ocel_file_to_state, ocel_qualifiers::qualifiers::get_qualifers_for_object_types,
+    discovery::auto_discover_constraints_handler, load_ocel::load_ocel_file_to_state, ocel_qualifiers::qualifiers::get_qualifers_for_object_types
 };
 
 #[derive(Clone)]
@@ -57,13 +58,14 @@ async fn main() {
         .route("/ocel/available", get(get_available_ocels))
         .route(
             "/ocel/event-qualifiers",
-            get(get_qualifiers_for_event_types),
+            get(get_qualifiers_for_event_types_handler),
         )
         .route(
             "/ocel/object-qualifiers",
             get(get_qualifers_for_object_types),
         )
         .route("/ocel/check-constraints", post(check_with_tree_req))
+        .route("/ocel/discover-constraints", post(auto_discover_constraints_handler))
         .with_state(state)
         .route("/", get(|| async { "Hello, Aaron!" }))
         .layer(cors);

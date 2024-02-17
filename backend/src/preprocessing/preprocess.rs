@@ -36,21 +36,17 @@ pub fn get_events_of_type_associated_with_objects<'a>(
 ) -> Vec<&'a OCELEvent> {
     if object_ids.is_empty() {
         return match event_type {
-            EventType::Any => linked_ocel.event_map.iter().map(|(_, e)| *e).collect(),
+            EventType::Any => linked_ocel.event_map.values().copied().collect(),
             EventType::Exactly { value } => linked_ocel.events_of_type.get(value).unwrap().clone(),
             EventType::AnyOf { values } => linked_ocel
                 .event_map
                 .values()
-                .into_iter()
-                .filter(|e| values.contains(&e.event_type))
-                .map(|e| *e)
+                .filter(|e| values.contains(&e.event_type)).copied()
                 .collect(),
             EventType::AnyExcept { values } => linked_ocel
                 .event_map
                 .values()
-                .into_iter()
-                .filter(|e| !values.contains(&e.event_type))
-                .map(|e| *e)
+                .filter(|e| !values.contains(&e.event_type)).copied()
                 .collect(),
         };
     }
@@ -125,7 +121,7 @@ pub fn get_object_rels_per_type(
         let rels_for_type = object_to_object_rels_per_type
             .get_mut(&o.object_type)
             .unwrap();
-        for rels in get_object_relationships(&o) {
+        for rels in get_object_relationships(o) {
             match object_map.get(&rels.object_id) {
                 Some(rel_obj) => {
                     rels_for_type.insert((rels.qualifier, rel_obj.object_type.clone()));
@@ -136,7 +132,7 @@ pub fn get_object_rels_per_type(
             }
         }
     }
-    return object_to_object_rels_per_type;
+    object_to_object_rels_per_type
 }
 
 #[derive(Debug, Clone)]

@@ -3,7 +3,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -56,31 +55,11 @@ interface VisualEditorProps {
   eventTypeQualifiers: EventTypeQualifiers;
   children?: ReactNode;
 }
-const COLORS = [
-  "#1f78b4", // Blue
-  "#33a02c", // Green
-  "#e31a1c", // Red
-  "#ff7f00", // Orange
-  "#6a3d9a", // Purple
-  "#b2df8a", // Light Green
-  "#fb9a99", // Light Red
-  "#fdbf6f", // Light Orange
-  "#cab2d6", // Light Purple
-  "#ffff99", // Yellow
-];
 
 export default function VisualEditor(props: VisualEditorProps) {
   const [mode, setMode] = useState<"normal" | "view-tree" | "readonly">(
     "normal",
   );
-
-  const objectTypeToColor: Record<string, string> = useMemo(() => {
-    const ret: Record<string, string> = {};
-    props.ocelInfo.object_types.forEach((type, i) => {
-      ret[type.name] = COLORS[i % COLORS.length];
-    });
-    return ret;
-  }, [props.eventTypeQualifiers]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<EventTypeNodeData>([]);
 
@@ -150,8 +129,13 @@ export default function VisualEditor(props: VisualEditorProps) {
 
   const { getLayoutedElements } = useLayoutedElements();
 
-  const { setInstance, registerOtherDataGetter, otherData, instance } =
-    useContext(FlowContext);
+  const {
+    setInstance,
+    registerOtherDataGetter,
+    otherData,
+    instance,
+    flushData,
+  } = useContext(FlowContext);
 
   const [violationDetails, setViolationDetails] = useState<ViolationsPerNode>();
 
@@ -219,9 +203,6 @@ export default function VisualEditor(props: VisualEditorProps) {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         proOptions={{ hideAttribution: true }}
-        // connectionLineComponent={(props) => (
-        //   <ConnectionLine {...props} objectTypeToColor={objectTypeToColor} />
-        // )}
       >
         <Controls
           onInteractiveChange={(status) => {
@@ -328,7 +309,6 @@ export default function VisualEditor(props: VisualEditorProps) {
                       eventType: { type: "exactly", value: data.eventType },
                       eventTypeQualifier:
                         props.eventTypeQualifiers[data.eventType],
-                      objectTypeToColor,
                       selectedVariables: [],
                       countConstraint: { min: 0, max: Infinity },
                     },
@@ -371,6 +351,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                 edges,
               );
               setViolationInfo((vi) => ({ ...vi, violationsPerNode: res }));
+              flushData({ violations: res, objectVariables });
             }}
           >
             {mode !== "view-tree" && (

@@ -10,7 +10,7 @@ export interface ObjectVariable {
 
 export type SelectedVariables = {
   variable: ObjectVariable;
-  qualifier: string|undefined;
+  qualifier: string | undefined;
   bound: boolean;
 }[];
 export type ViolationReason = "TooFewMatchingEvents" | "TooManyMatchingEvents";
@@ -34,7 +34,6 @@ export type EventTypeNodeData = {
     | { type: "anyOf"; values: string[] }
     | { type: "anyExcept"; values: string[] };
   eventTypeQualifier: EventTypeQualifier;
-  objectTypeToColor: Record<string, string>;
   countConstraint: CountConstraint;
   firstOrLastEventOfType?: "first" | "last" | undefined;
   selectedVariables: SelectedVariables;

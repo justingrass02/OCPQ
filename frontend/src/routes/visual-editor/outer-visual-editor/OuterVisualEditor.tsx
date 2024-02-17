@@ -1,22 +1,24 @@
 import { OcelInfoContext } from "@/App";
 import AlertHelper from "@/components/AlertHelper";
 import { Button } from "@/components/ui/button";
-import type { EventTypeQualifiers, ObjectTypeQualifiers } from "@/types/ocel";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { useState, useContext, useEffect, useRef, Fragment } from "react";
+import type { EventTypeQualifiers, ObjectTypeQualifiers } from "@/types/ocel";
+import { Fragment, useContext, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import { RiRobot2Line } from "react-icons/ri";
 import { RxCrossCircled } from "react-icons/rx";
 import type { ReactFlowInstance, ReactFlowJsonObject } from "reactflow";
 import ConstraintContainer from "../constraint-container/ConstraintContainer";
 import { FlowContext } from "../helper/FlowContext";
 import type {
-  ViolationsPerNodes,
-  ObjectVariable,
-  EventTypeNodeData,
   EventTypeLinkData,
+  EventTypeNodeData,
+  ObjectVariable,
+  ViolationsPerNodes,
 } from "../helper/types";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import clsx from "clsx";
 
 export default function VisualEditorOuter() {
   const [qualifiers, setQualifiers] = useState<EventTypeQualifiers>();
@@ -108,6 +110,20 @@ export default function VisualEditorOuter() {
     <div>
       <FlowContext.Provider
         value={{
+          flushData: (data) => {
+            if (
+              data !== undefined &&
+              activeIndex !== undefined &&
+              currentInstanceAndData.instance !== undefined
+            ) {
+              prevDataRef.current[activeIndex] = {
+                flowJson: currentInstanceAndData.instance.toObject(),
+                violations: data?.violations,
+                objectVariables: data?.objectVariables,
+              };
+              setConstraints([...constraints]);
+            }
+          },
           instance: currentInstanceAndData?.instance,
           setInstance: (i) => {
             setCurrentInstanceAndData((ci) => ({
@@ -147,18 +163,141 @@ export default function VisualEditorOuter() {
                       : "justify-center"
                   }`}
                 >
-                  <Button
-                    className="mb-2"
-                    onClick={() => {
-                      changeIndex(constraints.length, constraints.length + 1);
-                      setConstraints((cs) => [
-                        ...cs,
-                        { name: "", description: "" },
-                      ]);
-                    }}
-                  >
-                    Add {constraints.length === 0 && " Constraints"}
-                  </Button>
+                  <div className="flex justify-center gap-x-1 mb-2">
+                    <Button
+                      className=""
+                      onClick={() => {
+                        changeIndex(constraints.length, constraints.length + 1);
+                        setConstraints((cs) => [
+                          ...cs,
+                          { name: "", description: "" },
+                        ]);
+                      }}
+                    >
+                      Add {constraints.length === 0 && " Constraints"}
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => {
+                        type DiscoverConstraintsRequest = {
+                          countConstraints: { coverFraction: number };
+                        };
+                        type DiscoverConstraintsResponse = {
+                          countConstraints: {
+                            countConstraint: { min: number; max: number };
+                            objectType: string;
+                            eventType: EventTypeNodeData["eventType"];
+                          }[];
+                        };
+                        void toast.promise(
+                          fetch(
+                            "http://localhost:3000/ocel/discover-constraints",
+                            {
+                              method: "post",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                countConstraints: { coverFraction: 0.9 },
+                              } satisfies DiscoverConstraintsRequest),
+                            },
+                          )
+                            .then(async (res) => {
+                              const json =
+                                (await res.json()) as DiscoverConstraintsResponse;
+                              console.log({ json });
+                              const updatedConstraints = [...constraints];
+                              let index = constraints.length;
+                              for (const c of json.countConstraints) {
+                                const countStr =
+                                  c.countConstraint.min ===
+                                  c.countConstraint.max
+                                    ? `=${c.countConstraint.min}`
+                                    : c.countConstraint.min === 0
+                                    ? `<=${c.countConstraint.max}`
+                                    : `${c.countConstraint.min} - ${c.countConstraint.max}`;
+                                const name = `${countStr} "${
+                                  c.eventType.type === "exactly"
+                                    ? c.eventType.value
+                                    : "..."
+                                }" per ${c.objectType}`;
+                                if (
+                                  updatedConstraints.find(
+                                    (c) => c.name === name,
+                                  ) !== undefined
+                                ) {
+                                  console.log(
+                                    "Skipping new constraint " +
+                                      name +
+                                      " bc. constraint with same name already exists",
+                                  );
+                                  continue;
+                                }
+                                updatedConstraints.push({
+                                  name,
+                                  description:
+                                    "Automatically Discovered Constraint",
+                                });
+                                const varName =
+                                  c.objectType.substring(0, 2) + "_0";
+                                const variable = {
+                                  name: varName,
+                                  type: c.objectType,
+                                  initiallyBound: true,
+                                };
+                                prevDataRef.current[index] = {
+                                  violations: undefined,
+                                  // TODO: Add object variable
+                                  objectVariables: [variable],
+                                  flowJson: {
+                                    nodes: [
+                                      {
+                                        id: Date.now() + "auto" + index,
+                                        type: "eventType",
+                                        position: { x: 100, y: 100 },
+                                        data: {
+                                          eventType: c.eventType,
+                                          eventTypeQualifier:
+                                            qualifiers[
+                                              c.eventType.type === "exactly"
+                                                ? c.eventType.value
+                                                : ""
+                                            ],
+                                          countConstraint: c.countConstraint,
+                                          selectedVariables: [
+                                            {
+                                              qualifier: undefined,
+                                              variable,
+                                              bound: false,
+                                            },
+                                          ],
+                                        },
+                                      },
+                                    ],
+                                    edges: [],
+                                    viewport: { x: 0, y: 0, zoom: 1.0 },
+                                  },
+                                };
+                                index++;
+                              }
+                              setConstraints(updatedConstraints);
+                              return json;
+                            })
+                            .catch((err) => {
+                              console.error(err);
+                              return undefined;
+                            }),
+                          {
+                            loading: "Executing Auto-Discovery...",
+                            success: (s) =>
+                              `Discovered ${s?.countConstraints.length} Constraints`,
+                            error: "Failed to Discover Constraints",
+                          },
+                        );
+                      }}
+                    >
+                      <RiRobot2Line />
+                    </Button>
+                  </div>
                   {constraints.length > 0 && (
                     <ToggleGroup
                       type="single"
@@ -174,7 +313,16 @@ export default function VisualEditorOuter() {
                           <ToggleGroupItem
                             value={i.toString()}
                             variant="outline"
-                            className="data-[state=on]:bg-blue-200 data-[state=on]:border-blue-300"
+                            className={clsx(
+                              "data-[state=on]:bg-blue-200 data-[state=on]:border-blue-300",
+                              prevDataRef.current[i]?.violations == null && "",
+                              prevDataRef.current[i]?.violations != null &&
+                                "bg-green-200/30 data-[state=on]:bg-green-300/80",
+                              prevDataRef.current[i]?.violations?.find(
+                                (vs) => vs.violations.length > 0,
+                              ) != null &&
+                                "bg-red-200/30 data-[state=on]:bg-red-300/80",
+                            )}
                           >
                             {c.name !== "" ? c.name : `Constraint ${i + 1}`}
                           </ToggleGroupItem>

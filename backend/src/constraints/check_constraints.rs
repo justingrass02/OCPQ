@@ -183,7 +183,7 @@ fn match_and_add_new_bindings<'a>(
                         vec![((info_cc, binding.clone()), None)];
                     for v in &node.variables {
                         if v.bound {
-                            // v should be binded!
+                            // v should be bound!
                             // First gather possible values
                             match &matching_event.relationships {
                                 Some(rels) => {
@@ -215,6 +215,7 @@ fn match_and_add_new_bindings<'a>(
                                 }
                                 None => {
                                     // New variable cannot be bound as matching_event has no object relationships
+                                    eprintln!("Variable {} should be bound but event does not have object relationships?", v.variable.name);
                                 }
                             }
                         }
@@ -226,10 +227,10 @@ fn match_and_add_new_bindings<'a>(
         })
         .collect()
 }
-fn event_satisfies_waiting_time_constraint<'a>(
+fn event_satisfies_waiting_time_constraint(
     node: &TreeNode,
     ev: &&OCELEvent,
-    linked_ocel: &LinkedOCEL<'a>,
+    linked_ocel: &LinkedOCEL<'_>,
 ) -> bool {
     match &node.waiting_time_constraint {
         Some(waiting_time_range) => {
@@ -248,12 +249,8 @@ fn event_satisfies_waiting_time_constraint<'a>(
                             match linked_ocel.event_map.get(e_id) {
                                 Some(e) => {
                                     // Event has to happen before target event (to be considered for waiting time)
-                                    if e.time < ev.time {
-                                        if last_prev_event_time.is_none()
-                                            || e.time > last_prev_event_time.unwrap()
-                                        {
-                                            last_prev_event_time = Some(e.time.clone());
-                                        }
+                                    if e.time < ev.time && (last_prev_event_time.is_none() || e.time > last_prev_event_time.unwrap()) {
+                                        last_prev_event_time = Some(e.time);
                                     }
                                 }
                                 None => eprintln!("Event {} has no entry in event_map", e_id),

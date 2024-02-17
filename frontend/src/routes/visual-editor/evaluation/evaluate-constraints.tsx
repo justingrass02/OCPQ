@@ -109,7 +109,10 @@ export async function evaluateConstraints(
         maxSeconds: replaceInfinity(e.data.timeConstraint.maxSeconds),
       },
     };
-    if (treeNodes[e.target] !== undefined && treeNodes[e.source] !== undefined) {
+    if (
+      treeNodes[e.target] !== undefined &&
+      treeNodes[e.source] !== undefined
+    ) {
       treeNodes[e.target].parents.push({
         connection: dependencyConnection,
         id: e.source,

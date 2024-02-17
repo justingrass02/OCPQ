@@ -19,9 +19,18 @@ export const FlowContext = createContext<{
         objectVariables?: ObjectVariable[];
       }
     | undefined;
+  flushData: (
+    data:
+      | {
+          violations?: ViolationsPerNodes;
+          objectVariables?: ObjectVariable[];
+        }
+      | undefined,
+  ) => unknown;
 }>({
   instance: undefined,
   registerOtherDataGetter: () => () => undefined,
   setInstance: () => {},
   otherData: undefined,
+  flushData: () => {},
 });
