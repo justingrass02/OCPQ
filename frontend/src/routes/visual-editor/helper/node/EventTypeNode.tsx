@@ -235,7 +235,7 @@ export default function EventTypeNode({
         <AlertHelper
           trigger={
             <button
-              className=" hover:bg-blue-200/80 px-1 block rounded text-lg"
+              className=" hover:bg-blue-200/80 px-1 block rounded text-lg max-w-[11rem]"
               title="Edit event type"
             >
               {data.eventType.type === "exactly" && (

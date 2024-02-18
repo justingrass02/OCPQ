@@ -95,8 +95,8 @@ pub fn auto_discover_eventually_follows(
                                             <= (mean_delay_seconds
                                                 + std_dev_factor * delay_seconds_std_deviation)
                                 })
-                                .count() as f32)
-                                < options.cover_fraction * delay_seconds.len() as f32
+                                .count() as f32) / (delay_seconds.len() as f32)
+                                < options.cover_fraction
                             {
                                 std_dev_factor += 0.001;
                             }
@@ -191,10 +191,9 @@ pub fn auto_discover_count_constraints(
             .iter()
             .flatten()
             .map(|e| &e.object_id)
-            .filter(|o| {
-                options
-                    .object_types
-                    .contains(&linked_ocel.object_map.get(*o).unwrap().object_type)
+            .filter(|o_id| match linked_ocel.object_map.get(*o_id) {
+                Some(o) => options.object_types.contains(&o.object_type),
+                None => false,
             })
             .sorted()
             .dedup()
@@ -232,7 +231,8 @@ pub fn auto_discover_count_constraints(
                     && **c <= (mean + std_dev_factor * std_deviation).round()
             })
             .count() as f32)
-            < options.cover_fraction * counts.len() as f32
+            / (counts.len() as f32)
+            < options.cover_fraction
         {
             std_dev_factor += 0.001;
         }
