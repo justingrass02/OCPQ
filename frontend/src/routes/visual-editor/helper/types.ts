@@ -48,6 +48,31 @@ export type EventTypeLinkData = {
   color: string;
   constraintType: (typeof CONSTRAINT_TYPES)[number];
   timeConstraint: TimeConstraint;
-  onDataChange: (id: string, newData: Partial<EventTypeLinkData>) => unknown;
-  onDelete: (id: string) => unknown;
+};
+
+export type DiscoverConstraintsRequest = {
+  countConstraints?: {
+    objectTypes: string[];
+    coverFraction: number;
+  };
+  eventuallyFollowsConstraints?: {
+    objectTypes: string[];
+    coverFraction: number;
+  };
+};
+export type DiscoverConstraintsResponse = {
+  countConstraints: {
+    countConstraint: { min: number; max: number };
+    objectType: string;
+    eventType: EventTypeNodeData["eventType"];
+  }[];
+  eventuallyFollowsConstraints: {
+    secondsRange: {
+      minSeconds: number;
+      maxSeconds: number;
+    };
+    objectTypes: string[];
+    fromEventType: string;
+    toEventType: string;
+  }[];
 };

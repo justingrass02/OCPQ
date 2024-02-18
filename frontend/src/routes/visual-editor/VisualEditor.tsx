@@ -78,6 +78,7 @@ export default function VisualEditor(props: VisualEditorProps) {
         ) {
           return eds;
         } else {
+          console.log(sourceHandle, targetHandle);
           const color = "#969696";
           const newEdge: Edge<EventTypeLinkData> = {
             id: sourceHandle + "|||" + targetHandle,
@@ -100,24 +101,6 @@ export default function VisualEditor(props: VisualEditorProps) {
               color,
               constraintType: "response",
               timeConstraint: { minSeconds: 0, maxSeconds: Infinity },
-              onDataChange: (id, newData) => {
-                setEdges((es) => {
-                  const newEdges = [...es];
-                  const changedEdge = newEdges.find((e) => e.id === id);
-                  if (changedEdge?.data !== undefined) {
-                    changedEdge.data = { ...changedEdge.data, ...newData };
-                  } else {
-                    console.warn("Did not find changed edge data");
-                  }
-                  return newEdges;
-                });
-              },
-              onDelete: (id: string) => {
-                setEdges((edges) => {
-                  const newEdges = edges.filter((e) => e.id !== id);
-                  return newEdges;
-                });
-              },
             },
           };
           return addEdge(newEdge, eds);
@@ -182,6 +165,25 @@ export default function VisualEditor(props: VisualEditorProps) {
             }
             return newNodes;
           });
+        },
+        onEdgeDataChange: (id, newData) => {
+          if (newData !== undefined) {
+            setEdges((es) => {
+              const newEdges = [...es];
+              const changedEdge = newEdges.find((e) => e.id === id);
+              if (changedEdge?.data !== undefined) {
+                changedEdge.data = { ...changedEdge.data, ...newData };
+              } else {
+                console.warn("Did not find changed edge data");
+              }
+              return newEdges;
+            });
+          } else {
+            setEdges((edges) => {
+              const newEdges = edges.filter((e) => e.id !== id);
+              return newEdges;
+            });
+          }
         },
       }}
     >

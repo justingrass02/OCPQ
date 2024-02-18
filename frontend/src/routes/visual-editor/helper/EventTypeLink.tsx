@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { LuClock } from "react-icons/lu";
 
 import { MdRemoveCircleOutline } from "react-icons/md";
@@ -23,6 +23,7 @@ import {
   type EdgeProps,
 } from "reactflow";
 import type { EventTypeLinkData, TimeConstraint } from "./types";
+import { VisualEditorContext } from "./VisualEditorContext";
 
 export default function EventTypeLink({
   id,
@@ -44,6 +45,7 @@ export default function EventTypeLink({
     targetY,
     targetPosition,
   });
+  const { onEdgeDataChange } = useContext(VisualEditorContext);
   return (
     <>
       <BaseEdge path={edgePath} markerEnd={markerEnd} style={style} />
@@ -104,14 +106,14 @@ export default function EventTypeLink({
             <button
               className="hover:text-red-500 text-red-400/30  rounded-lg text-sm"
               title="Delete edge"
-              onClick={() => data.onDelete(id)}
+              onClick={() => onEdgeDataChange(id, undefined)}
             >
               <MdRemoveCircleOutline />
             </button>
             <TimeDurationChangeDialog
               data={data}
               onChange={(newTimeConstraint) => {
-                data.onDataChange(id, { timeConstraint: newTimeConstraint });
+                onEdgeDataChange(id, { timeConstraint: newTimeConstraint });
               }}
             />
           </div>

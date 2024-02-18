@@ -1,5 +1,6 @@
 import { createContext } from "react";
 import type {
+  EventTypeLinkData,
   EventTypeNodeData,
   ViolationsPerNode,
   ViolationsPerNodes,
@@ -13,9 +14,14 @@ export type VisualEditorContextValue = {
     id: string,
     newData: Partial<EventTypeNodeData> | undefined,
   ) => unknown;
+  onEdgeDataChange: (
+    id: string,
+    newData: Partial<EventTypeLinkData> | undefined,
+  ) => unknown;
   ocelInfo?: OCELInfo;
 };
 
 export const VisualEditorContext = createContext<VisualEditorContextValue>({
   onNodeDataChange: () => {},
+  onEdgeDataChange: () => {},
 });

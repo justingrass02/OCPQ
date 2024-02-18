@@ -4,15 +4,20 @@ pub fn test() {
     use std::time::Instant;
 
     use crate::{
-        discovery::{auto_discover_count_constraints, CountConstraintOptions},
+        discovery::{
+            auto_discover_eventually_follows, EventuallyFollowsConstraintOptions,
+        },
         load_ocel::{load_ocel_file, DEFAULT_OCEL_FILE},
+        preprocessing::preprocess::link_ocel_info,
     };
 
     let _now = Instant::now();
     let ocel = load_ocel_file(DEFAULT_OCEL_FILE).unwrap();
-    let res = auto_discover_count_constraints(
-        &ocel,
-        CountConstraintOptions {
+    let linked_ocel = link_ocel_info(&ocel);
+    let res = auto_discover_eventually_follows(
+        &linked_ocel,
+        EventuallyFollowsConstraintOptions {
+            object_types: vec!["orders".to_string()],
             cover_fraction: 0.9,
         },
     );
