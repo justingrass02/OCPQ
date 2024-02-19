@@ -31,7 +31,7 @@ export type OCELEvent = {
 
 export type EventTypeQualifierInfo = {
   qualifier: string;
-  counts: number[];
+  // counts: number[];
   multiple: boolean;
   object_types: string[];
 };

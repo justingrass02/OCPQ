@@ -17,6 +17,7 @@ import ReactFlow, {
   useNodesState,
   type Connection,
   type Edge,
+  useReactFlow,
 } from "reactflow";
 
 import AlertHelper from "@/components/AlertHelper";
@@ -61,9 +62,22 @@ export default function VisualEditor(props: VisualEditorProps) {
     "normal",
   );
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<EventTypeNodeData>([]);
+  const { setInstance, registerOtherDataGetter, otherData, flushData } =
+    useContext(FlowContext);
 
-  const [edges, setEdges, onEdgesChange] = useEdgesState<EventTypeLinkData>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<EventTypeNodeData>(
+    otherData?.nodes ?? [],
+  );
+
+  const [edges, setEdges, onEdgesChange] = useEdgesState<EventTypeLinkData>(
+    otherData?.edges ?? [],
+  );
+  const instance = useReactFlow();
+
+  useEffect(() => {
+    instance.setNodes(otherData?.nodes ?? nodes);
+    console.log("useEffect", otherData?.nodes, otherData?.edges);
+  }, [otherData?.nodes, otherData?.edges, instance]);
 
   const { objectVariables } = useContext(ConstraintInfoContext);
 
@@ -111,14 +125,6 @@ export default function VisualEditor(props: VisualEditorProps) {
   );
 
   const { getLayoutedElements } = useLayoutedElements();
-
-  const {
-    setInstance,
-    registerOtherDataGetter,
-    otherData,
-    instance,
-    flushData,
-  } = useContext(FlowContext);
 
   const [violationDetails, setViolationDetails] = useState<ViolationsPerNode>();
 

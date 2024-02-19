@@ -169,21 +169,24 @@ export default function ConstraintContainer({
                                     break;
                                   }
                                 }
+                                const newEditMetaInfoData = JSON.parse(
+                                  JSON.stringify(editMetaInfoData),
+                                );
                                 if (
-                                  editMetaInfoData.o2o != null &&
+                                  newEditMetaInfoData.o2o != null &&
                                   getPossibleO2O(valWithCorrectCaps).find(
                                     (va) =>
                                       va.parentVariableName ===
-                                        editMetaInfoData.o2o!
+                                        newEditMetaInfoData.o2o!
                                           .parentVariableName &&
                                       va.qualifier ===
-                                        editMetaInfoData.o2o!.qualifier,
+                                        newEditMetaInfoData.o2o!.qualifier,
                                   ) === undefined
                                 ) {
-                                  editMetaInfoData.o2o = undefined;
+                                  newEditMetaInfoData.o2o = undefined;
                                 }
                                 setEditMetaInfoData({
-                                  ...editMetaInfoData,
+                                  ...newEditMetaInfoData,
                                   type: valWithCorrectCaps,
                                   name,
                                 });

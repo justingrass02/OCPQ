@@ -119,6 +119,7 @@ export default function VisualEditorOuter() {
   }, []);
   function saveData() {
     if (prevDataRef.current !== undefined) {
+      console.log(json5.stringify(prevDataRef.current));
       localStorage.setItem(
         LOCALSTORAGE_SAVE_KEY_DATA,
         json5.stringify(prevDataRef.current),
@@ -132,6 +133,7 @@ export default function VisualEditorOuter() {
 
   function changeIndex(newIndex: number, length = constraints.length) {
     if (!isNaN(newIndex) && newIndex >= 0 && newIndex < length) {
+      console.log("Change index", newIndex);
       if (
         currentInstanceAndData.instance !== undefined &&
         activeIndex !== undefined &&
@@ -144,6 +146,10 @@ export default function VisualEditorOuter() {
           violations: prevOtherData?.violations,
           objectVariables: prevOtherData?.objectVariables,
         };
+        console.log(
+          "Prev data: for " + activeIndex,
+          JSON.parse(JSON.stringify(prevDataRef.current)),
+        );
       }
       setActiveIndex(newIndex);
     }
@@ -172,13 +178,13 @@ export default function VisualEditorOuter() {
               ...ci,
               instance: i,
             }));
-            // setReactFlowInstance(i);
-            if (activeIndex !== undefined && i !== undefined) {
-              const prevData = prevDataRef.current[activeIndex];
-              i.setNodes(prevData?.flowJson?.nodes ?? []);
-              i.setEdges(prevData?.flowJson?.edges ?? []);
-              i.setViewport(prevData?.flowJson?.viewport ?? {});
-            }
+            // if (activeIndex !== undefined && i !== undefined) {
+            //   const prevData = prevDataRef.current[activeIndex];
+            //   console.log({i},activeIndex,i,prevData?.flowJson?.nodes);
+            //   i.setNodes(prevData?.flowJson?.nodes ?? []);
+            //   i.setEdges(prevData?.flowJson?.edges ?? []);
+            //   i.setViewport(prevData?.flowJson?.viewport ?? {});
+            // }
           },
           registerOtherDataGetter: (getter) => {
             setCurrentInstanceAndData((ci) => ({ ...ci, getter }));
@@ -189,6 +195,8 @@ export default function VisualEditorOuter() {
                   objectVariables:
                     prevDataRef.current[activeIndex]?.objectVariables,
                   violations: prevDataRef.current[activeIndex]?.violations,
+                  nodes: prevDataRef.current[activeIndex]?.flowJson.nodes,
+                  edges: prevDataRef.current[activeIndex]?.flowJson.edges,
                 }
               : undefined,
         }}
@@ -280,7 +288,7 @@ export default function VisualEditorOuter() {
                                 <Label className="mt-3 mb-1 block">
                                   Object Types
                                 </Label>
-                                <ul className="flex flex-col mb-1 list-disc ml-6">
+                                <ul className="flex flex-col mb-1 list-disc ml-6 text-base">
                                   {data.countConstraints.objectTypes.map(
                                     (ot, i) => (
                                       <li key={i} className="">
@@ -386,7 +394,7 @@ export default function VisualEditorOuter() {
                                 <Label className="mt-3 mb-1 block">
                                   Object Types
                                 </Label>
-                                <ul className="flex flex-col mb-1 list-disc ml-6">
+                                <ul className="flex flex-col mb-1 list-disc ml-6 text-base">
                                   {data.eventuallyFollowsConstraints.objectTypes.map(
                                     (ot, i) => (
                                       <li key={i} className="">
@@ -569,7 +577,6 @@ export default function VisualEditorOuter() {
                                   ] as const;
                                   prevDataRef.current[index] = {
                                     violations: undefined,
-                                    // TODO: Add object variable
                                     objectVariables: [variable],
                                     flowJson: {
                                       nodes: [
@@ -678,7 +685,6 @@ export default function VisualEditorOuter() {
                       className=""
                       onClick={() => {
                         changeIndex(constraints.length, constraints.length + 1);
-                        prevDataRef.current = [];
                         setConstraints((cs) => [
                           ...cs,
                           { name: "", description: "" },
@@ -690,6 +696,7 @@ export default function VisualEditorOuter() {
                     <AlertHelper
                       trigger={
                         <Button
+                          title={"Delete All"}
                           variant="destructive"
                           size="icon"
                           className=""
@@ -705,6 +712,7 @@ export default function VisualEditorOuter() {
                       )}
                       submitAction={"Delete All"}
                       onSubmit={() => {
+                        prevDataRef.current = [];
                         setConstraints([]);
                       }}
                     />
@@ -767,6 +775,7 @@ export default function VisualEditorOuter() {
                             )}
                             submitAction="Delete"
                             onSubmit={() => {
+                              prevDataRef.current.splice(i, 1);
                               if (
                                 activeIndex !== undefined &&
                                 activeIndex >= constraints.length - 1

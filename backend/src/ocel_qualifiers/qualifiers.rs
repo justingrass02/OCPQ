@@ -12,7 +12,7 @@ pub struct QualifiersForEventType {
     pub qualifier: String,
     pub multiple: bool,
     pub object_types: Vec<String>,
-    pub counts: Vec<i32>,
+    // pub counts: Vec<i32>,
 }
 pub type QualifierAndObjectType = (String, String);
 
@@ -95,7 +95,7 @@ pub fn get_qualifiers_for_event_types(
                             if *c > 0 {
                                 pre_val.multiple = true;
                             }
-                            pre_val.counts.push(*c);
+                            // pre_val.counts.push(*c);
                         }
                     }
                     None => {
@@ -105,7 +105,7 @@ pub fn get_qualifiers_for_event_types(
                                 qualifier: qualifier.clone(),
                                 multiple: counts.iter().any(|c| *c > 1),
                                 object_types: vec![obj_type.clone()],
-                                counts: counts.clone(),
+                                // counts: counts.clone(),
                             },
                         );
                     }
