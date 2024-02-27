@@ -15,7 +15,9 @@ use crate::{
     with_ocel_from_state, AppState,
 };
 
-use super::{AdditionalBindingInfo, BoundValue, EventTreeNode, PastEventInfo, TreeNode};
+use super::{
+    AdditionalBindingInfo, BoundValue, EventTreeNode, PastEventInfo, TreeNode, TreeNodeType,
+};
 
 ///
 /// Check for all (unbound) variables of node if given event is associated with the correct qualified objects
@@ -147,7 +149,7 @@ fn match_and_add_new_bindings<'a>(
                     }
                     None => {
                         // Hmm weird... no matching parent found?!
-                        eprintln!("No matching parent found for event type {:?}", p.event_type);
+                        eprintln!("No matching parent found for event type {:?}; Past events: {:?}", p.event_type, info.past_events);
                     }
                 }
             }
@@ -326,18 +328,22 @@ pub enum ViolationReason {
     // MultipleMatchingEvents,
     // MatchingEvents,
 }
-type Violations = Vec<(Binding, ViolationReason)>;
+type Violations = Vec<(String, Binding, ViolationReason)>;
+type ViolationsWithoutID = Vec<(Binding, ViolationReason)>;
 
 fn check_with_tree(
     variables: Vec<ObjectVariable>,
     nodes: Vec<TreeNode>,
     ocel: &OCEL,
-) -> (Vec<usize>, Vec<Violations>) {
+) -> (Vec<usize>, Vec<ViolationsWithoutID>) {
     let linked_ocel = link_ocel_info(ocel);
     let mut binding_sizes: Vec<usize> = Vec::new();
     let mut violation_sizes: Vec<usize> = Vec::new();
     let mut violations: Vec<Violations> = Vec::new();
+    let mut violations_per_node: HashMap<String, ViolationsWithoutID> =
+        nodes.iter().map(|n| (n.id.clone(), Vec::new())).collect();
     println!("Variables: {:?}", variables);
+    println!("Nodes: {:?}", violations_per_node);
     let now = Instant::now();
     if !nodes.is_empty() {
         let mut bindings: Bindings = vec![(
@@ -405,13 +411,39 @@ fn check_with_tree(
             bindings = new_bindings;
             violations.extend(new_violations);
         }
+        for (node_id, binding, reason) in violations.into_iter().flatten() {
+            violations_per_node
+                .entry(node_id)
+                .or_default()
+                .push((binding, reason));
+            // violations_per_node.get_mut(&node_id).unwrap_or(todo!("Could not get {:?} in {:?}",node_id,violations_per_node)).push((binding,reason));
+        }
+        //  violations
+        //     .into_iter()
+        //     .flatten()
+        //     .map(|(node_id, binding, reason)| (node_id, (binding, reason)))
+        //     .collect();
         // }
     } else {
         println!("Finished with check (nothing to do)");
     }
     println!("No connected node left!");
     println!("Finished in {:?}", now.elapsed());
-    (binding_sizes, violations)
+    println!(
+        "#Nodes: {:}\n{:?}\n",
+        nodes.len(),
+        violations_per_node
+            .iter()
+            .map(|(id, vio)| (id, vio.len()))
+            .collect_vec()
+    );
+    (
+        binding_sizes,
+        nodes
+            .iter()
+            .map(|n| violations_per_node.get(&n.id).unwrap().clone())
+            .collect_vec(),
+    )
 }
 
 pub fn evaluate_tree_node(
@@ -420,56 +452,43 @@ pub fn evaluate_tree_node(
     linked_ocel: &LinkedOCEL,
     nodes: &[TreeNode],
 ) -> (Vec<Violations>, Bindings) {
-    match node {
-        TreeNode::Event(ev_tree_node) => {
+    println!("Evaluating Tree Node {}", node.id);
+    match &node.data {
+        TreeNodeType::Event(ev_tree_node) => {
             let x: Vec<(Binding, Option<ViolationReason>)> =
-                match_and_add_new_bindings(Some(bindings), ev_tree_node, &linked_ocel);
+                match_and_add_new_bindings(Some(bindings), &ev_tree_node, &linked_ocel);
             let mut new_bindings: Bindings = Vec::new();
             let mut new_violations: Violations = Vec::new();
             for (b, v) in x {
                 match v {
                     Some(violation) => {
-                        new_violations.push(((b), violation));
+                        new_violations.push((node.id.clone(), (b), violation));
                     }
                     None => {
                         new_bindings.push(b);
                     }
                 }
             }
-            // binding_sizes.push(new_bindings.len());
-            // violation_sizes.push(new_violations.len());
-            // bindings = new_bindings;
-            // println!(
-            //     "#Bindings for node {}: {};\nViolations: {}",
-            //     ev_tree_node.id,
-            //     new_bindings.len(),
-            //     new_violations.len(),
-            // );
-            let mut all_violations: Vec<Vec<((AdditionalBindingInfo, HashMap<String, BoundValue>), ViolationReason)>> = vec![new_violations];
-            ev_tree_node.children.iter().for_each(|c| {
+            let mut all_violations: Vec<Violations> = vec![new_violations];
+            // Respect order given by passed treenode slice!
+            nodes.iter().filter_map(|n| ev_tree_node.children.iter().find(|c| n.id == c.id)).for_each(|c| {
                 let c_node = nodes
                     .iter()
-                    .find(|n| match n {
-                        TreeNode::Event(ev) => ev.id == c.id,
-                        TreeNode::OR(_, _) => false,
+                    .find(|n| match &n.data {
+                        TreeNodeType::Event(ev) => ev.id == c.id,
+                        TreeNodeType::OR(_, _) => false,
                     })
                     .unwrap();
 
                 let (new_violations, new_new_bindings) =
                     evaluate_tree_node(new_bindings.clone(), c_node, linked_ocel, nodes);
-                new_bindings = new_new_bindings;
+                // Uhh, I like that we can _not_ do that (e.g., keep parent bindings here)
+                // new_bindings = new_new_bindings;
                 all_violations.extend(new_violations);
             });
-            // violations.push(new_violations);
-            return (all_violations, new_bindings);
-            // todo!();
+            (all_violations, new_bindings)
         }
-        TreeNode::OR(node_1, node_2) => {
-            // let (mut vio_1, _) = evaluate_tree_node(bindings.clone(), &node_1, linked_ocel, nodes);
-            // return evaluate_tree_node(bindings, node_2, linked_ocel);
-            // if vio_1.len() > 0 {
-            //     return (vio_1, bind_1);
-            // }
+        TreeNodeType::OR(node_1, node_2) => {
             let res_1: Vec<_> = bindings
                 .par_iter()
                 .map(|b| evaluate_tree_node(vec![b.clone()], &node_1, linked_ocel, nodes))
@@ -478,37 +497,23 @@ pub fn evaluate_tree_node(
                 .par_iter()
                 .map(|b| evaluate_tree_node(vec![b.clone()], &node_2, linked_ocel, nodes))
                 .collect();
-            
-            // TODO: Fix violations
-            // i.e., couple them with node ID
-            // then for OR;
-            // Violation if both left and right are violated in binding
-            // No violation else
-            // Include violations of child nodes (i.e., left and right, recursively)
-            let mut all_violations: Vec<Vec<((AdditionalBindingInfo, HashMap<String, BoundValue>), ViolationReason)>> = vec![vec![]];
-            for ((i,(v1, b1)), (v2, b2)) in res_1.into_iter().enumerate().zip(res_2) {
-                
+
+            let mut all_violations: Vec<Violations> = vec![vec![]];
+            for ((i, (v1, _b1)), (v2, _b2)) in res_1.into_iter().enumerate().zip(res_2) {
                 let left_sat = v1.iter().all(|inner_v| inner_v.len() == 0);
                 let right_sat = v2.iter().all(|inner_v| inner_v.len() == 0);
+                all_violations.extend(v1);
+                all_violations.extend(v2);
                 if left_sat || right_sat {
-                    // all_violations[0].push(vec![]);
-                    // all_violations.extend(v1);
-                    // all_violations.extend(v2);
-                }else{
-                    // println!("b1: {} b2: {}",b1)
-                    all_violations[0].push((bindings[i].clone(),ViolationReason::TooFewMatchingEvents));
-                    // all_violations.extend(v1);
-                    // all_violations.extend(v2);
+                } else {
+                    all_violations[0].push((
+                        node.id.clone(),
+                        bindings[i].clone(),
+                        ViolationReason::TooFewMatchingEvents,
+                    ));
                 }
-                println!("{:?} vs. {:?}", left_sat, right_sat);
             }
-            let mut new_bindings: Bindings = bindings;
-            // todo!();
-            // if vio_1[0].len() == 0 || vio_2[0].len() == 0 {
-            //     return (vec![vec![],vec![]],bindings);
-            // }
-            // vio_1.extend(vio_2);
-            return (all_violations, new_bindings);
+            (all_violations, bindings)
         }
     }
 }
@@ -522,19 +527,30 @@ pub struct CheckWithTreeRequest {
 pub async fn check_with_tree_req(
     state: State<AppState>,
     Json(req): Json<CheckWithTreeRequest>,
-) -> (StatusCode, Json<Option<(Vec<usize>, Vec<Violations>)>>) {
+) -> (
+    StatusCode,
+    Json<Option<(Vec<usize>, Vec<ViolationsWithoutID>)>>,
+) {
     // TODO: This is just a quick shim to test ORs out:
-    if req.nodes_order.len() >= 2 {
-        let mut nodes = vec![TreeNode::OR(
-            Box::new(TreeNode::Event(req.nodes_order[0].clone())),
-            Box::new(TreeNode::Event(req.nodes_order[1].clone())),
-        )];
-        nodes.extend(
-            req.nodes_order
-                .iter()
-                .skip(2)
-                .map(|n| TreeNode::Event(n.clone())),
-        );
+    if req.nodes_order.len() >= 2 && req.nodes_order.len() < 4 {
+        println!("[!!!] Shimming OR!");
+        let mut nodes = vec![TreeNode {
+            id: "or-node-id".to_string(),
+            data: TreeNodeType::OR(
+                Box::new(TreeNode {
+                    id: req.nodes_order[0].id.clone(),
+                    data: TreeNodeType::Event(req.nodes_order[0].clone()),
+                }),
+                Box::new(TreeNode {
+                    id: req.nodes_order[1].id.clone(),
+                    data: TreeNodeType::Event(req.nodes_order[1].clone()),
+                }),
+            ),
+        }];
+        nodes.extend(req.nodes_order[0..].iter().map(|n| TreeNode {
+            id: n.id.clone(),
+            data: TreeNodeType::Event(n.clone()),
+        }));
         with_ocel_from_state(&state, |ocel| {
             (
                 StatusCode::OK,
@@ -550,7 +566,10 @@ pub async fn check_with_tree_req(
                     req.variables,
                     req.nodes_order
                         .into_iter()
-                        .map(|n| TreeNode::Event(n))
+                        .map(|n| TreeNode {
+                            id: n.id.clone(),
+                            data: TreeNodeType::Event(n.clone()),
+                        })
                         .collect(),
                     ocel,
                 ))),

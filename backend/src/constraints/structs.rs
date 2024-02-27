@@ -78,7 +78,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct TreeNode {
+pub struct EventTreeNode {
     pub id: String,
     #[serde(rename = "eventType")]
     pub event_type: EventType,
@@ -92,7 +92,19 @@ pub struct TreeNode {
     #[serde(rename = "waitingTimeConstraint")]
     pub waiting_time_constraint: Option<SecondsRange>,
     #[serde(rename = "numQualifiedObjectsConstraint")]
-    pub num_qualified_objects_constraint: Option<HashMap<String,CountConstraint>>,
+    pub num_qualified_objects_constraint: Option<HashMap<String, CountConstraint>>,
+}
+
+#[derive(Debug, Clone)]
+pub enum TreeNodeType{
+    Event(EventTreeNode),
+    OR(Box<TreeNode>,Box<TreeNode>)
+}
+
+#[derive(Debug, Clone)]
+pub struct TreeNode {
+    pub id: String,
+    pub data: TreeNodeType
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -101,11 +113,11 @@ pub enum EventType {
     #[serde(rename = "any")]
     Any,
     #[serde(rename = "exactly")]
-    Exactly {value: String},
+    Exactly { value: String },
     #[serde(rename = "anyOf")]
-    AnyOf {values: Vec<String>},
+    AnyOf { values: Vec<String> },
     #[serde(rename = "anyExcept")]
-    AnyExcept {values: Vec<String>}
+    AnyExcept { values: Vec<String> },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
