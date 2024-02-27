@@ -342,8 +342,6 @@ fn check_with_tree(
     let mut violations: Vec<Violations> = Vec::new();
     let mut violations_per_node: HashMap<String, ViolationsWithoutID> =
         nodes.iter().map(|n| (n.id.clone(), Vec::new())).collect();
-    println!("Variables: {:?}", variables);
-    println!("Nodes: {:?}", violations_per_node);
     let now = Instant::now();
     if !nodes.is_empty() {
         let mut bindings: Bindings = vec![(
@@ -403,7 +401,7 @@ fn check_with_tree(
         println!("#Bindings (initial): {}", bindings.len());
         binding_sizes.push(bindings.len());
         // for node in &nodes {
-        if let Some(node) = nodes.iter().next() {
+        if let Some(node) = nodes.first() {
             let (new_violations, new_bindings) =
                 evaluate_tree_node(bindings, node, &linked_ocel, &nodes);
             binding_sizes.push(new_bindings.len());
@@ -429,14 +427,7 @@ fn check_with_tree(
     }
     println!("No connected node left!");
     println!("Finished in {:?}", now.elapsed());
-    println!(
-        "#Nodes: {:}\n{:?}\n",
-        nodes.len(),
-        violations_per_node
-            .iter()
-            .map(|(id, vio)| (id, vio.len()))
-            .collect_vec()
-    );
+
     (
         binding_sizes,
         nodes
@@ -456,7 +447,7 @@ pub fn evaluate_tree_node(
     match &node.data {
         TreeNodeType::Event(ev_tree_node) => {
             let x: Vec<(Binding, Option<ViolationReason>)> =
-                match_and_add_new_bindings(Some(bindings), &ev_tree_node, &linked_ocel);
+                match_and_add_new_bindings(Some(bindings), ev_tree_node, linked_ocel);
             let mut new_bindings: Bindings = Vec::new();
             let mut new_violations: Violations = Vec::new();
             for (b, v) in x {
@@ -480,7 +471,7 @@ pub fn evaluate_tree_node(
                     })
                     .unwrap();
 
-                let (new_violations, new_new_bindings) =
+                let (new_violations, _new_new_bindings) =
                     evaluate_tree_node(new_bindings.clone(), c_node, linked_ocel, nodes);
                 // Uhh, I like that we can _not_ do that (e.g., keep parent bindings here)
                 // new_bindings = new_new_bindings;
@@ -491,17 +482,17 @@ pub fn evaluate_tree_node(
         TreeNodeType::OR(node_1, node_2) => {
             let res_1: Vec<_> = bindings
                 .par_iter()
-                .map(|b| evaluate_tree_node(vec![b.clone()], &node_1, linked_ocel, nodes))
+                .map(|b| evaluate_tree_node(vec![b.clone()], node_1, linked_ocel, nodes))
                 .collect();
             let res_2: Vec<_> = bindings
                 .par_iter()
-                .map(|b| evaluate_tree_node(vec![b.clone()], &node_2, linked_ocel, nodes))
+                .map(|b| evaluate_tree_node(vec![b.clone()], node_2, linked_ocel, nodes))
                 .collect();
 
             let mut all_violations: Vec<Violations> = vec![vec![]];
             for ((i, (v1, _b1)), (v2, _b2)) in res_1.into_iter().enumerate().zip(res_2) {
-                let left_sat = v1.iter().all(|inner_v| inner_v.len() == 0);
-                let right_sat = v2.iter().all(|inner_v| inner_v.len() == 0);
+                let left_sat = v1.iter().all(|inner_v| inner_v.is_empty());
+                let right_sat = v2.iter().all(|inner_v| inner_v.is_empty());
                 all_violations.extend(v1);
                 all_violations.extend(v2);
                 if left_sat || right_sat {
