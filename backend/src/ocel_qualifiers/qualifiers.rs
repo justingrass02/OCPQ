@@ -22,10 +22,11 @@ pub async fn get_qualifers_for_object_types(
     StatusCode,
     Json<Option<HashMap<String, HashSet<QualifierAndObjectType>>>>,
 ) {
-    match with_ocel_from_state(&State(state), |ocel| {
+    let qualifier_and_type = with_ocel_from_state(&State(state), |ocel| {
         let x = link_ocel_info(ocel);
         x.object_rels_per_type
-    }) {
+    });
+    match qualifier_and_type {
         Some(x) => (StatusCode::OK, Json(Some(x))),
         None => (StatusCode::BAD_REQUEST, Json(None)),
     }
@@ -74,7 +75,8 @@ pub fn get_qualifiers_for_event_types(
                     })
                     .fold(HashMap::new(), |mut acc, c| {
                         c.into_iter().for_each(|(a, b)| {
-                            acc.entry(a).or_insert(Vec::new()).push(b);
+                            let entry: &mut Vec<i32> = acc.entry(a).or_default();
+                            entry.push(b);
                         });
                         acc
                     }),

@@ -56,7 +56,7 @@ pub fn auto_discover_eventually_follows(
                             break;
                         }
                         map.entry((&prev_ev.event_type, &next_ev.event_type, &o.object_type))
-                            .or_insert(Vec::new())
+                            .or_default()
                             .push((next_ev.time - prev_ev.time).num_seconds());
                     }
                 }

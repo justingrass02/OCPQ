@@ -15,13 +15,13 @@ use crate::{
     with_ocel_from_state, AppState,
 };
 
-use super::{AdditionalBindingInfo, BoundValue, PastEventInfo, TreeNode};
+use super::{AdditionalBindingInfo, BoundValue, EventTreeNode, PastEventInfo, TreeNode};
 
 ///
 /// Check for all (unbound) variables of node if given event is associated with the correct qualified objects
 ///
 fn event_has_correct_objects(
-    node: &TreeNode,
+    node: &EventTreeNode,
     ev: &OCELEvent,
     binding: &HashMap<String, BoundValue>,
 ) -> bool {
@@ -36,9 +36,9 @@ fn event_has_correct_objects(
                                 if &r.qualifier != q {
                                     return false;
                                 }
-                            },
+                            }
                             // If qualifier is None, then we do not want to filter based on qualifier
-                            None => {},
+                            None => {}
                         }
                         match binding.get(&v.variable.name) {
                             Some(bound_val) => match bound_val {
@@ -61,7 +61,7 @@ fn event_has_correct_objects(
 
 fn match_and_add_new_bindings<'a>(
     prev_bindings_opt: Option<Bindings>,
-    node: &'a TreeNode,
+    node: &'a EventTreeNode,
     linked_ocel: &'a LinkedOCEL,
 ) -> Vec<(Binding, Option<ViolationReason>)> {
     // Get all events of the corresponding event type (determined by node)
@@ -228,7 +228,7 @@ fn match_and_add_new_bindings<'a>(
         .collect()
 }
 fn event_satisfies_waiting_time_constraint(
-    node: &TreeNode,
+    node: &EventTreeNode,
     ev: &&OCELEvent,
     linked_ocel: &LinkedOCEL<'_>,
 ) -> bool {
@@ -249,7 +249,10 @@ fn event_satisfies_waiting_time_constraint(
                             match linked_ocel.event_map.get(e_id) {
                                 Some(e) => {
                                     // Event has to happen before target event (to be considered for waiting time)
-                                    if e.time < ev.time && (last_prev_event_time.is_none() || e.time > last_prev_event_time.unwrap()) {
+                                    if e.time < ev.time
+                                        && (last_prev_event_time.is_none()
+                                            || e.time > last_prev_event_time.unwrap())
+                                    {
                                         last_prev_event_time = Some(e.time);
                                     }
                                 }
@@ -270,7 +273,7 @@ fn event_satisfies_waiting_time_constraint(
     }
 }
 
-fn event_satisfies_num_qualifiers_constraint(node: &TreeNode, ev: &&OCELEvent) -> bool {
+fn event_satisfies_num_qualifiers_constraint(node: &EventTreeNode, ev: &&OCELEvent) -> bool {
     match &node.num_qualified_objects_constraint {
         Some(num_qual_constr) => {
             let mut ev_qualifier_nums: HashMap<&String, usize> = HashMap::new();
@@ -292,7 +295,7 @@ fn event_satisfies_num_qualifiers_constraint(node: &TreeNode, ev: &&OCELEvent) -
 }
 
 fn get_object_ids_from_node_and_binding(
-    node: &TreeNode,
+    node: &EventTreeNode,
     binding: &HashMap<String, BoundValue>,
 ) -> Vec<String> {
     return node
@@ -393,25 +396,34 @@ fn check_with_tree(
 
         println!("#Bindings (initial): {}", bindings.len());
         binding_sizes.push(bindings.len());
-        for node in &nodes {
-            // let node = &nodes[i];
-            // if node.children.is_empty() && node.parents.is_empty() {
-            //     // Here we just check the count constraints & do not update bindings
-            //     // Instead, we only gather first violations
-            //     if node.count_constraint.min > 0 || node.count_constraint.max < usize::MAX {
-            //         println!("Node {} has no child/parent", { &node.id });
-            //         let x = match_and_add_new_bindings(Some(bindings.clone()), node, &linked_ocel);
-            //         violations.push(
-            //             x.into_iter()
-            //                 .filter_map(|(b, violation)| violation.map(|v| ((b), v)))
-            //                 .collect_vec(),
-            //         );
-            //     } else {
-            //         violations.push(Vec::new());
-            //     }
-            //     continue;
-            // }
-            let x = match_and_add_new_bindings(Some(bindings), node, &linked_ocel);
+        // for node in &nodes {
+        if let Some(node) = nodes.iter().next() {
+            let (new_violations, new_bindings) =
+                evaluate_tree_node(bindings, node, &linked_ocel, &nodes);
+            binding_sizes.push(new_bindings.len());
+            violation_sizes.push(violations.len());
+            bindings = new_bindings;
+            violations.extend(new_violations);
+        }
+        // }
+    } else {
+        println!("Finished with check (nothing to do)");
+    }
+    println!("No connected node left!");
+    println!("Finished in {:?}", now.elapsed());
+    (binding_sizes, violations)
+}
+
+pub fn evaluate_tree_node(
+    bindings: Bindings,
+    node: &TreeNode,
+    linked_ocel: &LinkedOCEL,
+    nodes: &[TreeNode],
+) -> (Vec<Violations>, Bindings) {
+    match node {
+        TreeNode::Event(ev_tree_node) => {
+            let x: Vec<(Binding, Option<ViolationReason>)> =
+                match_and_add_new_bindings(Some(bindings), ev_tree_node, &linked_ocel);
             let mut new_bindings: Bindings = Vec::new();
             let mut new_violations: Violations = Vec::new();
             for (b, v) in x {
@@ -424,40 +436,126 @@ fn check_with_tree(
                     }
                 }
             }
-            binding_sizes.push(new_bindings.len());
-            violation_sizes.push(new_violations.len());
-            bindings = new_bindings;
-            println!(
-                "#Bindings for node {}: {};\nViolations: {}",
-                node.id,
-                bindings.len(),
-                new_violations.len(),
-            );
-            violations.push(new_violations);
+            // binding_sizes.push(new_bindings.len());
+            // violation_sizes.push(new_violations.len());
+            // bindings = new_bindings;
+            // println!(
+            //     "#Bindings for node {}: {};\nViolations: {}",
+            //     ev_tree_node.id,
+            //     new_bindings.len(),
+            //     new_violations.len(),
+            // );
+            let mut all_violations: Vec<Vec<((AdditionalBindingInfo, HashMap<String, BoundValue>), ViolationReason)>> = vec![new_violations];
+            ev_tree_node.children.iter().for_each(|c| {
+                let c_node = nodes
+                    .iter()
+                    .find(|n| match n {
+                        TreeNode::Event(ev) => ev.id == c.id,
+                        TreeNode::OR(_, _) => false,
+                    })
+                    .unwrap();
+
+                let (new_violations, new_new_bindings) =
+                    evaluate_tree_node(new_bindings.clone(), c_node, linked_ocel, nodes);
+                new_bindings = new_new_bindings;
+                all_violations.extend(new_violations);
+            });
+            // violations.push(new_violations);
+            return (all_violations, new_bindings);
+            // todo!();
         }
-    } else {
-        println!("Finished with check (nothing to do)");
+        TreeNode::OR(node_1, node_2) => {
+            // let (mut vio_1, _) = evaluate_tree_node(bindings.clone(), &node_1, linked_ocel, nodes);
+            // return evaluate_tree_node(bindings, node_2, linked_ocel);
+            // if vio_1.len() > 0 {
+            //     return (vio_1, bind_1);
+            // }
+            let res_1: Vec<_> = bindings
+                .par_iter()
+                .map(|b| evaluate_tree_node(vec![b.clone()], &node_1, linked_ocel, nodes))
+                .collect();
+            let res_2: Vec<_> = bindings
+                .par_iter()
+                .map(|b| evaluate_tree_node(vec![b.clone()], &node_2, linked_ocel, nodes))
+                .collect();
+            
+            // TODO: Fix violations
+            // i.e., couple them with node ID
+            // then for OR;
+            // Violation if both left and right are violated in binding
+            // No violation else
+            // Include violations of child nodes (i.e., left and right, recursively)
+            let mut all_violations: Vec<Vec<((AdditionalBindingInfo, HashMap<String, BoundValue>), ViolationReason)>> = vec![vec![]];
+            for ((i,(v1, b1)), (v2, b2)) in res_1.into_iter().enumerate().zip(res_2) {
+                
+                let left_sat = v1.iter().all(|inner_v| inner_v.len() == 0);
+                let right_sat = v2.iter().all(|inner_v| inner_v.len() == 0);
+                if left_sat || right_sat {
+                    // all_violations[0].push(vec![]);
+                    // all_violations.extend(v1);
+                    // all_violations.extend(v2);
+                }else{
+                    // println!("b1: {} b2: {}",b1)
+                    all_violations[0].push((bindings[i].clone(),ViolationReason::TooFewMatchingEvents));
+                    // all_violations.extend(v1);
+                    // all_violations.extend(v2);
+                }
+                println!("{:?} vs. {:?}", left_sat, right_sat);
+            }
+            let mut new_bindings: Bindings = bindings;
+            // todo!();
+            // if vio_1[0].len() == 0 || vio_2[0].len() == 0 {
+            //     return (vec![vec![],vec![]],bindings);
+            // }
+            // vio_1.extend(vio_2);
+            return (all_violations, new_bindings);
+        }
     }
-    println!("No connected node left!");
-    println!("Finished in {:?}", now.elapsed());
-    (binding_sizes, violations)
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct CheckWithTreeRequest {
     pub variables: Vec<ObjectVariable>,
     #[serde(rename = "nodesOrder")]
-    pub nodes_order: Vec<TreeNode>,
+    pub nodes_order: Vec<EventTreeNode>,
 }
 pub async fn check_with_tree_req(
     state: State<AppState>,
     Json(req): Json<CheckWithTreeRequest>,
 ) -> (StatusCode, Json<Option<(Vec<usize>, Vec<Violations>)>>) {
-    with_ocel_from_state(&state, |ocel| {
-        (
-            StatusCode::OK,
-            Json(Some(check_with_tree(req.variables, req.nodes_order, ocel))),
-        )
-    })
-    .unwrap_or((StatusCode::INTERNAL_SERVER_ERROR, Json(None)))
+    // TODO: This is just a quick shim to test ORs out:
+    if req.nodes_order.len() >= 2 {
+        let mut nodes = vec![TreeNode::OR(
+            Box::new(TreeNode::Event(req.nodes_order[0].clone())),
+            Box::new(TreeNode::Event(req.nodes_order[1].clone())),
+        )];
+        nodes.extend(
+            req.nodes_order
+                .iter()
+                .skip(2)
+                .map(|n| TreeNode::Event(n.clone())),
+        );
+        with_ocel_from_state(&state, |ocel| {
+            (
+                StatusCode::OK,
+                Json(Some(check_with_tree(req.variables, nodes, ocel))),
+            )
+        })
+        .unwrap_or((StatusCode::INTERNAL_SERVER_ERROR, Json(None)))
+    } else {
+        with_ocel_from_state(&state, |ocel| {
+            (
+                StatusCode::OK,
+                Json(Some(check_with_tree(
+                    req.variables,
+                    req.nodes_order
+                        .into_iter()
+                        .map(|n| TreeNode::Event(n))
+                        .collect(),
+                    ocel,
+                ))),
+            )
+        })
+        .unwrap_or((StatusCode::INTERNAL_SERVER_ERROR, Json(None)))
+    }
 }
