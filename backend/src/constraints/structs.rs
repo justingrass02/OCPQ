@@ -79,11 +79,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct EventTreeNode {
-    pub id: String,
     #[serde(rename = "eventType")]
     pub event_type: EventType,
-    pub parents: Vec<TreeNodeConnection>,
-    pub children: Vec<TreeNodeConnection>,
     pub variables: Vec<SelectedVariable>,
     #[serde(rename = "countConstraint")]
     pub count_constraint: CountConstraint,
@@ -95,16 +92,19 @@ pub struct EventTreeNode {
     pub num_qualified_objects_constraint: Option<HashMap<String, CountConstraint>>,
 }
 
-#[derive(Debug, Clone)]
-pub enum TreeNodeType{
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum TreeNodeType {
     Event(EventTreeNode),
-    OR(Box<TreeNode>,Box<TreeNode>)
+    /// OR: True if one of the two child nodes (given by String-ID) are true
+    OR(String, String),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TreeNode {
     pub id: String,
-    pub data: TreeNodeType
+    pub parents: Vec<TreeNodeConnection>,
+    pub children: Vec<TreeNodeConnection>,
+    pub data: TreeNodeType,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -131,9 +131,10 @@ pub enum FirstOrLastEventOfType {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TreeNodeConnection {
     pub id: String,
-    pub connection: Connection,
-    #[serde(rename = "eventType")]
-    pub event_type: EventType,
+    /// Should be Some(...) connection for EventType connections
+    pub connection: Option<Connection>,
+    // #[serde(rename = "eventType")]
+    // pub event_type: Option<EventType>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
