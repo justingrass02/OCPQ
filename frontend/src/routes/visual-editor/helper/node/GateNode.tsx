@@ -21,7 +21,8 @@ export default function EventTypeNode({ data, id }: NodeProps<GateNodeData>) {
   return (
     <div
       title={data.type}
-      className={`border shadow z-10 backdrop-blur flex flex-col items-center justify-center pt-1.5 py-0.5 px-0.5 rounded-md relative min-w-[8rem] min-h-[5rem] font-mono text-4xl font-bold`}
+      className={`border shadow z-10 backdrop-blur flex flex-col items-center justify-center pt-1.5 py-0.5 px-0.5 rounded-md relative min-w-[8rem] min-h-[5rem] font-mono text-4xl font-bold
+      ${violations?.violations !== undefined && violations.violations.length > 0 ? "bg-red-200 border-red-300" : violations?.violations === undefined ? "bg-blue-50 border-blue-100" : "bg-green-200 border-green-300"}`}
     >
             {violations?.violations !== undefined && (
         <button

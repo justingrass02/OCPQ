@@ -410,8 +410,6 @@ fn check_with_tree(
 
         println!("#Bindings (initial): {}", bindings.len());
 
-        // TODO: Also consider disconnected nodes / components
-        // if let Some(node) = nodes.first() {
         for node in nodes.iter() {
             if node.parents.len() == 0 {
                 let (new_violations, bindings) =
@@ -464,6 +462,7 @@ pub fn evaluate_tree_node(
     println!("Evaluating Tree Node {}", node.id);
     match &node.data {
         TreeNodeType::Event(ev_tree_node) => {
+            let now = Instant::now();
             let x: Vec<EvaluateBindingResult> = match_and_add_new_bindings(
                 &bindings,
                 ev_tree_node,
@@ -507,16 +506,8 @@ pub fn evaluate_tree_node(
                         // Return violations of children if they encountered any
                         violations[*binding_origin].extend(violation);
                     }
-                    // Uhh, I like that we can _not_ do that (e.g., keep parent bindings here without expanding when evaluating the next child)
-                    // new_bindings = new_new_bindings;
-                    // all_violations.extend(c_res.into_iter().filter_map(|r| match r {
-                    //     EvaluateBindingResult::Satisfied(_) => None,
-                    //     EvaluateBindingResult::Violated(v) => Some(v),
-                    // }).collect());
                 });
-
             (violations, ret_bindings)
-            // (all_violations, new_bindings)
         }
         TreeNodeType::OR(node_1_id, node_2_id) => {
             let node_1 = nodes
