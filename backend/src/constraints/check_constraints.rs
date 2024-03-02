@@ -137,7 +137,6 @@ fn match_and_add_new_bindings<'a>(
             // Then check time difference
             for p in node_parents {
             if let Some(connection) = p.connection.as_ref() {
-
                 let last_prev_ev = info
                     .past_events
                     .iter()
@@ -328,6 +327,10 @@ pub enum ViolationReason {
     TooFewMatchingEvents,
     TooManyMatchingEvents,
     NoChildrenOfORSatisfied,
+    LeftChildOfANDUnsatisfied,
+    RightChildOfANDUnsatisfied,
+    BothChildrenOfANDUnsatisfied,
+    ChildrenOfNOTSatisfied,
     // NoMatchingEvents,
     // MultipleMatchingEvents,
     // MatchingEvents,
@@ -342,6 +345,7 @@ fn check_with_tree(
     nodes: Vec<TreeNode>,
     ocel: &OCEL,
 ) -> (Vec<usize>, Vec<ViolationsWithoutID>) {
+    // println!("{:#?}",nodes);
     let linked_ocel = link_ocel_info(ocel);
     let mut binding_sizes_per_node: HashMap<String, usize> =
         nodes.iter().map(|n| (n.id.clone(), 0)).collect();
@@ -527,7 +531,6 @@ pub fn evaluate_tree_node(
                 .unwrap_or_else(|| {
                     panic!("OR node referencing non-existing node ID {}", node_2_id)
                 });
-            // TOOD: Update evaluate_tree_node to not take ownership of bindings?
             let (violations_1, bindings_1) =
                 evaluate_tree_node(&bindings, node_1, linked_ocel, nodes);
             let (violations_2, bindings_2) =
@@ -540,23 +543,110 @@ pub fn evaluate_tree_node(
                 .collect_vec();
             ret_bindings.push((node.id.clone(), bindings.clone()));
             for ((i, mut v1), v2) in violations_1.into_iter().enumerate().zip(violations_2) {
-                let left_sat = v1.is_empty();
-                let right_sat = v2.is_empty();
+                let left_violated = v1.iter().any(|c| &c.0 == node_1_id);
+                let right_violated: bool = v2.iter().any(|c| &c.0 == node_2_id);
+                let left_sat = !left_violated;
+                let right_sat = !right_violated;
 
-                v1.extend(v2);
+                v1.extend(v2.clone());
                 if left_sat || right_sat {
                     // i.e., STILL show violations even if OR is satisfied overall
                     // If this is not wanted, remember to also update the bindings/num. bindings propagated to the top
                     violations.push(v1);
                 } else {
+                    println!("VIOLATED?! {:?}\n{:?}\n\n", v1, v2);
                     v1.push((
                         node.id.clone(),
                         (bindings[i].0.clone(), bindings[i].1.clone()),
                         ViolationReason::NoChildrenOfORSatisfied,
                     ));
                     violations.push(v1);
-                    // OR:
-                    // violations.push(v2);
+                }
+            }
+            (violations, ret_bindings)
+        }
+        TreeNodeType::NOT(child_node_id) => {
+            let child_node = nodes
+                .iter()
+                .find(|n| &n.id == child_node_id)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "NOT node referencing non-existing node ID {}",
+                        child_node_id
+                    )
+                });
+            let (violations_c, bindings_c) =
+                evaluate_tree_node(&bindings, child_node, linked_ocel, nodes);
+
+            let mut violations: Vec<Vec<Violation>> = Vec::new();
+            let mut ret_bindings: Vec<(String, Vec<Binding>)> =
+                vec![bindings_c].into_iter().flatten().collect_vec();
+            ret_bindings.push((node.id.clone(), bindings.clone()));
+            for (i, mut v_c) in violations_c.into_iter().enumerate() {
+                // ONLY CONSIDER VIOLATIONS OF TOP-LEVEL CHILD! (i.e., with child_node_id)
+                let c_violated = v_c.iter().any(|c| &c.0 == child_node_id);
+                if c_violated {
+                    // NOT is satisfied!
+                    violations.push(v_c)
+                } else {
+                    v_c.push((
+                        node.id.clone(),
+                        (bindings[i].0.clone(), bindings[i].1.clone()),
+                        ViolationReason::ChildrenOfNOTSatisfied,
+                    ));
+                    violations.push(v_c);
+                }
+            }
+            (violations, ret_bindings)
+        }
+        TreeNodeType::AND(node_1_id, node_2_id) => {
+            let node_1 = nodes
+                .iter()
+                .find(|n| &n.id == node_1_id)
+                .unwrap_or_else(|| {
+                    panic!("OR node referencing non-existing node ID {}", node_1_id)
+                });
+            let node_2 = nodes
+                .iter()
+                .find(|n| &n.id == node_2_id)
+                .unwrap_or_else(|| {
+                    panic!("OR node referencing non-existing node ID {}", node_2_id)
+                });
+            let (violations_1, bindings_1) =
+                evaluate_tree_node(&bindings, node_1, linked_ocel, nodes);
+            let (violations_2, bindings_2) =
+                evaluate_tree_node(&bindings, node_2, linked_ocel, nodes);
+
+            let mut violations: Vec<Vec<Violation>> = Vec::new();
+            let mut ret_bindings: Vec<(String, Vec<Binding>)> = vec![bindings_1, bindings_2]
+                .into_iter()
+                .flatten()
+                .collect_vec();
+            ret_bindings.push((node.id.clone(), bindings.clone()));
+            for ((i, mut v1), v2) in violations_1.into_iter().enumerate().zip(violations_2) {
+                // ONLY CONSIDER VIOLATIONS OF TOP-LEVEL CHILD! (i.e., with child_node_id)
+                let left_violated = v1.iter().any(|c| &c.0 == node_1_id);
+                let right_violated: bool = v2.iter().any(|c| &c.0 == node_2_id);
+                let left_sat = !left_violated;
+                let right_sat = !right_violated;
+
+                v1.extend(v2);
+                if left_sat && right_sat {
+                    // Is probably empty right?
+                    violations.push(v1);
+                } else {
+                    v1.push((
+                        node.id.clone(),
+                        (bindings[i].0.clone(), bindings[i].1.clone()),
+                        if left_sat {
+                            ViolationReason::RightChildOfANDUnsatisfied
+                        } else if right_sat {
+                            ViolationReason::LeftChildOfANDUnsatisfied
+                        } else {
+                            ViolationReason::BothChildrenOfANDUnsatisfied
+                        },
+                    ));
+                    violations.push(v1);
                 }
             }
             (violations, ret_bindings)

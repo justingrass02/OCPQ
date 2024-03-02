@@ -35,7 +35,7 @@ import { toPng } from "html-to-image";
 import toast from "react-hot-toast";
 import { LuLayoutDashboard } from "react-icons/lu";
 import { PiPlayFill } from "react-icons/pi";
-import { TbRestore, TbSquarePlus } from "react-icons/tb";
+import { TbLogicAnd, TbRestore, TbSquarePlus } from "react-icons/tb";
 import "reactflow/dist/style.css";
 import type { EventTypeQualifiers, OCELInfo } from "../../types/ocel";
 import { evaluateConstraints } from "./evaluation/evaluate-constraints";
@@ -43,12 +43,22 @@ import { ConstraintInfoContext } from "./helper/ConstraintInfoContext";
 import { FlowContext } from "./helper/FlowContext";
 import { useLayoutedElements } from "./helper/LayoutFlow";
 import { VisualEditorContext } from "./helper/VisualEditorContext";
-import { EVENT_TYPE_LINK_TYPE, edgeTypes, nodeTypes } from "./helper/const";
-import type {
-  EventTypeLinkData,
-  EventTypeNodeData,
-  ViolationsPerNode,
-  ViolationsPerNodes,
+import {
+  EVENT_TYPE_LINK_TYPE,
+  EVENT_TYPE_NODE_TYPE,
+  GATE_LINK_TYPE,
+  GATE_NODE_TYPE,
+  edgeTypes,
+  nodeTypes,
+} from "./helper/const";
+import {
+  ALL_GATE_TYPES,
+  type GateLinkData,
+  type EventTypeLinkData,
+  type EventTypeNodeData,
+  type GateNodeData,
+  type ViolationsPerNode,
+  type ViolationsPerNodes,
 } from "./helper/types";
 
 interface VisualEditorProps {
@@ -65,18 +75,17 @@ export default function VisualEditor(props: VisualEditorProps) {
   const { setInstance, registerOtherDataGetter, otherData, flushData } =
     useContext(FlowContext);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<EventTypeNodeData>(
-    otherData?.nodes ?? [],
-  );
+  const [nodes, setNodes, onNodesChange] = useNodesState<
+    EventTypeNodeData | GateNodeData
+  >(otherData?.nodes ?? []);
 
-  const [edges, setEdges, onEdgesChange] = useEdgesState<EventTypeLinkData>(
-    otherData?.edges ?? [],
-  );
+  const [edges, setEdges, onEdgesChange] = useEdgesState<
+    EventTypeLinkData | GateLinkData
+  >(otherData?.edges ?? []);
   const instance = useReactFlow();
 
   useEffect(() => {
     instance.setNodes(otherData?.nodes ?? nodes);
-    console.log("useEffect", otherData?.nodes, otherData?.edges);
   }, [otherData?.nodes, otherData?.edges, instance]);
 
   const { objectVariables } = useContext(ConstraintInfoContext);
@@ -92,6 +101,36 @@ export default function VisualEditor(props: VisualEditorProps) {
         ) {
           return eds;
         } else {
+          const sourceNode = instance.getNode(source);
+          const targetNode = instance.getNode(target);
+          if (sourceNode?.type === "gate" || targetNode?.type === "gate") {
+            // TODO: Implement link between gates and event nodes
+            const color = "#969696";
+            const newEdge: Edge<EventTypeLinkData> = {
+              id: sourceHandle + "|||" + targetHandle,
+              type: GATE_LINK_TYPE,
+              source,
+              sourceHandle,
+              target,
+              targetHandle,
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                width: 15,
+                height: 12,
+                color,
+              },
+              style: {
+                strokeWidth: 2,
+                stroke: color,
+              },
+              data: {
+                color,
+                constraintType: "response",
+                timeConstraint: { minSeconds: 0, maxSeconds: Infinity },
+              },
+            };
+            return addEdge(newEdge, eds);
+          }
           console.log(sourceHandle, targetHandle);
           const color = "#969696";
           const newEdge: Edge<EventTypeLinkData> = {
@@ -279,6 +318,67 @@ export default function VisualEditor(props: VisualEditorProps) {
           </Button>
           {props.children}
           <AlertHelper
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+            initialData={{ type: "not" } as GateNodeData}
+            trigger={
+              <Button
+                disabled={mode !== "normal"}
+                variant="outline"
+                title="Add Gate"
+                className="bg-white"
+                onClick={() => {}}
+              >
+                <TbLogicAnd size={20} />
+              </Button>
+            }
+            title={"Add Gate"}
+            submitAction={"Submit"}
+            onSubmit={(data, ev) => {
+              setNodes((nodes) => {
+                const center =
+                  instance != null
+                    ? instance.screenToFlowPosition({
+                        x: window.innerWidth / 2,
+                        y: window.innerHeight / 2,
+                      })
+                    : { x: 0, y: 0 };
+                return [
+                  ...nodes,
+                  {
+                    id: "gate" + Date.now(),
+                    type: GATE_NODE_TYPE,
+                    position: center,
+                    data: {
+                      type: data.type,
+                    },
+                  },
+                ];
+              });
+            }}
+            content={({ data, setData }) => {
+              const sortedOcelEventTypes = [...props.ocelInfo.event_types];
+              sortedOcelEventTypes.sort((a, b) => a.name.localeCompare(b.name));
+              return (
+                <>
+                  <p className="mb-2">
+                    Please select the type of gate to add below.
+                  </p>
+                  <Combobox
+                    value={data.type}
+                    onChange={(v) => {
+                      setData({ ...data, type: v as GateNodeData["type"] });
+                    }}
+                    name="Gate Type"
+                    options={ALL_GATE_TYPES.map((t) => ({
+                      label: t,
+                      value: t,
+                    }))}
+                  ></Combobox>
+                </>
+              );
+            }}
+          />
+          <AlertHelper
             initialData={{ eventType: "" }}
             trigger={
               <Button
@@ -311,7 +411,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                   ...nodes,
                   {
                     id: data.eventType + Date.now(),
-                    type: "eventType",
+                    type: EVENT_TYPE_NODE_TYPE,
                     position: center,
                     data: {
                       eventType: { type: "exactly", value: data.eventType },

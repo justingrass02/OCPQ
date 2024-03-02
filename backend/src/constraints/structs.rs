@@ -97,6 +97,8 @@ pub enum TreeNodeType {
     Event(EventTreeNode),
     /// OR: True if one of the two child nodes (given by String-ID) are true
     OR(String, String),
+    AND(String, String),
+    NOT(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

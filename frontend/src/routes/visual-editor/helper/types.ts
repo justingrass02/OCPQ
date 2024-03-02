@@ -43,12 +43,18 @@ export type EventTypeNodeData = {
   hideViolations?: boolean;
 };
 
+export const ALL_GATE_TYPES = ["not","or","and"]
+export type GateNodeData = { type: "not" | "or" | "and" };
+
+
 export type TimeConstraint = { minSeconds: number; maxSeconds: number };
 export type EventTypeLinkData = {
   color: string;
   constraintType: (typeof CONSTRAINT_TYPES)[number];
   timeConstraint: TimeConstraint;
 };
+// eslint-disable-next-line @typescript-eslint/ban-types
+export type GateLinkData = {};
 
 export type DiscoverConstraintsRequest = {
   countConstraints?: {

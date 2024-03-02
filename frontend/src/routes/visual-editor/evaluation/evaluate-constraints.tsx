@@ -1,10 +1,16 @@
 import toast from "react-hot-toast";
 import type { Edge, Node } from "reactflow";
-import type { CONSTRAINT_TYPES } from "../helper/const";
+import {
+  EVENT_TYPE_NODE_TYPE,
+  type CONSTRAINT_TYPES,
+  GATE_NODE_TYPE,
+} from "../helper/const";
 import type {
   CountConstraint,
   EventTypeLinkData,
   EventTypeNodeData,
+  GateLinkData,
+  GateNodeData,
   ObjectVariable,
   SelectedVariables,
   TimeConstraint,
@@ -18,16 +24,24 @@ type Connection = {
 };
 
 type TreeNodeConnection = {
-  connection: Connection;
+  connection: Connection | null;
   id: string;
-  eventType: EventTypeNodeData["eventType"];
+  // eventType: EventTypeNodeData["eventType"];
 };
 
-type TreeNode = {
+type NewTreeNode = {
   id: string;
-  eventType: EventTypeNodeData["eventType"];
   parents: TreeNodeConnection[];
   children: TreeNodeConnection[];
+  data: TreeNodeType;
+};
+type TreeNodeType =
+  | { Event: EventTreeNode }
+  | { OR: [string, string] }
+  | { AND: [string, string] }
+  | { NOT: string };
+type EventTreeNode = {
+  eventType: EventTypeNodeData["eventType"];
   variables: SelectedVariables;
   countConstraint: CountConstraint;
   firstOrLastEventOfType?: "first" | "last" | undefined;
@@ -50,50 +64,77 @@ function replaceInfinity(x: number) {
 
 export async function evaluateConstraints(
   variables: ObjectVariable[],
-  nodes: Node<EventTypeNodeData>[],
-  edges: Edge<EventTypeLinkData>[],
+  nodes: Node<EventTypeNodeData | GateNodeData>[],
+  edges: Edge<EventTypeLinkData | GateLinkData>[],
 ): Promise<ViolationsPerNodes> {
   console.log({ variables, nodes });
-  const treeNodes: Record<string, TreeNode> = Object.fromEntries(
-    nodes.map((evtNode) => [
-      evtNode.id,
+  function getGateNodeType(node: Node<GateNodeData>): TreeNodeType {
+    const outTargetNodeIDs = edges
+      .filter((e) => e.source === node.id && nodes.findIndex(n => n.id === e.target) >= 0)
+      .map((e) => e.target);
+    if (node.data.type === "not") {
+      if (outTargetNodeIDs.length !== 1) {
+        console.error("Expected a single child of NOT");
+      }
+
+      return { NOT: outTargetNodeIDs[0] };
+    }
+    if (outTargetNodeIDs.length !== 2) {
+      console.error("Expected two children of OR/AND");
+    }
+    if (node.data.type === "and") {
+      return { AND: outTargetNodeIDs as [string, string] };
+    }
+
+    return { OR: outTargetNodeIDs as [string, string] };
+  }
+  const treeNodes: Record<string, NewTreeNode> = Object.fromEntries(
+    nodes.map((node) => [
+      node.id,
       {
-        id: evtNode.id,
-        eventType: evtNode.data.eventType,
+        id: node.id,
         parents: [],
         children: [],
-        variables: evtNode.data.selectedVariables,
-        countConstraint: {
-          min: replaceInfinity(evtNode.data.countConstraint.min),
-          max: replaceInfinity(evtNode.data.countConstraint.max),
-        },
-        firstOrLastEventOfType: evtNode.data.firstOrLastEventOfType,
-        waitingTimeConstraint:
-          evtNode.data.waitingTimeConstraint !== undefined
+        data:
+          node.type === EVENT_TYPE_NODE_TYPE && "eventType" in node.data
             ? {
-                minSeconds: replaceInfinity(
-                  evtNode.data.waitingTimeConstraint.minSeconds,
-                ),
-                maxSeconds: replaceInfinity(
-                  evtNode.data.waitingTimeConstraint.maxSeconds,
-                ),
+                Event: {
+                  variables: node.data.selectedVariables,
+                  eventType: node.data.eventType,
+                  countConstraint: {
+                    min: replaceInfinity(node.data.countConstraint.min),
+                    max: replaceInfinity(node.data.countConstraint.max),
+                  },
+                  firstOrLastEventOfType: node.data.firstOrLastEventOfType,
+                  waitingTimeConstraint:
+                    node.data.waitingTimeConstraint !== undefined
+                      ? {
+                          minSeconds: replaceInfinity(
+                            node.data.waitingTimeConstraint.minSeconds,
+                          ),
+                          maxSeconds: replaceInfinity(
+                            node.data.waitingTimeConstraint.maxSeconds,
+                          ),
+                        }
+                      : undefined,
+                  numQualifiedObjectsConstraint:
+                    node.data.numQualifiedObjectsConstraint !== undefined
+                      ? Object.fromEntries(
+                          Object.entries(
+                            node.data.numQualifiedObjectsConstraint,
+                          ).map(([key, val]) => [
+                            key,
+                            {
+                              min: replaceInfinity(val.min),
+                              max: replaceInfinity(val.max),
+                            },
+                          ]),
+                        )
+                      : undefined,
+                } satisfies EventTreeNode,
               }
-            : undefined,
-        numQualifiedObjectsConstraint:
-          evtNode.data.numQualifiedObjectsConstraint !== undefined
-            ? Object.fromEntries(
-                Object.entries(evtNode.data.numQualifiedObjectsConstraint).map(
-                  ([key, val]) => [
-                    key,
-                    {
-                      min: replaceInfinity(val.min),
-                      max: replaceInfinity(val.max),
-                    },
-                  ],
-                ),
-              )
-            : undefined,
-      } satisfies TreeNode,
+            : getGateNodeType(node as Node<GateNodeData>),
+      } satisfies NewTreeNode,
     ]),
   );
 
@@ -102,13 +143,20 @@ export async function evaluateConstraints(
       console.warn("No source/target handle or no data on edge", e);
       continue;
     }
-    const dependencyConnection: Connection = {
-      type: e.data.constraintType,
-      timeConstraint: {
-        minSeconds: replaceInfinity(e.data.timeConstraint.minSeconds),
-        maxSeconds: replaceInfinity(e.data.timeConstraint.maxSeconds),
-      },
-    };
+    if (!("constraintType" in e.data)) {
+      console.warn("GateLink edge not handled yet. TODO!", e);
+      continue;
+    }
+    const dependencyConnection: Connection | null =
+      "Event" in treeNodes[e.source].data
+        ? {
+            type: e.data.constraintType,
+            timeConstraint: {
+              minSeconds: replaceInfinity(e.data.timeConstraint.minSeconds),
+              maxSeconds: replaceInfinity(e.data.timeConstraint.maxSeconds),
+            },
+          }
+        : null;
     if (
       treeNodes[e.target] !== undefined &&
       treeNodes[e.source] !== undefined
@@ -116,19 +164,17 @@ export async function evaluateConstraints(
       treeNodes[e.target].parents.push({
         connection: dependencyConnection,
         id: e.source,
-        eventType: treeNodes[e.source].eventType,
       });
       treeNodes[e.source].children.push({
         connection: dependencyConnection,
         id: e.target,
-        eventType: treeNodes[e.target].eventType,
       });
     }
   }
 
-  const disconnectedTreeNodes: Record<string, TreeNode> = {};
-  const connectedTreeNodes: Record<string, TreeNode> = {};
-  const rootTreeNodes: TreeNode[] = [];
+  const disconnectedTreeNodes: Record<string, NewTreeNode> = {};
+  const connectedTreeNodes: Record<string, NewTreeNode> = {};
+  const rootTreeNodes: NewTreeNode[] = [];
 
   for (const eventType of Object.keys(treeNodes)) {
     if (
@@ -145,7 +191,7 @@ export async function evaluateConstraints(
   }
 
   function getFirstNodeIndexSatisfyingDependencies(
-    queue: TreeNode[],
+    queue: NewTreeNode[],
     reachableFromRootIDs: string[],
   ): number | undefined {
     for (let i = 0; i < queue.length; i++) {
@@ -164,7 +210,7 @@ export async function evaluateConstraints(
   // List of reachable IDS;
   // conincidely also a possible execution error that satisfies all dependency
   const reachableFromRootIDs: string[] = [];
-  let queue: TreeNode[] = [...rootTreeNodes];
+  let queue: NewTreeNode[] = [...rootTreeNodes];
 
   let invalid = false;
   while (queue.length > 0) {
@@ -217,7 +263,7 @@ export async function evaluateConstraints(
   const inputNodes = [
     ...Object.values(disconnectedTreeNodes),
     ...reachableFromRootIDs.map((id) => connectedTreeNodes[id]),
-  ].filter((n) => n.variables.length > 0);
+  ];
   // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
   const [sizes, violations] = await toast.promise(
     callCheckConstraintsEndpoint(variables, inputNodes),
@@ -243,6 +289,7 @@ export async function evaluateConstraints(
       error: "Evaluation failed",
     },
   );
+
   return violations.map((vs, i) => ({
     nodeID: inputNodes[i].id,
     violations: vs,
@@ -252,7 +299,7 @@ export async function evaluateConstraints(
 
 async function callCheckConstraintsEndpoint(
   variables: ObjectVariable[],
-  nodesOrder: TreeNode[],
+  nodesOrder: NewTreeNode[],
 ) {
   const res = await fetch("http://localhost:3000/ocel/check-constraints", {
     method: "post",
