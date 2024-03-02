@@ -543,8 +543,16 @@ pub fn evaluate_tree_node(
                 .collect_vec();
             ret_bindings.push((node.id.clone(), bindings.clone()));
             for ((i, mut v1), v2) in violations_1.into_iter().enumerate().zip(violations_2) {
-                let left_violated = v1.iter().any(|c| &c.0 == node_1_id);
-                let right_violated: bool = v2.iter().any(|c| &c.0 == node_2_id);
+                let left_violated = if !node_1.is_gate() {
+                    !v1.is_empty()
+                } else {
+                    v1.iter().any(|c| &c.0 == node_1_id)
+                };
+                let right_violated = if !node_2.is_gate() {
+                    !v2.is_empty()
+                } else {
+                    v2.iter().any(|c| &c.0 == node_2_id)
+                };
                 let left_sat = !left_violated;
                 let right_sat = !right_violated;
 
@@ -554,7 +562,6 @@ pub fn evaluate_tree_node(
                     // If this is not wanted, remember to also update the bindings/num. bindings propagated to the top
                     violations.push(v1);
                 } else {
-                    println!("VIOLATED?! {:?}\n{:?}\n\n", v1, v2);
                     v1.push((
                         node.id.clone(),
                         (bindings[i].0.clone(), bindings[i].1.clone()),
@@ -584,7 +591,12 @@ pub fn evaluate_tree_node(
             ret_bindings.push((node.id.clone(), bindings.clone()));
             for (i, mut v_c) in violations_c.into_iter().enumerate() {
                 // ONLY CONSIDER VIOLATIONS OF TOP-LEVEL CHILD! (i.e., with child_node_id)
-                let c_violated = v_c.iter().any(|c| &c.0 == child_node_id);
+                let c_violated = if !child_node.is_gate() {
+                    !v_c.is_empty()
+                } else {
+                    v_c.iter().any(|c| &c.0 == child_node_id)
+                };
+
                 if c_violated {
                     // NOT is satisfied!
                     violations.push(v_c)
@@ -625,8 +637,16 @@ pub fn evaluate_tree_node(
             ret_bindings.push((node.id.clone(), bindings.clone()));
             for ((i, mut v1), v2) in violations_1.into_iter().enumerate().zip(violations_2) {
                 // ONLY CONSIDER VIOLATIONS OF TOP-LEVEL CHILD! (i.e., with child_node_id)
-                let left_violated = v1.iter().any(|c| &c.0 == node_1_id);
-                let right_violated: bool = v2.iter().any(|c| &c.0 == node_2_id);
+                let left_violated = if !node_1.is_gate() {
+                    !v1.is_empty()
+                } else {
+                    v1.iter().any(|c| &c.0 == node_1_id)
+                };
+                let right_violated = if !node_2.is_gate() {
+                    !v2.is_empty()
+                } else {
+                    v2.iter().any(|c| &c.0 == node_2_id)
+                };
                 let left_sat = !left_violated;
                 let right_sat = !right_violated;
 

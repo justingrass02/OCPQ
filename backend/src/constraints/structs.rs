@@ -109,6 +109,15 @@ pub struct TreeNode {
     pub data: TreeNodeType,
 }
 
+impl TreeNode {
+    pub fn is_gate(&self) -> bool {
+        match self.data {
+            TreeNodeType::Event(_) => false,
+            _ => true,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum EventType {
