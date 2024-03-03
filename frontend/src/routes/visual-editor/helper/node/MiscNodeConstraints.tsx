@@ -301,11 +301,11 @@ export default function MiscNodeConstraints({
                   Qualifier
                   <Combobox
                     value={d.currentlyEditing.qualifier}
-                    options={Object.keys(data.eventTypeQualifier)
-                      .filter((q) => !(q in d.numQualifiedObjectsConstraint))
+                    options={Object.values(data.eventTypeQualifier)
+                      .filter((q) => !(q.qualifier in d.numQualifiedObjectsConstraint))
                       .map((q) => ({
-                        value: q,
-                        label: q,
+                        value: q.qualifier,
+                        label: q.qualifier,
                       }))}
                     name="Qualifier"
                     onChange={(val) => {
