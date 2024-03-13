@@ -60,6 +60,7 @@ import {
   type ViolationsPerNode,
   type ViolationsPerNodes,
 } from "./helper/types";
+import { MdClear } from "react-icons/md";
 
 interface VisualEditorProps {
   ocelInfo: OCELInfo;
@@ -448,6 +449,20 @@ export default function VisualEditor(props: VisualEditorProps) {
               );
             }}
           />
+          <Button size="icon"
+            variant="outline"
+            title={mode !== "view-tree" ? "Evaluate" : "Edit"}
+            className=""
+            onClick={async () => {
+              setViolationInfo({});
+              flushData({ violations: undefined, objectVariables });
+            }}
+          >
+            {mode !== "view-tree" && (
+              <MdClear size={20} className="text-red-400" />
+            )}
+            {mode === "view-tree" && <TbRestore />}
+          </Button>
           <Button
             variant="outline"
             title={mode !== "view-tree" ? "Evaluate" : "Edit"}
@@ -517,9 +532,9 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
               {violationDetails?.violations.length > VIOLATIONS_TO_SHOW && (
                 <>
                   <br />
-                  <span className="text-xs">
+                 { <span className="text-xs">
                     Showing only the first {VIOLATIONS_TO_SHOW} Violations
-                  </span>
+                  </span>}
                 </>
               )}
             </SheetDescription>

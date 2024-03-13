@@ -20,7 +20,7 @@ pub struct OCELFilePath {
 
 pub const DEFAULT_OCEL_FILE: &str = "order-management";
 
-const OCEL_PATHS: &[OCELFilePath] = &[
+pub const OCEL_PATHS: &[OCELFilePath] = &[
     OCELFilePath {
         name: "ContainerLogistics",
         path: "./data/ContainerLogistics.json",

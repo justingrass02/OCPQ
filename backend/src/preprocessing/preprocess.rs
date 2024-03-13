@@ -41,12 +41,14 @@ pub fn get_events_of_type_associated_with_objects<'a>(
             EventType::AnyOf { values } => linked_ocel
                 .event_map
                 .values()
-                .filter(|e| values.contains(&e.event_type)).copied()
+                .filter(|e| values.contains(&e.event_type))
+                .copied()
                 .collect(),
             EventType::AnyExcept { values } => linked_ocel
                 .event_map
                 .values()
-                .filter(|e| !values.contains(&e.event_type)).copied()
+                .filter(|e| !values.contains(&e.event_type))
+                .copied()
                 .collect(),
         };
     }
@@ -140,7 +142,6 @@ pub struct LinkedOCEL<'a> {
     pub event_map: HashMap<String, &'a OCELEvent>,
     pub object_map: HashMap<String, &'a OCELObject>,
     pub events_of_type: HashMap<String, Vec<&'a OCELEvent>>,
-    #[allow(dead_code)]
     pub objects_of_type: HashMap<String, Vec<&'a OCELObject>>,
     pub object_events_map: HashMap<String, Vec<String>>,
     pub object_rels_per_type: HashMap<String, HashSet<QualifierAndObjectType>>,

@@ -414,7 +414,7 @@ export default function EventTypeNode({
         {data.selectedVariables.map((selectedVar, i) => (
           <div
             key={i}
-            className="grid grid-cols-[auto,6rem,1.2rem] gap-x-2 items-center w-fit mx-auto"
+            className="grid grid-cols-[auto,8rem,1.2rem] gap-x-2 items-center w-fit mx-auto"
           >
             <button
               title="Remove"

@@ -546,7 +546,7 @@ export default function VisualEditorOuter() {
                                 }
 
                                 for (const c of json.eventuallyFollowsConstraints) {
-                                  const name = `${c.fromEventType} -> ${c.toEventType} for ${c.objectTypes[0]}`;
+                                  const name = `${c.fromEventType} -> ${c.toEventType} for ${c.objectTypes.join(", ")}`;
                                   if (
                                     updatedConstraints.find(
                                       (c) => c.name === name,
@@ -564,20 +564,30 @@ export default function VisualEditorOuter() {
                                     description:
                                       "Automatically Discovered Constraint",
                                   });
-                                  const varName =
-                                    c.objectTypes[0].substring(0, 2) + "_0";
-                                  const variable = {
+                                  
+                              const varNames: string[] = [];
+                              for(const ot of c.objectTypes){
+                                const shortOt = ot.substring(0,2);
+                                let i = 0;
+                                let varName = shortOt + "_" + i;
+                                while(varNames.includes(varName)){
+                                  i++;
+                                  varName = shortOt + "_" + i;
+                                }
+                                varNames.push(varName);
+                              }
+                                  const variables = varNames.map((varName,i) => ({
                                     name: varName,
-                                    type: c.objectTypes[0],
-                                    initiallyBound: true,
-                                  };
+                                    type: c.objectTypes[i],
+                                    initiallyBound: i == 0,
+                                  }));
                                   const ids = [
                                     Date.now() + "auto-ef-" + index,
                                     Date.now() + "auto-ef2-" + index,
                                   ] as const;
                                   prevDataRef.current[index] = {
                                     violations: undefined,
-                                    objectVariables: [variable],
+                                    objectVariables: variables,
                                     flowJson: {
                                       nodes: [
                                         {
@@ -595,13 +605,12 @@ export default function VisualEditorOuter() {
                                               min: 0,
                                               max: Infinity,
                                             },
-                                            selectedVariables: [
-                                              {
+                                            selectedVariables: variables.map((variable,i ) => 
+                                              ({
                                                 qualifier: undefined,
                                                 variable,
-                                                bound: false,
-                                              },
-                                            ],
+                                                bound: i > 0,
+                                              })),
                                             hideViolations: true,
                                           },
                                         },
@@ -620,13 +629,14 @@ export default function VisualEditorOuter() {
                                               min: 1,
                                               max: Infinity,
                                             },
-                                            selectedVariables: [
-                                              {
+                                        
+                                            selectedVariables: variables.map((variable) => 
+                                              ({
                                                 qualifier: undefined,
                                                 variable,
                                                 bound: false,
-                                              },
-                                            ],
+                                              })),
+                                        hideViolations: false
                                           },
                                         },
                                       ],

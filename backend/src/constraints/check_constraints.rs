@@ -156,6 +156,7 @@ fn match_and_add_new_bindings<'a>(
                     None => {
                         // Hmm weird... no matching parent found?!
                         eprintln!("No matching parent found for node ID {:?}; Past events: {:?}", p.id, info.past_events);
+                        return false;
                     }
                         }}
             }
@@ -192,6 +193,7 @@ fn match_and_add_new_bindings<'a>(
                                 Some(rels) => {
                                     let matching_qualified_relationships = rels
                                         .iter()
+                                        // TODO: What about object type?
                                         .filter(|rel| match &v.qualifier {
                                             Some(q) => &rel.qualifier == q,
                                             None => true,

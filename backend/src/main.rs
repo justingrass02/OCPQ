@@ -14,6 +14,7 @@ mod ocel_qualifiers {
     pub mod qualifiers;
 }
 mod constraints;
+mod constraints_2;
 mod discovery;
 mod preprocessing {
     pub mod preprocess;
@@ -29,7 +30,8 @@ use serde::{Deserialize, Serialize};
 use tower_http::cors::CorsLayer;
 
 use crate::{
-    discovery::auto_discover_constraints_handler, load_ocel::load_ocel_file_to_state, ocel_qualifiers::qualifiers::get_qualifers_for_object_types
+    discovery::auto_discover_constraints_handler, load_ocel::load_ocel_file_to_state,
+    ocel_qualifiers::qualifiers::get_qualifers_for_object_types,
 };
 
 #[derive(Clone)]
@@ -65,7 +67,10 @@ async fn main() {
             get(get_qualifers_for_object_types),
         )
         .route("/ocel/check-constraints", post(check_with_tree_req))
-        .route("/ocel/discover-constraints", post(auto_discover_constraints_handler))
+        .route(
+            "/ocel/discover-constraints",
+            post(auto_discover_constraints_handler),
+        )
         .with_state(state)
         .route("/", get(|| async { "Hello, Aaron!" }))
         .layer(cors);
