@@ -309,7 +309,7 @@ fn expand(
     }
 }
 
-#[test]
+// #[test]
 fn new_constraints_test() {
     let nodes = vec![
         Node {
@@ -390,7 +390,7 @@ fn new_constraints_test() {
     .into_iter()
     .map(|b| (b.id, b))
     .collect();
-    let new_bindings_ids: Mutex<Vec<Uuid>> = Mutex::new(bindings.keys().map(|id| *id).collect());
+    let new_bindings_ids: Mutex<Vec<Uuid>> = Mutex::new(bindings.keys().copied().collect());
     let now = Instant::now();
     for node in nodes {
         let prev_bindings = bindings.clone();

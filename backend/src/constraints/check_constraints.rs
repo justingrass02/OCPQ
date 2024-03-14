@@ -1,5 +1,5 @@
 use core::panic;
-use std::{collections::HashMap, f64::MAX, time::Instant};
+use std::{collections::HashMap, time::Instant};
 
 use axum::{extract::State, http::StatusCode, Json};
 use chrono::{DateTime, Utc};
@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     constraints::{
-        Connection, FirstOrLastEventOfType, ObjectVariable, TimeConstraint, TreeNodeConnection,
+        FirstOrLastEventOfType, ObjectVariable, TreeNodeConnection,
     },
     preprocessing::preprocess::{
         get_events_of_type_associated_with_objects, link_ocel_info, LinkedOCEL,
@@ -229,7 +229,7 @@ fn match_and_add_new_bindings<'a>(
                     bindings
                 })
                 .collect();
-            return EvaluateBindingResult::Satisfied(x);
+            EvaluateBindingResult::Satisfied(x)
         })
         .collect()
 }
@@ -413,14 +413,14 @@ fn check_with_tree(
         println!("#Bindings (initial): {}", bindings.len());
 
         for node in nodes.iter() {
-            if node.parents.len() == 0 {
+            if node.parents.is_empty() {
                 let (new_violations, bindings) =
                     evaluate_tree_node(&bindings, node, &linked_ocel, &nodes);
                 bindings.into_iter().for_each(|(node_id, bs)| {
                     *binding_sizes_per_node.get_mut(&node_id).unwrap() += bs.len();
                 });
 
-                violations = new_violations.into_iter().flat_map(|v| v).collect_vec();
+                violations = new_violations.into_iter().flatten().collect_vec();
             }
         }
         for (node_id, binding, reason) in violations.into_iter() {
@@ -464,9 +464,9 @@ pub fn evaluate_tree_node(
     println!("Evaluating Tree Node {}", node.id);
     match &node.data {
         TreeNodeType::Event(ev_tree_node) => {
-            let now = Instant::now();
+            let _now = Instant::now();
             let x: Vec<EvaluateBindingResult> = match_and_add_new_bindings(
-                &bindings,
+                bindings,
                 ev_tree_node,
                 &node.id,
                 &node.parents,
@@ -525,9 +525,9 @@ pub fn evaluate_tree_node(
                     panic!("OR node referencing non-existing node ID {}", node_2_id)
                 });
             let (violations_1, bindings_1) =
-                evaluate_tree_node(&bindings, node_1, linked_ocel, nodes);
+                evaluate_tree_node(bindings, node_1, linked_ocel, nodes);
             let (violations_2, bindings_2) =
-                evaluate_tree_node(&bindings, node_2, linked_ocel, nodes);
+                evaluate_tree_node(bindings, node_2, linked_ocel, nodes);
 
             let mut violations: Vec<Vec<Violation>> = Vec::new();
             let mut ret_bindings: Vec<(String, Vec<Binding>)> = vec![bindings_1, bindings_2]
@@ -576,7 +576,7 @@ pub fn evaluate_tree_node(
                     )
                 });
             let (violations_c, bindings_c) =
-                evaluate_tree_node(&bindings, child_node, linked_ocel, nodes);
+                evaluate_tree_node(bindings, child_node, linked_ocel, nodes);
 
             let mut violations: Vec<Vec<Violation>> = Vec::new();
             let mut ret_bindings: Vec<(String, Vec<Binding>)> =
@@ -618,9 +618,9 @@ pub fn evaluate_tree_node(
                     panic!("OR node referencing non-existing node ID {}", node_2_id)
                 });
             let (violations_1, bindings_1) =
-                evaluate_tree_node(&bindings, node_1, linked_ocel, nodes);
+                evaluate_tree_node(bindings, node_1, linked_ocel, nodes);
             let (violations_2, bindings_2) =
-                evaluate_tree_node(&bindings, node_2, linked_ocel, nodes);
+                evaluate_tree_node(bindings, node_2, linked_ocel, nodes);
 
             let mut violations: Vec<Vec<Violation>> = Vec::new();
             let mut ret_bindings: Vec<(String, Vec<Binding>)> = vec![bindings_1, bindings_2]

@@ -1,17 +1,16 @@
 use core::f32;
 use std::{
     collections::{HashMap, HashSet},
-    f64::MAX, time::Instant,
+    f64::MAX,
 };
 
 use axum::{extract::State, Json};
 use itertools::Itertools;
-use process_mining::{ocel::ocel_struct::OCELEvent, OCEL};
+use process_mining::{OCEL};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     constraints::{CountConstraint, EventType, SecondsRange},
-    ocel_qualifiers::qualifiers::get_qualifiers_for_event_types,
     preprocessing::preprocess::{link_ocel_info, LinkedOCEL},
     with_ocel_from_state, AppState,
 };
@@ -103,7 +102,7 @@ pub fn auto_discover_eventually_follows(
                 .filter_map(|obj_type| {
                     let evs = ev_map.get(&(prev_et, next_et, obj_type));
                     match evs {
-                        Some(evs) => {
+                        Some(_evs) => {
                             // let mut other_obj_types_with_same_evs: HashSet<&String> = options
                             //     .object_types
                             //     .iter()
@@ -140,7 +139,7 @@ pub fn auto_discover_eventually_follows(
             // ev_sets.iter().map(|(obj_type,(prev_ev,next_ev)))
 
             for obj_types in common_obj_types {
-                if obj_types.len() == 0 {
+                if obj_types.is_empty() {
                     eprintln!("obj_types of length 0");
                     continue;
                 }
@@ -182,7 +181,7 @@ pub fn auto_discover_eventually_follows(
                                         .objects_of_type
                                         .get(obj_type)
                                         .unwrap()
-                                        .into_iter()
+                                        .iter()
                                         .map(|obj| obj.id.clone())
                                         .collect();
                                     x
@@ -192,7 +191,7 @@ pub fn auto_discover_eventually_follows(
                                 linked_ocel,
                                 &constraint,
                                 &rel_object_ids,
-                                false
+                                false,
                             )
                             .0;
                             if max_achievable < options.cover_fraction {
@@ -211,7 +210,7 @@ pub fn auto_discover_eventually_follows(
                                 linked_ocel,
                                 &constraint,
                                 &rel_object_ids,
-                                false
+                                false,
                             )
                             .0 < options.cover_fraction
                             {
@@ -231,7 +230,7 @@ pub fn auto_discover_eventually_follows(
                                     linked_ocel,
                                     &constraint,
                                     &rel_object_ids,
-                                    true
+                                    true,
                                 );
 
                             ret.push(EFConstraintInfo {
@@ -278,8 +277,40 @@ pub struct CountConstraintInfo {
     pub supporting_object_ids: HashSet<String>,
     pub cover_fraction: f32,
 }
+
+pub fn get_obj_types_per_ev_type<'a>(
+    linked_ocel: &'a LinkedOCEL,
+) -> HashMap<&'a String, HashSet<&'a String>> {
+    // let qual_per_event_type = get_qualifiers_for_event_types(ocel);
+    let mut obj_types_per_ev_type: HashMap<&String, HashSet<&String>> = HashMap::new();
+    for ev in linked_ocel.event_map.values() {
+        if let Some(rels) = &ev.relationships {
+            for r in rels {
+                if let Some(obj) = linked_ocel.object_map.get(&r.object_id) {
+                    obj_types_per_ev_type
+                        .entry(&ev.event_type)
+                        .or_default()
+                        .insert(&obj.object_type);
+                }
+            }
+        }
+    }
+    // let obj_types_per_ev_type: HashMap<String, HashSet<String>> = ocel
+    //     .event_types
+    //     .iter()
+    //     .map(|et| {
+    //         let set: HashSet<String> = match qual_per_event_type.get(&et.name) {
+    //             Some(hs) => hs.values().flat_map(|v| v.object_types.clone()).collect(),
+    //             None => HashSet::new(),
+    //         };
+    //         (et.name.clone(), set)
+    //     })
+    //     .collect();
+    obj_types_per_ev_type
+}
 pub fn auto_discover_count_constraints(
     ocel: &OCEL,
+    obj_types_per_ev_type: &HashMap<&String, HashSet<&String>>,
     linked_ocel: &LinkedOCEL,
     object_ids: Option<HashSet<String>>,
     options: CountConstraintOptions,
@@ -287,19 +318,8 @@ pub fn auto_discover_count_constraints(
 ) -> Vec<CountConstraintInfo> {
     let mut num_evs_per_obj_and_ev_type: HashMap<(String, String), Vec<(f32, String)>> =
         HashMap::new();
-    let qual_per_event_type = get_qualifiers_for_event_types(ocel);
     let object_ids = object_ids.as_ref();
-    let obj_types_per_ev_type: HashMap<String, HashSet<String>> = ocel
-        .event_types
-        .iter()
-        .map(|et| {
-            let set: HashSet<String> = match qual_per_event_type.get(&et.name) {
-                Some(hs) => hs.values().flat_map(|v| v.object_types.clone()).collect(),
-                None => HashSet::new(),
-            };
-            (et.name.clone(), set)
-        })
-        .collect();
+
     let event_types_per_obj_type: HashMap<String, Vec<&String>> = options
         .object_types
         .iter()
@@ -378,7 +398,7 @@ pub fn auto_discover_count_constraints(
                     .objects_of_type
                     .get(&object_type)
                     .unwrap()
-                    .into_iter()
+                    .iter()
                     .map(|obj| obj.id.clone())
                     .collect();
                 x
@@ -404,7 +424,7 @@ pub fn auto_discover_count_constraints(
             event_type: EventType::Exactly { value: event_type },
         };
 
-        while get_count_constraint_fraction(linked_ocel, &constraint, &rel_object_ids,false).0
+        while get_count_constraint_fraction(linked_ocel, &constraint, &rel_object_ids, false).0
             < options.cover_fraction
         {
             std_dev_factor += 0.003;
@@ -421,7 +441,7 @@ pub fn auto_discover_count_constraints(
             continue;
         } else {
             let (cover_fraction, supporting_object_ids) =
-                get_count_constraint_fraction(linked_ocel, &constraint, &rel_object_ids,true);
+                get_count_constraint_fraction(linked_ocel, &constraint, &rel_object_ids, true);
             ret.push(CountConstraintInfo {
                 constraint,
                 supporting_object_ids: supporting_object_ids.unwrap(),
@@ -465,10 +485,15 @@ pub async fn auto_discover_constraints_handler(
 ) -> Json<Option<AutoDiscoverConstraintsResponse>> {
     Json(with_ocel_from_state(&state, |ocel| {
         let linked_ocel = link_ocel_info(ocel);
+        let obj_types_per_ev_type = get_obj_types_per_ev_type(&linked_ocel);
         let count_constraints = match req.count_constraints {
-            Some(count_options) => {
-                auto_discover_count_constraints(ocel, &linked_ocel, None, count_options)
-            }
+            Some(count_options) => auto_discover_count_constraints(
+                ocel,
+                &obj_types_per_ev_type,
+                &linked_ocel,
+                None,
+                count_options,
+            ),
             None => Vec::new(),
         };
         let eventually_follows_constraints = match req.eventually_follows_constraints {

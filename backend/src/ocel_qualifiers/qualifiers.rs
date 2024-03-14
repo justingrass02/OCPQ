@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use axum::{extract::State, http::StatusCode, Json};
 use process_mining::OCEL;
-use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
+use rayon::prelude::{ParallelIterator};
 use serde::{Deserialize, Serialize};
 
 use crate::{preprocessing::preprocess::link_ocel_info, with_ocel_from_state, AppState};
@@ -53,7 +53,7 @@ pub fn get_qualifiers_for_event_types(
 ) -> HashMap<String, HashMap<String, QualifiersForEventType>> {
     let qualifiers_per_event_type: Vec<(String, HashMap<QualifierAndObjectType, Vec<i32>>)> = ocel
         .event_types
-        .par_iter()
+        .iter()
         .map(|et| {
             (
                 et.name.clone(),

@@ -1,7 +1,7 @@
 use std::{collections::HashSet, sync::Mutex};
 
-use itertools::Itertools;
-use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
+
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
     constraints::EventType,
@@ -22,10 +22,10 @@ pub fn get_count_constraint_fraction(
     return_supporting_objs: bool,
 ) -> (f32, Option<HashSet<String>>) {
     let counts: Vec<_> = object_ids
-        .par_iter()
+        .iter()
         .map(|obj_id| {
             let count = get_events_of_type_associated_with_objects(
-                &linked_ocel,
+                linked_ocel,
                 &c.event_type,
                 vec![obj_id.clone()],
             )
@@ -35,11 +35,11 @@ pub fn get_count_constraint_fraction(
         .collect();
     let counts_len = counts.len();
     let supporting_obj_ids_ref: Vec<_> = counts
-        .into_par_iter()
-        .filter(|(count, obj_id)| {
+        .into_iter()
+        .filter(|(count, _obj_id)| {
             c.count_constraint.max >= *count && c.count_constraint.min <= *count
         })
-        .map(|(c, obj_id)| obj_id)
+        .map(|(_c, obj_id)| obj_id)
         .collect();
     let num_supporting_objs = supporting_obj_ids_ref.len();
     let supporting_obj_ids: Option<HashSet<String>> = match return_supporting_objs {
@@ -80,12 +80,12 @@ pub fn get_ef_constraint_fraction(
         .par_iter()
         .map(|obj_id| {
             let from_evs = get_events_of_type_associated_with_objects(
-                &linked_ocel,
+                linked_ocel,
                 &from_ev_type,
                 vec![obj_id.clone()],
             );
             let to_evs = get_events_of_type_associated_with_objects(
-                &linked_ocel,
+                linked_ocel,
                 &to_ev_type,
                 vec![obj_id.clone()],
             );

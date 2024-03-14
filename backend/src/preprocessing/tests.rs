@@ -1,38 +1,37 @@
-use std::collections::HashSet;
 
-use itertools::Itertools;
 
-use crate::{
-    constraints::{CountConstraint, EventType},
-    discovery::{EventuallyFollowsConstraints, SimpleDiscoveredCountConstraints},
-};
 
-use super::preprocess::{get_events_of_type_associated_with_objects, LinkedOCEL};
+
+
+
+
 
 #[cfg(test)]
 #[test]
 pub fn test() {
     use std::{
-        collections::{HashMap, HashSet},
+        collections::{HashSet},
         time::Instant,
     };
 
     use itertools::Itertools;
+    use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
     use crate::{
-        constraints::EventType,
         discovery::{
             auto_discover_count_constraints, auto_discover_eventually_follows,
-            evaluation::get_count_constraint_fraction, CountConstraintOptions,
-            EventuallyFollowsConstraintOptions,
+            evaluation::get_count_constraint_fraction, get_obj_types_per_ev_type,
+            CountConstraintOptions, EventuallyFollowsConstraintOptions,
         },
         load_ocel::{load_ocel_file, DEFAULT_OCEL_FILE},
-        preprocessing::preprocess::{get_events_of_type_associated_with_objects, link_ocel_info},
+        preprocessing::preprocess::{link_ocel_info},
     };
 
     let _now = Instant::now();
     let ocel = load_ocel_file(DEFAULT_OCEL_FILE).unwrap();
     let linked_ocel = link_ocel_info(&ocel);
+
+    let obj_types_per_ev_type = get_obj_types_per_ev_type(&linked_ocel);
     // let res = auto_discover_eventually_follows(
     //     &linked_ocel,
     //     EventuallyFollowsConstraintOptions {
@@ -60,12 +59,13 @@ pub fn test() {
             cover_fraction: 0.8,
         },
     );
-
-    for c in &res {
+    res.par_iter().for_each(|c| {
+        // for c in &res {
         if !(&c.constraint.from_event_type == "place order"
             && &c.constraint.to_event_type == "pay order")
         {
-            continue;
+            return;
+            // continue;
         }
         if c.cover_fraction < 0.9 {
             // Other objects (i.e., not supporting) of this type
@@ -78,10 +78,12 @@ pub fn test() {
                 .map(|obj| obj.id.clone())
                 .collect();
             if other_objects_of_type.is_empty() {
-                continue;
+                return;
+                // continue;
             }
             let res_inner = auto_discover_count_constraints(
                 &ocel,
+                &obj_types_per_ev_type,
                 &linked_ocel,
                 Some(other_objects_of_type),
                 CountConstraintOptions {
@@ -90,13 +92,18 @@ pub fn test() {
                 },
             );
 
-            println!("\n\n\n=={:?} ({})==", c.constraint, c.cover_fraction);
+            println!(
+                "\n\n\n=={:?} ({})== NUM: {}",
+                c.constraint,
+                c.cover_fraction,
+                res_inner.len()
+            );
             for c2 in &res_inner {
                 let (cover_frac_orig, _) = get_count_constraint_fraction(
                     &linked_ocel,
                     &c2.constraint,
                     &c.supporting_object_ids,
-                    false
+                    false,
                 );
 
                 let cover_diff = c2.cover_fraction - cover_frac_orig;
@@ -109,5 +116,5 @@ pub fn test() {
                 }
             }
         }
-    }
+    });
 }

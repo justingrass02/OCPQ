@@ -1,10 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
+use itertools::Itertools;
 use process_mining::{
     event_log::ocel::ocel_struct::{OCELEvent, OCELObject, OCELRelationship},
     OCEL,
 };
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::{ParallelIterator};
 
 use crate::{constraints::EventType, ocel_qualifiers::qualifiers::QualifierAndObjectType};
 
@@ -52,18 +53,27 @@ pub fn get_events_of_type_associated_with_objects<'a>(
                 .collect(),
         };
     }
-    let mut sorted_object_ids = object_ids.clone();
-    sorted_object_ids.sort_by(|a, b| {
+    // let mut sorted_object_ids = object_ids.clone();
+    let mut sorted_object_ids_iter = object_ids.iter().sorted_by(|a, b| {
         linked_ocel
             .object_events_map
-            .get(a)
+            .get(*a)
             .unwrap()
             .len()
-            .cmp(&linked_ocel.object_events_map.get(b).unwrap().len())
+            .cmp(&linked_ocel.object_events_map.get(*b).unwrap().len())
+
     });
+    // sorted_object_ids.sort_by(|a, b| {
+    //     linked_ocel
+    //         .object_events_map
+    //         .get(a)
+    //         .unwrap()
+    //         .len()
+    //         .cmp(&linked_ocel.object_events_map.get(b).unwrap().len())
+    // });
     let mut intersection: HashSet<&String> = linked_ocel
         .object_events_map
-        .get(&sorted_object_ids[0])
+        .get(sorted_object_ids_iter.next().unwrap())
         .unwrap()
         .iter()
         .filter(|ev_id| match event_type {
@@ -79,7 +89,7 @@ pub fn get_events_of_type_associated_with_objects<'a>(
             }
         })
         .collect();
-    for other in sorted_object_ids.iter().skip(1) {
+    for other in sorted_object_ids_iter {
         let other_map: HashSet<&String> = linked_ocel
             .object_events_map
             .get(other)
@@ -150,18 +160,18 @@ pub struct LinkedOCEL<'a> {
 pub fn link_ocel_info(ocel: &OCEL) -> LinkedOCEL {
     let event_map: HashMap<String, &OCELEvent> = ocel
         .events
-        .par_iter()
+        .iter()
         .map(|ev| (ev.id.clone(), ev))
         .collect();
     let object_map: HashMap<String, &OCELObject> = ocel
         .objects
-        .par_iter()
+        .iter()
         .map(|obj| (obj.id.clone(), obj))
         .collect();
 
     let events_of_type: HashMap<String, Vec<&OCELEvent>> = ocel
         .event_types
-        .par_iter()
+        .iter()
         .map(|ev_type| {
             (
                 ev_type.name.clone(),
@@ -175,7 +185,7 @@ pub fn link_ocel_info(ocel: &OCEL) -> LinkedOCEL {
 
     let objects_of_type: HashMap<String, Vec<&OCELObject>> = ocel
         .object_types
-        .par_iter()
+        .iter()
         .map(|obj_type| {
             (
                 obj_type.name.clone(),
