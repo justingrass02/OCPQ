@@ -1,5 +1,8 @@
 use core::f32;
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    f64::MAX, time::Instant,
+};
 
 use axum::{extract::State, Json};
 use itertools::Itertools;
@@ -12,6 +15,11 @@ use crate::{
     preprocessing::preprocess::{link_ocel_info, LinkedOCEL},
     with_ocel_from_state, AppState,
 };
+
+use self::evaluation::{get_count_constraint_fraction, get_ef_constraint_fraction};
+
+pub mod evaluation;
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct EventuallyFollowsConstraints {
@@ -107,7 +115,7 @@ pub fn auto_discover_eventually_follows(
                             //     })
                             //     .collect();
                             // ↓ Disables merging of object types
-                            let mut other_obj_types_with_same_evs = HashSet::new(); 
+                            let mut other_obj_types_with_same_evs = HashSet::new();
                             other_obj_types_with_same_evs.insert(obj_type);
                             Some(
                                 other_obj_types_with_same_evs
@@ -131,9 +139,6 @@ pub fn auto_discover_eventually_follows(
             // ).collect();
             // ev_sets.iter().map(|(obj_type,(prev_ev,next_ev)))
 
-            // for ev_set in ev_sets.iter_mut() {
-            //     if
-            // }
             for obj_types in common_obj_types {
                 if obj_types.len() == 0 {
                     eprintln!("obj_types of length 0");
@@ -148,65 +153,91 @@ pub fn auto_discover_eventually_follows(
                         let fraction = delay_seconds.len() as f32 / count as f32;
                         if fraction >= options.cover_fraction {
                             let mean_delay_seconds =
-                                delay_seconds.iter().map(|(_, c)| c).sum::<i64>() as f32
-                                    / delay_seconds.len() as f32;
+                                delay_seconds.iter().map(|(_, c)| c).sum::<i64>() as f64
+                                    / delay_seconds.len() as f64;
                             let delay_seconds_std_deviation = delay_seconds
                                 .iter()
                                 .map(|(_, c)| {
-                                    let diff = mean_delay_seconds - *c as f32;
+                                    let diff = mean_delay_seconds - *c as f64;
                                     diff * diff
                                 })
-                                .sum::<f32>()
+                                .sum::<f64>()
                                 .sqrt();
-                            let mut std_dev_factor: f32 = 0.001;
-                            while (delay_seconds
-                                .iter()
-                                .filter(|(_, c)| {
-                                    (mean_delay_seconds
-                                        - std_dev_factor * delay_seconds_std_deviation)
-                                        <= *c as f32
-                                        && *c as f32
-                                            <= (mean_delay_seconds
-                                                + std_dev_factor * delay_seconds_std_deviation)
-                                })
-                                .count() as f32)
-                                / (delay_seconds.len() as f32)
-                                < options.cover_fraction
-                            {
-                                std_dev_factor += 0.001;
+                            let mut std_dev_factor: f64 = 0.003;
+                            let mut constraint = EventuallyFollowsConstraints {
+                                seconds_range: SecondsRange {
+                                    min_seconds: 0.0,
+                                    max_seconds: MAX,
+                                },
+                                object_types: obj_types.into_iter().cloned().collect_vec(),
+                                from_event_type: prev_et.clone(),
+                                to_event_type: next_et.clone(),
+                            };
+                            let rel_object_ids = match object_ids {
+                                // Sad that we clone here
+                                // TODO: look into changing
+                                Some(obj_ids) => obj_ids.clone(),
+                                None => {
+                                    let x: HashSet<String> = linked_ocel
+                                        .objects_of_type
+                                        .get(obj_type)
+                                        .unwrap()
+                                        .into_iter()
+                                        .map(|obj| obj.id.clone())
+                                        .collect();
+                                    x
+                                }
+                            };
+                            let max_achievable = get_ef_constraint_fraction(
+                                linked_ocel,
+                                &constraint,
+                                &rel_object_ids,
+                                false
+                            )
+                            .0;
+                            if max_achievable < options.cover_fraction {
+                                if prev_et == "place order" && next_et == "pay order" {
+                                    println!("!!!! {} {}", max_achievable, options.cover_fraction);
+                                }
+                                continue;
                             }
-                            let min: f32 = 0.0; //TODO: CHANGE BACK
-                                // mean_delay_seconds - std_dev_factor * delay_seconds_std_deviation;
-                            let max =
-                                mean_delay_seconds + std_dev_factor * delay_seconds_std_deviation;
-                            let supporting = delay_seconds
-                                .iter()
-                                .filter(|(_obj_id, c)| {
-                                    (mean_delay_seconds
-                                        - std_dev_factor * delay_seconds_std_deviation)
-                                        <= *c as f32
-                                        && *c as f32
-                                            <= (mean_delay_seconds
-                                                + std_dev_factor * delay_seconds_std_deviation)
-                                })
-                                .collect_vec();
+
+                            constraint.seconds_range = SecondsRange {
+                                min_seconds: mean_delay_seconds, //TODO: Re-eanble mean_delay_seconds,
+                                max_seconds: mean_delay_seconds, // mean_delay_seconds,
+                            };
+
+                            while get_ef_constraint_fraction(
+                                linked_ocel,
+                                &constraint,
+                                &rel_object_ids,
+                                false
+                            )
+                            .0 < options.cover_fraction
+                            {
+                                std_dev_factor += 0.01;
+                                // TODO: Re-enable
+                                constraint.seconds_range.min_seconds = mean_delay_seconds
+                                    - std_dev_factor * delay_seconds_std_deviation;
+                                constraint.seconds_range.max_seconds = mean_delay_seconds
+                                    + std_dev_factor * delay_seconds_std_deviation;
+                            }
+                            // Min should be >= 0.0
+                            constraint.seconds_range.min_seconds =
+                                constraint.seconds_range.min_seconds.max(0.0);
+
+                            let (cover_fraction, supporting_object_ids) =
+                                get_ef_constraint_fraction(
+                                    linked_ocel,
+                                    &constraint,
+                                    &rel_object_ids,
+                                    true
+                                );
 
                             ret.push(EFConstraintInfo {
-                                constraint: EventuallyFollowsConstraints {
-                                    seconds_range: SecondsRange {
-                                        min_seconds: min.max(0.0) as f64,
-                                        max_seconds: max as f64,
-                                    },
-                                    object_types: obj_types.into_iter().cloned().collect_vec(),
-                                    from_event_type: prev_et.clone(),
-                                    to_event_type: next_et.clone(),
-                                },
-                                supporting_object_ids: supporting
-                                    .iter()
-                                    .map(|(obj_id, _c)| obj_id.clone())
-                                    .collect(),
-                                cover_fraction: supporting.len() as f32
-                                    / delay_seconds.len() as f32,
+                                constraint,
+                                cover_fraction,
+                                supporting_object_ids: supporting_object_ids.unwrap(),
                             });
                             // println!(
                             //     "{:.2} {} -> {} for ot {} mean: {:.2} ; {:.2}-{:.2} ",
@@ -338,6 +369,22 @@ pub fn auto_discover_count_constraints(
 
     let mut ret: Vec<CountConstraintInfo> = Vec::new();
     for ((object_type, event_type), counts) in num_evs_per_obj_and_ev_type {
+        let rel_object_ids = match object_ids {
+            // Sad that we clone here
+            // TODO: look into changing
+            Some(obj_ids) => obj_ids.clone(),
+            None => {
+                let x: HashSet<String> = linked_ocel
+                    .objects_of_type
+                    .get(&object_type)
+                    .unwrap()
+                    .into_iter()
+                    .map(|obj| obj.id.clone())
+                    .collect();
+                x
+            }
+        };
+
         let mean = counts.iter().map(|(c, _)| c).sum::<f32>() / counts.len() as f32;
         let std_deviation = counts
             .iter()
@@ -347,46 +394,38 @@ pub fn auto_discover_count_constraints(
             })
             .sum::<f32>()
             .sqrt();
-        let mut std_dev_factor = 0.001;
-        while (counts
-            .iter()
-            .filter(|(c, _)| {
-                (mean - std_dev_factor * std_deviation).round() <= *c
-                    && *c <= (mean + std_dev_factor * std_deviation).round()
-            })
-            .count() as f32)
-            / (counts.len() as f32)
+        let mut std_dev_factor = 0.003;
+        let mut constraint = SimpleDiscoveredCountConstraints {
+            count_constraint: CountConstraint {
+                min: mean.round() as usize,
+                max: mean.round() as usize,
+            },
+            object_type,
+            event_type: EventType::Exactly { value: event_type },
+        };
+
+        while get_count_constraint_fraction(linked_ocel, &constraint, &rel_object_ids,false).0
             < options.cover_fraction
         {
-            std_dev_factor += 0.001;
+            std_dev_factor += 0.003;
+            constraint.count_constraint = CountConstraint {
+                min: (mean - std_dev_factor * std_deviation).round() as usize,
+                max: (mean + std_dev_factor * std_deviation).round() as usize,
+            }
         }
-        let min = (mean - std_dev_factor * std_deviation).round() as usize;
-        let max = (mean + std_dev_factor * std_deviation).round() as usize;
 
         // For now, do not discover constraints with huge range; Those are most of the time not desired
-        if max - min > 25 || max > 100 {
+        if constraint.count_constraint.max - constraint.count_constraint.min > 25
+            || constraint.count_constraint.max > 100
+        {
             continue;
         } else {
-            let new_simple_count_constr = SimpleDiscoveredCountConstraints {
-                count_constraint: CountConstraint { min, max },
-                object_type,
-                event_type: EventType::Exactly { value: event_type },
-            };
-            let counts_len = counts.len() as f32;
-            let filtered = counts
-                .into_iter()
-                .filter(|(c, _obj_id)| {
-                    (mean - std_dev_factor * std_deviation).round() <= *c
-                        && *c <= (mean + std_dev_factor * std_deviation).round()
-                })
-                .collect_vec();
-            let fraction = filtered.iter().count() as f32 / counts_len;
-            let supporting_object_ids: HashSet<String> =
-                filtered.into_iter().map(|(_, obj_id)| obj_id).collect();
+            let (cover_fraction, supporting_object_ids) =
+                get_count_constraint_fraction(linked_ocel, &constraint, &rel_object_ids,true);
             ret.push(CountConstraintInfo {
-                constraint: new_simple_count_constr,
-                supporting_object_ids,
-                cover_fraction: fraction,
+                constraint,
+                supporting_object_ids: supporting_object_ids.unwrap(),
+                cover_fraction,
             })
         }
     }

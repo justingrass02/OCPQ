@@ -1,3 +1,14 @@
+use std::collections::HashSet;
+
+use itertools::Itertools;
+
+use crate::{
+    constraints::{CountConstraint, EventType},
+    discovery::{EventuallyFollowsConstraints, SimpleDiscoveredCountConstraints},
+};
+
+use super::preprocess::{get_events_of_type_associated_with_objects, LinkedOCEL};
+
 #[cfg(test)]
 #[test]
 pub fn test() {
@@ -12,7 +23,8 @@ pub fn test() {
         constraints::EventType,
         discovery::{
             auto_discover_count_constraints, auto_discover_eventually_follows,
-            CountConstraintOptions, EventuallyFollowsConstraintOptions,
+            evaluation::get_count_constraint_fraction, CountConstraintOptions,
+            EventuallyFollowsConstraintOptions,
         },
         load_ocel::{load_ocel_file, DEFAULT_OCEL_FILE},
         preprocessing::preprocess::{get_events_of_type_associated_with_objects, link_ocel_info},
@@ -77,50 +89,15 @@ pub fn test() {
                     cover_fraction: 0.8,
                 },
             );
-            // let res_inner = auto_discover_eventually_follows(
-            //     &linked_ocel,
-            //     Some(other_objects_of_type),
-            //     EventuallyFollowsConstraintOptions {
-            //         object_types: vec![c.constraint.object_type.clone()],
-            //         cover_fraction: 0.8,
-            //     },
-            // );
 
-            println!("====\n=={:?} ({})==", c.constraint, c.cover_fraction);
+            println!("\n\n\n=={:?} ({})==", c.constraint, c.cover_fraction);
             for c2 in &res_inner {
-                // match &c2.constraint.event_type {
-                //     EventType::Exactly { value } => {
-                //         if value != "payment reminder" {
-                //             println!("Skipping {value}");
-                //             continue;
-                //         } else {
-                //             println!("NOT SKIPPING {value}");
-                //         }
-                //     }
-                //     _ => todo!(""),
-                // }
-                let counts = c
-                    .supporting_object_ids
-                    .iter()
-                    .map(|obj_id| {
-                        let count = get_events_of_type_associated_with_objects(
-                            &linked_ocel,
-                            &c2.constraint.event_type,
-                            vec![obj_id.clone()],
-                        )
-                        .len();
-                        count
-                        // linked_ocel.object_events_map.get(obj_id).unwrap().iter().filter(|ev| linked_ocel.event_map.get(ev).unwrap().event_type == c2.constraint.event_type)
-                    })
-                    .collect_vec();
-                let cover_frac_orig = counts
-                    .iter()
-                    .filter(|count| {
-                        c2.constraint.count_constraint.max >= **count
-                            && c2.constraint.count_constraint.min <= **count
-                    })
-                    .count() as f32
-                    / counts.len() as f32;
+                let (cover_frac_orig, _) = get_count_constraint_fraction(
+                    &linked_ocel,
+                    &c2.constraint,
+                    &c.supporting_object_ids,
+                    false
+                );
 
                 let cover_diff = c2.cover_fraction - cover_frac_orig;
                 if cover_diff > 0.1 {
@@ -128,11 +105,6 @@ pub fn test() {
                     println!(
                         "Cover diff: {} = {} - {}",
                         cover_diff, c2.cover_fraction, cover_frac_orig
-                    );
-                    println!("Fraction: {:?}", c2.cover_fraction);
-                    println!(
-                        "\t {:?} ({} vs {} of original)",
-                        c2.constraint, c2.cover_fraction, cover_frac_orig
                     );
                 }
             }
