@@ -3,6 +3,8 @@ import type { Edge, Node, ReactFlowInstance } from "reactflow";
 import type {
   EventTypeLinkData,
   EventTypeNodeData,
+  GateLinkData,
+  GateNodeData,
   ObjectVariable,
   ViolationsPerNodes,
 } from "./types";
@@ -22,8 +24,8 @@ export const FlowContext = createContext<{
     | {
         violations?: ViolationsPerNodes;
         objectVariables?: ObjectVariable[];
-        nodes?: Node<EventTypeNodeData>[];
-        edges?: Edge<EventTypeLinkData>[];
+        nodes?: Node<EventTypeNodeData|GateNodeData>[];
+        edges?: Edge<EventTypeLinkData|GateLinkData>[];
       }
     | undefined;
   flushData: (

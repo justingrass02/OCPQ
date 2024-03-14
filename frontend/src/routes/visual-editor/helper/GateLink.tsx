@@ -32,6 +32,9 @@ import { GATE_NODE_TYPE } from "./const";
 export default function GateLink({
   id,
   source,
+  sourceHandleId,
+  target,
+  targetHandleId,
   sourceX,
   sourceY,
   targetX,
@@ -69,9 +72,10 @@ export default function GateLink({
           <button
             className="hover:text-red-500 text-red-400/30  rounded-lg text-sm"
             title="Delete edge"
-            onClick={() => onEdgeDataChange(id, undefined)}
+            onClick={() => { console.log({source, sourceHandleId, target, targetHandleId}); }}
+            // onClick={() => onEdgeDataChange(id, undefined)}
           >
-            <MdRemoveCircleOutline />
+            <MdRemoveCircleOutline />AAA
           </button>
         </div>
       </EdgeLabelRenderer>

@@ -23,6 +23,8 @@ import type {
   DiscoverConstraintsResponse,
   EventTypeLinkData,
   EventTypeNodeData,
+  GateLinkData,
+  GateNodeData,
   ObjectVariable,
   ViolationsPerNodes,
 } from "../helper/types";
@@ -32,6 +34,11 @@ import { LuDelete, LuSave } from "react-icons/lu";
 import { Combobox } from "@/components/ui/combobox";
 import { EVENT_TYPE_LINK_TYPE } from "../helper/const";
 import json5 from "json5";
+import {
+  constructDiscoveredCountConstraint,
+  constructDiscoveredEFConstraint,
+  constructDiscoveredORConstraint,
+} from "../helper/constructNodes";
 const LOCALSTORAGE_SAVE_KEY_DATA = "oced-declare-data";
 const LOCALSTORAGE_SAVE_KEY_CONSTRAINTS_META = "oced-declare-meta";
 
@@ -101,7 +108,7 @@ export default function VisualEditorOuter() {
   const [activeIndex, setActiveIndex] = useState<number>();
   const prevDataRef = useRef<
     {
-      flowJson: ReactFlowJsonObject<EventTypeNodeData, EventTypeLinkData>;
+      flowJson: ReactFlowJsonObject<EventTypeNodeData|GateNodeData, EventTypeLinkData|GateLinkData>;
       violations?: ViolationsPerNodes;
       objectVariables?: ObjectVariable[];
     }[]
@@ -472,202 +479,95 @@ export default function VisualEditorOuter() {
                                 console.log({ json });
                                 const updatedConstraints = [...constraints];
                                 let index = constraints.length;
+
                                 for (const c of json.countConstraints) {
-                                  const countStr =
-                                    c.countConstraint.min ===
-                                    c.countConstraint.max
-                                      ? `=${c.countConstraint.min}`
-                                      : c.countConstraint.min === 0
-                                      ? `<=${c.countConstraint.max}`
-                                      : `${c.countConstraint.min} - ${c.countConstraint.max}`;
-                                  const name = `${countStr} "${
-                                    c.eventType.type === "exactly"
-                                      ? c.eventType.value
-                                      : "..."
-                                  }" per ${c.objectType}`;
+                                  const constructedCountConstraint =
+                                    constructDiscoveredCountConstraint(
+                                      c,
+                                      qualifiers,
+                                    );
                                   if (
                                     updatedConstraints.find(
-                                      (c) => c.name === name,
+                                      (c) =>
+                                        c.name ===
+                                        constructedCountConstraint.name,
                                     ) !== undefined
                                   ) {
                                     console.log(
                                       "Skipping new constraint " +
-                                        name +
+                                        constructedCountConstraint.name +
                                         " bc. constraint with same name already exists",
                                     );
                                     continue;
                                   }
                                   updatedConstraints.push({
-                                    name,
+                                    name: constructedCountConstraint.name,
                                     description:
-                                      "Automatically Discovered Constraint",
+                                      constructedCountConstraint.description,
                                   });
-                                  const varName =
-                                    c.objectType.substring(0, 2) + "_0";
-                                  const variable = {
-                                    name: varName,
-                                    type: c.objectType,
-                                    initiallyBound: true,
-                                  };
-                                  prevDataRef.current[index] = {
-                                    violations: undefined,
-                                    // TODO: Add object variable
-                                    objectVariables: [variable],
-                                    flowJson: {
-                                      nodes: [
-                                        {
-                                          id: Date.now() + "auto" + index,
-                                          type: "eventType",
-                                          position: { x: 150, y: 150 },
-                                          data: {
-                                            eventType: c.eventType,
-                                            eventTypeQualifier:
-                                              qualifiers[
-                                                c.eventType.type === "exactly"
-                                                  ? c.eventType.value
-                                                  : ""
-                                              ],
-                                            countConstraint: c.countConstraint,
-                                            selectedVariables: [
-                                              {
-                                                qualifier: undefined,
-                                                variable,
-                                                bound: false,
-                                              },
-                                            ],
-                                          },
-                                        },
-                                      ],
-                                      edges: [],
-                                      viewport: { x: 0, y: 0, zoom: 2.0 },
-                                    },
-                                  };
+                                  prevDataRef.current[index] =
+                                    constructedCountConstraint.constraint;
                                   index++;
                                 }
 
                                 for (const c of json.eventuallyFollowsConstraints) {
-                                  const name = `${c.fromEventType} -> ${c.toEventType} for ${c.objectTypes.join(", ")}`;
+                                  const constructedEFConstraint =
+                                    constructDiscoveredEFConstraint(
+                                      c,
+                                      qualifiers,
+                                    );
                                   if (
                                     updatedConstraints.find(
-                                      (c) => c.name === name,
+                                      (c) =>
+                                        c.name === constructedEFConstraint.name,
                                     ) !== undefined
                                   ) {
                                     console.log(
                                       "Skipping new constraint " +
-                                        name +
+                                        constructedEFConstraint.name +
                                         " bc. constraint with same name already exists",
                                     );
                                     continue;
                                   }
                                   updatedConstraints.push({
-                                    name,
+                                    name: constructedEFConstraint.name,
                                     description:
-                                      "Automatically Discovered Constraint",
+                                      constructedEFConstraint.description,
                                   });
-                                  
-                              const varNames: string[] = [];
-                              for(const ot of c.objectTypes){
-                                const shortOt = ot.substring(0,2);
-                                let i = 0;
-                                let varName = shortOt + "_" + i;
-                                while(varNames.includes(varName)){
-                                  i++;
-                                  varName = shortOt + "_" + i;
+                                  prevDataRef.current[index] =
+                                    constructedEFConstraint.constraint;
+                                  index++;
                                 }
-                                varNames.push(varName);
-                              }
-                                  const variables = varNames.map((varName,i) => ({
-                                    name: varName,
-                                    type: c.objectTypes[i],
-                                    initiallyBound: i == 0,
-                                  }));
-                                  const ids = [
-                                    Date.now() + "auto-ef-" + index,
-                                    Date.now() + "auto-ef2-" + index,
-                                  ] as const;
-                                  prevDataRef.current[index] = {
-                                    violations: undefined,
-                                    objectVariables: variables,
-                                    flowJson: {
-                                      nodes: [
-                                        {
-                                          id: ids[0],
-                                          type: "eventType",
-                                          position: { x: 200, y: 100 },
-                                          data: {
-                                            eventType: {
-                                              type: "exactly",
-                                              value: c.fromEventType,
-                                            },
-                                            eventTypeQualifier:
-                                              qualifiers[c.fromEventType],
-                                            countConstraint: {
-                                              min: 0,
-                                              max: Infinity,
-                                            },
-                                            selectedVariables: variables.map((variable,i ) => 
-                                              ({
-                                                qualifier: undefined,
-                                                variable,
-                                                bound: i > 0,
-                                              })),
-                                            hideViolations: true,
-                                          },
-                                        },
-                                        {
-                                          id: ids[1],
-                                          type: "eventType",
-                                          position: { x: 200, y: 350 },
-                                          data: {
-                                            eventType: {
-                                              type: "exactly",
-                                              value: c.toEventType,
-                                            },
-                                            eventTypeQualifier:
-                                              qualifiers[c.toEventType],
-                                            countConstraint: {
-                                              min: 1,
-                                              max: Infinity,
-                                            },
-                                        
-                                            selectedVariables: variables.map((variable) => 
-                                              ({
-                                                qualifier: undefined,
-                                                variable,
-                                                bound: false,
-                                              })),
-                                        hideViolations: false
-                                          },
-                                        },
-                                      ],
-                                      edges: [
-                                        {
-                                          type: EVENT_TYPE_LINK_TYPE,
-                                          source: ids[0],
-                                          target: ids[1],
-                                          sourceHandle: ids[0] + "-source",
-                                          targetHandle: ids[1] + "-target",
-                                          id: Date.now() + "link-ef-" + index,
-                                          markerEnd: {
-                                            type: MarkerType.ArrowClosed,
-                                            width: 15,
-                                            height: 12,
-                                            color: "#969696",
-                                          },
-                                          style: {
-                                            strokeWidth: 2,
-                                            stroke: "#969696",
-                                          },
-                                          data: {
-                                            color: "#969696",
-                                            constraintType: "response",
-                                            timeConstraint: c.secondsRange,
-                                          },
-                                        },
-                                      ],
-                                      viewport: { x: 0, y: 0, zoom: 1.5 },
-                                    },
-                                  };
+
+                                for (const c of json.orConstraints) {
+                                  const constructedORConstraint =
+                                    constructDiscoveredORConstraint(
+                                      c,
+                                      qualifiers,
+                                    );
+                                  if (constructedORConstraint === undefined) {
+                                    continue;
+                                  }
+                                  if (
+                                    updatedConstraints.find(
+                                      (c) =>
+                                        c.name === constructedORConstraint.name,
+                                    ) !== undefined
+                                  ) {
+                                    console.log(
+                                      "Skipping new constraint " +
+                                        constructedORConstraint.name +
+                                        " bc. constraint with same name already exists",
+                                    );
+                                    continue;
+                                  }
+                                  updatedConstraints.push({
+                                    name: constructedORConstraint.name,
+                                    description:
+                                      constructedORConstraint.description,
+                                  });
+                                  prevDataRef.current[index] =
+                                    constructedORConstraint.constraint;
                                   index++;
                                 }
 

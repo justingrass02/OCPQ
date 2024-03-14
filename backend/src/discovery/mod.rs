@@ -2,11 +2,13 @@ use core::f32;
 use std::{
     collections::{HashMap, HashSet},
     f64::MAX,
+    sync::Mutex,
 };
 
 use axum::{extract::State, Json};
 use itertools::Itertools;
-use process_mining::{OCEL};
+use process_mining::OCEL;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -19,7 +21,7 @@ use self::evaluation::{get_count_constraint_fraction, get_ef_constraint_fraction
 
 pub mod evaluation;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct EventuallyFollowsConstraints {
     pub seconds_range: SecondsRange,
@@ -257,7 +259,7 @@ pub fn auto_discover_eventually_follows(
     ret
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SimpleDiscoveredCountConstraints {
     pub count_constraint: CountConstraint,
@@ -271,7 +273,7 @@ pub struct SimpleDiscoveredCountConstraints {
 
 // Similiarly, it would be nice to have some sort of input object_ids (only those should be considered)
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CountConstraintInfo {
     pub constraint: SimpleDiscoveredCountConstraints,
     pub supporting_object_ids: HashSet<String>,
@@ -452,6 +454,89 @@ pub fn auto_discover_count_constraints(
     ret
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub enum AutoDiscoveredORConstraint {
+    EfOrCount(
+        EventuallyFollowsConstraints,
+        SimpleDiscoveredCountConstraints,
+    ),
+    CountOrEf(
+        EventuallyFollowsConstraints,
+        SimpleDiscoveredCountConstraints,
+    ),
+}
+
+pub fn auto_discover_or_constraints(
+    ocel: &OCEL,
+    linked_ocel: &LinkedOCEL,
+    obj_types_per_ev_type: &HashMap<&String, HashSet<&String>>,
+) -> Vec<AutoDiscoveredORConstraint> {
+    let res = auto_discover_eventually_follows(
+        &linked_ocel,
+        None,
+        EventuallyFollowsConstraintOptions {
+            object_types: ocel.object_types.iter().map(|ot| ot.name.clone()).collect(),
+            cover_fraction: 0.8,
+        },
+    );
+    let discovered_ors: Mutex<Vec<AutoDiscoveredORConstraint>> = Mutex::new(Vec::new());
+    res.par_iter().for_each(|c| {
+        if c.cover_fraction < 0.9 {
+            // Other objects (i.e., not supporting) of this type
+            let other_objects_of_type: HashSet<String> = c
+                .constraint
+                .object_types
+                .iter()
+                .flat_map(|ot| linked_ocel.objects_of_type.get(ot).unwrap().iter())
+                .filter(|obj| !c.supporting_object_ids.contains(&obj.id))
+                .map(|obj| obj.id.clone())
+                .collect();
+            if other_objects_of_type.is_empty() {
+                return;
+                // continue;
+            }
+            let res_inner = auto_discover_count_constraints(
+                &ocel,
+                &obj_types_per_ev_type,
+                &linked_ocel,
+                Some(other_objects_of_type),
+                CountConstraintOptions {
+                    object_types: c.constraint.object_types.clone(),
+                    cover_fraction: 0.8,
+                },
+            );
+            for c2 in &res_inner {
+                let (cover_frac_orig, _) = get_count_constraint_fraction(
+                    &linked_ocel,
+                    &c2.constraint,
+                    &c.supporting_object_ids,
+                    false,
+                );
+
+                let cover_diff = c2.cover_fraction - cover_frac_orig;
+                if cover_diff > 0.5 {
+                    discovered_ors
+                        .lock()
+                        .unwrap()
+                        .push(AutoDiscoveredORConstraint::EfOrCount(
+                            c.constraint.clone(),
+                            c2.constraint.clone(),
+                        ));
+                    // c
+                    // c2
+                    // discovered_ors
+                    println!("{:?}", c2.constraint);
+                    println!(
+                        "Cover diff: {} = {} - {}",
+                        cover_diff, c2.cover_fraction, cover_frac_orig
+                    );
+                }
+            }
+        }
+    });
+    discovered_ors.into_inner().unwrap()
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct CountConstraintOptions {
@@ -477,6 +562,7 @@ pub struct AutoDiscoverConstraintsRequest {
 pub struct AutoDiscoverConstraintsResponse {
     pub count_constraints: Vec<SimpleDiscoveredCountConstraints>,
     pub eventually_follows_constraints: Vec<EventuallyFollowsConstraints>,
+    pub or_constraints: Vec<AutoDiscoveredORConstraint>,
 }
 
 pub async fn auto_discover_constraints_handler(
@@ -502,6 +588,8 @@ pub async fn auto_discover_constraints_handler(
             }
             None => Vec::new(),
         };
+        let or_constraints =
+            auto_discover_or_constraints(ocel, &linked_ocel, &obj_types_per_ev_type);
         AutoDiscoverConstraintsResponse {
             count_constraints: count_constraints
                 .into_iter()
@@ -511,6 +599,7 @@ pub async fn auto_discover_constraints_handler(
                 .into_iter()
                 .map(|efc| efc.constraint)
                 .collect(),
+            or_constraints,
         }
     }))
 }

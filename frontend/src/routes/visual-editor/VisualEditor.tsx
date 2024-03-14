@@ -107,7 +107,7 @@ export default function VisualEditor(props: VisualEditorProps) {
           if (sourceNode?.type === "gate" || targetNode?.type === "gate") {
             // TODO: Implement link between gates and event nodes
             const color = "#969696";
-            const newEdge: Edge<EventTypeLinkData> = {
+            const newEdge: Edge<GateLinkData> = {
               id: sourceHandle + "|||" + targetHandle,
               type: GATE_LINK_TYPE,
               source,
@@ -124,11 +124,11 @@ export default function VisualEditor(props: VisualEditorProps) {
                 strokeWidth: 2,
                 stroke: color,
               },
-              data: {
-                color,
-                constraintType: "response",
-                timeConstraint: { minSeconds: 0, maxSeconds: Infinity },
-              },
+              // data: {
+              //   color,
+              //   constraintType: "response",
+              //   timeConstraint: { minSeconds: 0, maxSeconds: Infinity },
+              // },
             };
             return addEdge(newEdge, eds);
           }

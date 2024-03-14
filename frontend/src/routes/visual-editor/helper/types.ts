@@ -43,9 +43,8 @@ export type EventTypeNodeData = {
   hideViolations?: boolean;
 };
 
-export const ALL_GATE_TYPES = ["not","or","and"]
+export const ALL_GATE_TYPES = ["not", "or", "and"];
 export type GateNodeData = { type: "not" | "or" | "and" };
-
 
 export type TimeConstraint = { minSeconds: number; maxSeconds: number };
 export type EventTypeLinkData = {
@@ -66,19 +65,29 @@ export type DiscoverConstraintsRequest = {
     coverFraction: number;
   };
 };
+
+export type DiscoveredCountConstraint = {
+  countConstraint: { min: number; max: number };
+  objectType: string;
+  eventType: EventTypeNodeData["eventType"];
+};
+export type DiscoveredEFConstraint = {
+  secondsRange: {
+    minSeconds: number;
+    maxSeconds: number;
+  };
+  objectTypes: string[];
+  fromEventType: string;
+  toEventType: string;
+};
+export type DiscoveredORConstraint =
+  | {
+      EfOrCount: [DiscoveredEFConstraint, DiscoveredCountConstraint];
+    }
+  | { CountOrEf: [DiscoveredCountConstraint, DiscoveredEFConstraint] };
+
 export type DiscoverConstraintsResponse = {
-  countConstraints: {
-    countConstraint: { min: number; max: number };
-    objectType: string;
-    eventType: EventTypeNodeData["eventType"];
-  }[];
-  eventuallyFollowsConstraints: {
-    secondsRange: {
-      minSeconds: number;
-      maxSeconds: number;
-    };
-    objectTypes: string[];
-    fromEventType: string;
-    toEventType: string;
-  }[];
+  countConstraints: DiscoveredCountConstraint[];
+  eventuallyFollowsConstraints: DiscoveredEFConstraint[];
+  orConstraints: DiscoveredORConstraint[];
 };
