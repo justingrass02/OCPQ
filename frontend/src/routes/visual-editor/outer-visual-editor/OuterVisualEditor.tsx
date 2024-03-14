@@ -460,7 +460,7 @@ export default function VisualEditorOuter() {
                         );
                       }}
                       submitAction={"Run Discovery"}
-                      onSubmit={(data) => {
+                      onSubmit={(data,ev) => {
                         void toast
                           .promise(
                             fetch(

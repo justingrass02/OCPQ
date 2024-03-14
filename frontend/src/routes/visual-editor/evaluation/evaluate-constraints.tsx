@@ -70,7 +70,11 @@ export async function evaluateConstraints(
   console.log({ variables, nodes });
   function getGateNodeType(node: Node<GateNodeData>): TreeNodeType {
     const outTargetNodeIDs = edges
-      .filter((e) => e.source === node.id && nodes.findIndex(n => n.id === e.target) >= 0)
+      .filter(
+        (e) =>
+          e.source === node.id &&
+          nodes.findIndex((n) => n.id === e.target) >= 0,
+      )
       .map((e) => e.target);
     if (node.data.type === "not") {
       if (outTargetNodeIDs.length !== 1) {
@@ -139,8 +143,25 @@ export async function evaluateConstraints(
   );
 
   for (const e of edges) {
-    if (e.sourceHandle == null || e.targetHandle == null || e.data == null) {
-      console.warn("No source/target handle or no data on edge", e);
+    if (e.sourceHandle == null || e.targetHandle == null) {
+      console.warn("No source/target handle", e);
+      continue;
+    }
+    if (e.data == null) {
+      if (
+        treeNodes[e.target] !== undefined &&
+        treeNodes[e.source] !== undefined
+      ) {
+        // Gate!
+        treeNodes[e.target].parents.push({
+          connection: null,
+          id: e.source,
+        });
+        treeNodes[e.source].children.push({
+          connection: null,
+          id: e.target,
+        });
+      }
       continue;
     }
     if (!("constraintType" in e.data)) {

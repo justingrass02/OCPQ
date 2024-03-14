@@ -45,7 +45,7 @@ export function constructDiscoveredCountConstraint(
         {
           id: Date.now() + "auto" + Math.random(),
           type: "eventType",
-          position: { x: 150, y: 150 },
+          position: { x: 200, y: 150 },
           data: {
             eventType: c.eventType,
             eventTypeQualifier:
@@ -209,7 +209,7 @@ export function constructDiscoveredORConstraint(
       countConstr,
       qualifiers,
     );
-    countFlow.constraint.flowJson.nodes[0].position.x += 100;
+    countFlow.constraint.flowJson.nodes[0].position.x += 400;
     const name = "OR " + efFlow.name + " / " + countFlow.name;
     const orNodeID = Math.random() + "auto_OR" + Date.now();
     const newEdges: Edge<GateLinkData>[] = [
@@ -265,14 +265,14 @@ export function constructDiscoveredORConstraint(
           {
             type: GATE_NODE_TYPE,
             id: orNodeID,
-            position: { x: 50, y: -50 },
+            position: { x: 400, y: 20 },
             data: { type: "or" },
           },
-          ...efFlow.constraint.flowJson.nodes,
-          ...countFlow.constraint.flowJson.nodes,
+          ...efFlow.constraint.flowJson.nodes.map(n => ({...n, position: {...n.position, y: n.position.y + 100}})),
+          ...countFlow.constraint.flowJson.nodes.map(n => ({...n, position: {...n.position, y: n.position.y + 100}})),
         ],
         edges: [...newEdges, ...efFlow.constraint.flowJson.edges],
-        viewport: { x: 0, y: -50, zoom: 1.5 },
+        viewport: { x: 0, y: 0, zoom: 1.5 },
         // nodes: [...efFlow.constraint.flowJson.nodes, ...countFlow.constraint.flowJson.nodes],
       },
     };
