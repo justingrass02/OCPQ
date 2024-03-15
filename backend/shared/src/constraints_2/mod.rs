@@ -4,12 +4,11 @@ use std::{
     time::Instant,
 };
 
-use process_mining::{ocel::ocel_struct::OCELObject, OCEL};
+use process_mining::{import_ocel_json_from_path, ocel::ocel_struct::OCELObject, OCEL};
 use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::load_ocel::{load_ocel_file, DEFAULT_OCEL_FILE};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 struct NodeID(usize);
@@ -310,126 +309,126 @@ fn expand(
 }
 
 // #[test]
-fn new_constraints_test() {
-    let nodes = vec![
-        Node {
-            id: NodeID(0),
-            data: NodeData::ObjectQuery {
-                object_type: "customers".to_string(),
-                bind_variable: VariableID(0),
-                o2o_restriction: None,
-            },
-        },
-        Node {
-            id: NodeID(1),
-            data: NodeData::ObjectQuery {
-                object_type: "orders".to_string(),
-                bind_variable: VariableID(1),
-                // o2o_restriction: None,
-                o2o_restriction: Some(O2ORestriction {
-                    referencing: VariableID(0),
-                    qualifier: "places".to_string(),
-                }),
-            },
-        },
-        Node {
-            id: NodeID(2),
-            data: NodeData::ObjectQuery {
-                object_type: "orders".to_string(),
-                bind_variable: VariableID(2),
-                o2o_restriction: Some(O2ORestriction {
-                    referencing: VariableID(0),
-                    qualifier: "places".to_string(),
-                }),
-            },
-        },
-        // Node {
-        //     id: NodeID(3),
-        //     data: NodeData::ObjectQuery {
-        //         object_type: "items".to_string(),
-        //         bind_variable: VariableID(3),
-        //         o2o_restriction: Some(O2ORestriction {
-        //             referencing: VariableID(1),
-        //             qualifier: "comprises".to_string(),
-        //         }),
-        //     },
-        // },
-        // Node {
-        //     id: NodeID(4),
-        //     data: NodeData::ObjectQuery {
-        //         object_type: "items".to_string(),
-        //         bind_variable: VariableID(4),
-        //         o2o_restriction: Some(O2ORestriction {
-        //             referencing: VariableID(2),
-        //             qualifier: "comprises".to_string(),
-        //         }),
-        //     },
-        // },
-        Node {
-            id: NodeID(42),
-            data: NodeData::EventQuery {
-                event_type: vec![("confirm order").to_string()].into_iter().collect(),
-                associated_object_vars: vec![(VariableID(1), Some(Qualifier("order".to_string())))],
-                assigning_object_vars: vec![],
-                out_mode: OutMode::All,
-            },
-        },
-    ];
-    let ocel = load_ocel_file(DEFAULT_OCEL_FILE).expect("Default OCEL File not available");
+// fn new_constraints_test() {
+//     let nodes = vec![
+//         Node {
+//             id: NodeID(0),
+//             data: NodeData::ObjectQuery {
+//                 object_type: "customers".to_string(),
+//                 bind_variable: VariableID(0),
+//                 o2o_restriction: None,
+//             },
+//         },
+//         Node {
+//             id: NodeID(1),
+//             data: NodeData::ObjectQuery {
+//                 object_type: "orders".to_string(),
+//                 bind_variable: VariableID(1),
+//                 // o2o_restriction: None,
+//                 o2o_restriction: Some(O2ORestriction {
+//                     referencing: VariableID(0),
+//                     qualifier: "places".to_string(),
+//                 }),
+//             },
+//         },
+//         Node {
+//             id: NodeID(2),
+//             data: NodeData::ObjectQuery {
+//                 object_type: "orders".to_string(),
+//                 bind_variable: VariableID(2),
+//                 o2o_restriction: Some(O2ORestriction {
+//                     referencing: VariableID(0),
+//                     qualifier: "places".to_string(),
+//                 }),
+//             },
+//         },
+//         // Node {
+//         //     id: NodeID(3),
+//         //     data: NodeData::ObjectQuery {
+//         //         object_type: "items".to_string(),
+//         //         bind_variable: VariableID(3),
+//         //         o2o_restriction: Some(O2ORestriction {
+//         //             referencing: VariableID(1),
+//         //             qualifier: "comprises".to_string(),
+//         //         }),
+//         //     },
+//         // },
+//         // Node {
+//         //     id: NodeID(4),
+//         //     data: NodeData::ObjectQuery {
+//         //         object_type: "items".to_string(),
+//         //         bind_variable: VariableID(4),
+//         //         o2o_restriction: Some(O2ORestriction {
+//         //             referencing: VariableID(2),
+//         //             qualifier: "comprises".to_string(),
+//         //         }),
+//         //     },
+//         // },
+//         Node {
+//             id: NodeID(42),
+//             data: NodeData::EventQuery {
+//                 event_type: vec![("confirm order").to_string()].into_iter().collect(),
+//                 associated_object_vars: vec![(VariableID(1), Some(Qualifier("order".to_string())))],
+//                 assigning_object_vars: vec![],
+//                 out_mode: OutMode::All,
+//             },
+//         },
+//     ];
+//     let ocel = import_ocel_json_from_path(DEFAULT_OCEL_FILE).expect("Default OCEL File not available");
 
-    // let all_qualifiers: HashSet<String> = ocel.objects.iter().flat_map(|o| o.relationships.clone().unwrap_or(Vec::new()).iter().map(|r| r.qualifier.clone()).collect::<Vec<_>>()).collect();
-    // println!("All O2O Qualifiers: {:?}", all_qualifiers);
+//     // let all_qualifiers: HashSet<String> = ocel.objects.iter().flat_map(|o| o.relationships.clone().unwrap_or(Vec::new()).iter().map(|r| r.qualifier.clone()).collect::<Vec<_>>()).collect();
+//     // println!("All O2O Qualifiers: {:?}", all_qualifiers);
 
-    let ocel_helper: Arc<OCELHelper> = Arc::new(OCELHelper::new(ocel));
-    let mut bindings: HashMap<Uuid, Binding> = vec![Binding {
-        id: Uuid::new_v4(),
-        variable_binding: ObjectVariableBinding::default(),
-        past_events: Vec::new(),
-        parent_binding_id: None,
-    }]
-    .into_iter()
-    .map(|b| (b.id, b))
-    .collect();
-    let new_bindings_ids: Mutex<Vec<Uuid>> = Mutex::new(bindings.keys().copied().collect());
-    let now = Instant::now();
-    for node in nodes {
-        let prev_bindings = bindings.clone();
-        let prev_new_bindings_ids = new_bindings_ids.lock().unwrap().clone();
-        new_bindings_ids.lock().unwrap().clear();
-        bindings = bindings
-            .into_par_iter()
-            .flat_map(|(b_id, b)| {
-                if prev_new_bindings_ids.contains(&b_id) {
-                    let mut new_bindings =
-                        expand(&node, Arc::clone(&ocel_helper), &b, &prev_bindings);
-                    new_bindings_ids
-                        .lock()
-                        .unwrap()
-                        .extend(new_bindings.iter().map(|b| b.id));
-                    match &node.data {
-                        NodeData::EventQuery {
-                            event_type: _,
-                            associated_object_vars: _,
-                            assigning_object_vars: _,
-                            out_mode: _,
-                        } => {
-                            new_bindings.push(b);
-                        }
-                        _ => {}
-                    }
-                    new_bindings
-                } else {
-                    vec![b]
-                }
-            })
-            .map(|b| (b.id, b))
-            .collect();
+//     let ocel_helper: Arc<OCELHelper> = Arc::new(OCELHelper::new(ocel));
+//     let mut bindings: HashMap<Uuid, Binding> = vec![Binding {
+//         id: Uuid::new_v4(),
+//         variable_binding: ObjectVariableBinding::default(),
+//         past_events: Vec::new(),
+//         parent_binding_id: None,
+//     }]
+//     .into_iter()
+//     .map(|b| (b.id, b))
+//     .collect();
+//     let new_bindings_ids: Mutex<Vec<Uuid>> = Mutex::new(bindings.keys().copied().collect());
+//     let now = Instant::now();
+//     for node in nodes {
+//         let prev_bindings = bindings.clone();
+//         let prev_new_bindings_ids = new_bindings_ids.lock().unwrap().clone();
+//         new_bindings_ids.lock().unwrap().clear();
+//         bindings = bindings
+//             .into_par_iter()
+//             .flat_map(|(b_id, b)| {
+//                 if prev_new_bindings_ids.contains(&b_id) {
+//                     let mut new_bindings =
+//                         expand(&node, Arc::clone(&ocel_helper), &b, &prev_bindings);
+//                     new_bindings_ids
+//                         .lock()
+//                         .unwrap()
+//                         .extend(new_bindings.iter().map(|b| b.id));
+//                     match &node.data {
+//                         NodeData::EventQuery {
+//                             event_type: _,
+//                             associated_object_vars: _,
+//                             assigning_object_vars: _,
+//                             out_mode: _,
+//                         } => {
+//                             new_bindings.push(b);
+//                         }
+//                         _ => {}
+//                     }
+//                     new_bindings
+//                 } else {
+//                     vec![b]
+//                 }
+//             })
+//             .map(|b| (b.id, b))
+//             .collect();
 
-        println!(
-            "Got {} new bindings (Total: {})!",
-            new_bindings_ids.lock().unwrap().len(),
-            bindings.len()
-        );
-    }
-    println!("Finished in {:?}", now.elapsed());
-}
+//         println!(
+//             "Got {} new bindings (Total: {})!",
+//             new_bindings_ids.lock().unwrap().len(),
+//             bindings.len()
+//         );
+//     }
+//     println!("Finished in {:?}", now.elapsed());
+// }

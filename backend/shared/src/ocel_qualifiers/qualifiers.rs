@@ -1,11 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
-use axum::{extract::State, http::StatusCode, Json};
 use process_mining::OCEL;
-use rayon::prelude::{ParallelIterator};
+use rayon::{iter::IntoParallelRefIterator, prelude::ParallelIterator};
 use serde::{Deserialize, Serialize};
 
-use crate::{preprocessing::preprocess::link_ocel_info, with_ocel_from_state, AppState};
+
 
 #[derive(Serialize, Deserialize)]
 pub struct QualifiersForEventType {
@@ -16,44 +15,13 @@ pub struct QualifiersForEventType {
 }
 pub type QualifierAndObjectType = (String, String);
 
-pub async fn get_qualifers_for_object_types(
-    State(state): State<AppState>,
-) -> (
-    StatusCode,
-    Json<Option<HashMap<String, HashSet<QualifierAndObjectType>>>>,
-) {
-    let qualifier_and_type = with_ocel_from_state(&State(state), |ocel| {
-        let x = link_ocel_info(ocel);
-        x.object_rels_per_type
-    });
-    match qualifier_and_type {
-        Some(x) => (StatusCode::OK, Json(Some(x))),
-        None => (StatusCode::BAD_REQUEST, Json(None)),
-    }
-}
-pub async fn get_qualifiers_for_event_types_handler(
-    State(state): State<AppState>,
-) -> (
-    StatusCode,
-    Json<Option<HashMap<String, HashMap<String, QualifiersForEventType>>>>,
-) {
-    match with_ocel_from_state(
-        &State(state),
-        |ocel| -> HashMap<String, HashMap<String, QualifiersForEventType>> {
-            get_qualifiers_for_event_types(ocel)
-        },
-    ) {
-        Some(x) => (StatusCode::OK, Json(Some(x))),
-        None => (StatusCode::BAD_REQUEST, Json(None)),
-    }
-}
 
 pub fn get_qualifiers_for_event_types(
     ocel: &OCEL,
 ) -> HashMap<String, HashMap<String, QualifiersForEventType>> {
     let qualifiers_per_event_type: Vec<(String, HashMap<QualifierAndObjectType, Vec<i32>>)> = ocel
         .event_types
-        .iter()
+        .par_iter()
         .map(|et| {
             (
                 et.name.clone(),

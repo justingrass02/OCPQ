@@ -1,7 +1,6 @@
 use core::panic;
 use std::{collections::HashMap, time::Instant};
 
-use axum::{extract::State, http::StatusCode, Json};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use process_mining::event_log::ocel::ocel_struct::{OCELEvent, OCEL};
@@ -15,7 +14,6 @@ use crate::{
     preprocessing::preprocess::{
         get_events_of_type_associated_with_objects, link_ocel_info, LinkedOCEL,
     },
-    with_ocel_from_state, AppState,
 };
 
 use super::{
@@ -340,9 +338,9 @@ pub enum ViolationReason {
 
 type Violation = (String, Binding, ViolationReason);
 type Violations = Vec<Violation>;
-type ViolationsWithoutID = Vec<(Binding, ViolationReason)>;
+pub type ViolationsWithoutID = Vec<(Binding, ViolationReason)>;
 
-fn check_with_tree(
+pub fn check_with_tree(
     variables: Vec<ObjectVariable>,
     nodes: Vec<TreeNode>,
     ocel: &OCEL,
@@ -672,19 +670,4 @@ pub struct CheckWithTreeRequest {
     pub variables: Vec<ObjectVariable>,
     #[serde(rename = "nodesOrder")]
     pub nodes_order: Vec<TreeNode>,
-}
-pub async fn check_with_tree_req(
-    state: State<AppState>,
-    Json(req): Json<CheckWithTreeRequest>,
-) -> (
-    StatusCode,
-    Json<Option<(Vec<usize>, Vec<ViolationsWithoutID>)>>,
-) {
-    with_ocel_from_state(&state, |ocel| {
-        (
-            StatusCode::OK,
-            Json(Some(check_with_tree(req.variables, req.nodes_order, ocel))),
-        )
-    })
-    .unwrap_or((StatusCode::INTERNAL_SERVER_ERROR, Json(None)))
 }

@@ -1,0 +1,15 @@
+[package]
+name = "ocedeclare-shared"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = {version = "1.0.192" , features = ["derive"]}
+serde_json = "1.0.108"
+process_mining = {path = "../../../rust-bridge-process-mining/process_mining"}
+rayon = "1.8.0"
+itertools = "0.11.0"
+chrono = "0.4.33"
+uuid = "1.7.0"
