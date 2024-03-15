@@ -1,10 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use process_mining::OCEL;
 use rayon::{iter::IntoParallelRefIterator, prelude::ParallelIterator};
 use serde::{Deserialize, Serialize};
-
-
 
 #[derive(Serialize, Deserialize)]
 pub struct QualifiersForEventType {
@@ -14,7 +12,6 @@ pub struct QualifiersForEventType {
     // pub counts: Vec<i32>,
 }
 pub type QualifierAndObjectType = (String, String);
-
 
 pub fn get_qualifiers_for_event_types(
     ocel: &OCEL,

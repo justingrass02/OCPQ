@@ -8,9 +8,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    constraints::{
-        FirstOrLastEventOfType, ObjectVariable, TreeNodeConnection,
-    },
+    constraints::{FirstOrLastEventOfType, ObjectVariable, TreeNodeConnection},
     preprocessing::preprocess::{
         get_events_of_type_associated_with_objects, link_ocel_info, LinkedOCEL,
     },

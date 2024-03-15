@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     constraints::{CountConstraint, EventType, SecondsRange},
-    preprocessing::preprocess::{link_ocel_info, LinkedOCEL},
+    preprocessing::preprocess::LinkedOCEL,
 };
 
 use self::evaluation::{get_count_constraint_fraction, get_ef_constraint_fraction};
@@ -472,7 +472,7 @@ pub fn auto_discover_or_constraints(
 ) -> Vec<AutoDiscoveredORConstraint> {
     let object_types = options.object_types;
     let res = auto_discover_eventually_follows(
-        &linked_ocel,
+        linked_ocel,
         None,
         EventuallyFollowsConstraintOptions {
             object_types,
@@ -496,9 +496,9 @@ pub fn auto_discover_or_constraints(
                 // continue;
             }
             let res_inner = auto_discover_count_constraints(
-                &ocel,
-                &obj_types_per_ev_type,
-                &linked_ocel,
+                ocel,
+                obj_types_per_ev_type,
+                linked_ocel,
                 Some(other_objects_of_type),
                 CountConstraintOptions {
                     object_types: c.constraint.object_types.clone(),
@@ -507,7 +507,7 @@ pub fn auto_discover_or_constraints(
             );
             for c2 in &res_inner {
                 let (cover_frac_orig, _) = get_count_constraint_fraction(
-                    &linked_ocel,
+                    linked_ocel,
                     &c2.constraint,
                     &c.supporting_object_ids,
                     false,

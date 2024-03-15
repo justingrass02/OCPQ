@@ -1,5 +1,7 @@
 use std::{
-    collections::{HashMap, HashSet}, env, sync::{Arc, RwLock}
+    collections::{HashMap, HashSet},
+    env,
+    sync::{Arc, RwLock},
 };
 
 use axum::{
@@ -10,12 +12,25 @@ use axum::{
 };
 use itertools::Itertools;
 
-use ocedeclare_shared::{constraints::{check_with_tree, CheckWithTreeRequest, ViolationsWithoutID}, discovery::{auto_discover_count_constraints, auto_discover_eventually_follows, auto_discover_or_constraints, get_obj_types_per_ev_type, AutoDiscoverConstraintsRequest, AutoDiscoverConstraintsResponse}, ocel_qualifiers::qualifiers::{get_qualifiers_for_event_types, QualifierAndObjectType, QualifiersForEventType}, preprocessing::preprocess::link_ocel_info};
+use ocedeclare_shared::{
+    constraints::{check_with_tree, CheckWithTreeRequest, ViolationsWithoutID},
+    discovery::{
+        auto_discover_count_constraints, auto_discover_eventually_follows,
+        auto_discover_or_constraints, get_obj_types_per_ev_type, AutoDiscoverConstraintsRequest,
+        AutoDiscoverConstraintsResponse,
+    },
+    ocel_qualifiers::qualifiers::{
+        get_qualifiers_for_event_types, QualifierAndObjectType, QualifiersForEventType,
+    },
+    preprocessing::preprocess::link_ocel_info,
+};
 use process_mining::event_log::ocel::ocel_struct::{OCELType, OCEL};
 use serde::{Deserialize, Serialize};
 use tower_http::cors::CorsLayer;
 
-use crate::load_ocel::{get_available_ocels, load_ocel_file_req, load_ocel_file_to_state, DEFAULT_OCEL_FILE};
+use crate::load_ocel::{
+    get_available_ocels, load_ocel_file_req, load_ocel_file_to_state, DEFAULT_OCEL_FILE,
+};
 pub mod load_ocel;
 
 #[derive(Clone)]
@@ -102,8 +117,6 @@ where
     Some(f(ocel_ref))
 }
 
-
-
 pub async fn get_qualifiers_for_event_types_handler(
     State(state): State<AppState>,
 ) -> (
@@ -120,8 +133,6 @@ pub async fn get_qualifiers_for_event_types_handler(
         None => (StatusCode::BAD_REQUEST, Json(None)),
     }
 }
-
-
 
 pub async fn get_qualifers_for_object_types(
     State(state): State<AppState>,

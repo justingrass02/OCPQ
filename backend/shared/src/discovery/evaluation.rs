@@ -1,6 +1,5 @@
 use std::{collections::HashSet, sync::Mutex};
 
-
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{

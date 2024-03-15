@@ -23,15 +23,15 @@ pub const DEFAULT_OCEL_FILE: &str = "order-management";
 pub const OCEL_PATHS: &[OCELFilePath] = &[
     OCELFilePath {
         name: "ContainerLogistics",
-        path: "../data/ContainerLogistics.json",
+        path: "./data/ContainerLogistics.json",
     },
     OCELFilePath {
         name: "ocel2-p2p",
-        path: "../data/ocel2-p2p.json",
+        path: "./data/ocel2-p2p.json",
     },
     OCELFilePath {
         name: "order-management",
-        path: "../data/order-management.json",
+        path: "./data/order-management.json",
     },
 ];
 

@@ -5,7 +5,7 @@ use process_mining::{
     event_log::ocel::ocel_struct::{OCELEvent, OCELObject, OCELRelationship},
     OCEL,
 };
-use rayon::iter::{ParallelIterator};
+use rayon::iter::ParallelIterator;
 
 use crate::{constraints::EventType, ocel_qualifiers::qualifiers::QualifierAndObjectType};
 
@@ -61,7 +61,6 @@ pub fn get_events_of_type_associated_with_objects<'a>(
             .unwrap()
             .len()
             .cmp(&linked_ocel.object_events_map.get(*b).unwrap().len())
-
     });
     // sorted_object_ids.sort_by(|a, b| {
     //     linked_ocel
@@ -158,11 +157,8 @@ pub struct LinkedOCEL<'a> {
 }
 
 pub fn link_ocel_info(ocel: &OCEL) -> LinkedOCEL {
-    let event_map: HashMap<String, &OCELEvent> = ocel
-        .events
-        .iter()
-        .map(|ev| (ev.id.clone(), ev))
-        .collect();
+    let event_map: HashMap<String, &OCELEvent> =
+        ocel.events.iter().map(|ev| (ev.id.clone(), ev)).collect();
     let object_map: HashMap<String, &OCELObject> = ocel
         .objects
         .iter()
