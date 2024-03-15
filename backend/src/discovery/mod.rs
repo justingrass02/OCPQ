@@ -470,12 +470,14 @@ pub fn auto_discover_or_constraints(
     ocel: &OCEL,
     linked_ocel: &LinkedOCEL,
     obj_types_per_ev_type: &HashMap<&String, HashSet<&String>>,
+    options: ORConstraintOptions,
 ) -> Vec<AutoDiscoveredORConstraint> {
+    let object_types = options.object_types;
     let res = auto_discover_eventually_follows(
         &linked_ocel,
         None,
         EventuallyFollowsConstraintOptions {
-            object_types: ocel.object_types.iter().map(|ot| ot.name.clone()).collect(),
+            object_types,
             cover_fraction: 0.8,
         },
     );
@@ -553,9 +555,16 @@ pub struct EventuallyFollowsConstraintOptions {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
+pub struct ORConstraintOptions {
+    pub object_types: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct AutoDiscoverConstraintsRequest {
     pub count_constraints: Option<CountConstraintOptions>,
     pub eventually_follows_constraints: Option<EventuallyFollowsConstraintOptions>,
+    pub or_constraints: Option<ORConstraintOptions>,
 }
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -588,8 +597,15 @@ pub async fn auto_discover_constraints_handler(
             }
             None => Vec::new(),
         };
-        let or_constraints =
-            auto_discover_or_constraints(ocel, &linked_ocel, &obj_types_per_ev_type);
+        let or_constraints = match req.or_constraints {
+            Some(or_constraint_option) => auto_discover_or_constraints(
+                ocel,
+                &linked_ocel,
+                &obj_types_per_ev_type,
+                or_constraint_option,
+            ),
+            None => Vec::new(),
+        };
         AutoDiscoverConstraintsResponse {
             count_constraints: count_constraints
                 .into_iter()

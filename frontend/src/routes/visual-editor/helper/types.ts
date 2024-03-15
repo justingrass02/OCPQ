@@ -64,7 +64,17 @@ export type DiscoverConstraintsRequest = {
     objectTypes: string[];
     coverFraction: number;
   };
+  orConstraints?: {
+    objectTypes: string[];
+  }
 };
+
+export type DiscoverConstraintsRequestWrapper = DiscoverConstraintsRequest & {
+  countConstraints: {enabled: boolean},
+  eventuallyFollowsConstraints: {enabled: boolean},
+  orConstraints: {enabled: boolean}
+}
+
 
 export type DiscoveredCountConstraint = {
   countConstraint: { min: number; max: number };

@@ -48,7 +48,7 @@ export function Combobox({
         >
           {value
             ? options.find((o) => o.value === value)?.label
-            : `Select ${name}...`}
+            : name}
           <RxChevronUp className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>

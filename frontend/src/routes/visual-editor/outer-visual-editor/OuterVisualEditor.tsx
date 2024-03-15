@@ -1,25 +1,32 @@
 import { OcelInfoContext } from "@/App";
 import AlertHelper from "@/components/AlertHelper";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { EventTypeQualifiers, ObjectTypeQualifiers } from "@/types/ocel";
 import clsx from "clsx";
+import json5 from "json5";
 import { Fragment, useContext, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { CgTrash } from "react-icons/cg";
+import { LuDelete, LuSave } from "react-icons/lu";
 import { RiRobot2Line } from "react-icons/ri";
 import { RxCrossCircled } from "react-icons/rx";
-import {
-  MarkerType,
-  type ReactFlowInstance,
-  type ReactFlowJsonObject,
-} from "reactflow";
+import { type ReactFlowInstance, type ReactFlowJsonObject } from "reactflow";
 import ConstraintContainer from "../constraint-container/ConstraintContainer";
 import { FlowContext } from "../helper/FlowContext";
+import {
+  constructDiscoveredCountConstraint,
+  constructDiscoveredEFConstraint,
+  constructDiscoveredORConstraint,
+} from "../helper/constructNodes";
 import type {
   DiscoverConstraintsRequest,
+  DiscoverConstraintsRequestWrapper,
   DiscoverConstraintsResponse,
   EventTypeLinkData,
   EventTypeNodeData,
@@ -28,22 +35,16 @@ import type {
   ObjectVariable,
   ViolationsPerNodes,
 } from "../helper/types";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { LuDelete, LuSave } from "react-icons/lu";
-import { Combobox } from "@/components/ui/combobox";
-import { EVENT_TYPE_LINK_TYPE } from "../helper/const";
-import json5 from "json5";
 import {
-  constructDiscoveredCountConstraint,
-  constructDiscoveredEFConstraint,
-  constructDiscoveredORConstraint,
-} from "../helper/constructNodes";
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 const LOCALSTORAGE_SAVE_KEY_DATA = "oced-declare-data";
 const LOCALSTORAGE_SAVE_KEY_CONSTRAINTS_META = "oced-declare-meta";
 
 function parse(s: string) {
-  console.log("Called parse");
   return json5.parse(s);
 }
 export default function VisualEditorOuter() {
@@ -108,7 +109,10 @@ export default function VisualEditorOuter() {
   const [activeIndex, setActiveIndex] = useState<number>();
   const prevDataRef = useRef<
     {
-      flowJson: ReactFlowJsonObject<EventTypeNodeData|GateNodeData, EventTypeLinkData|GateLinkData>;
+      flowJson: ReactFlowJsonObject<
+        EventTypeNodeData | GateNodeData,
+        EventTypeLinkData | GateLinkData
+      >;
       violations?: ViolationsPerNodes;
       objectVariables?: ObjectVariable[];
     }[]
@@ -222,6 +226,7 @@ export default function VisualEditorOuter() {
                 >
                   <div className="flex justify-center gap-x-1 items-center mb-2">
                     <AlertHelper
+                      mode="promise"
                       trigger={
                         <Button
                           title="Automatically Discover Constraints"
@@ -233,244 +238,386 @@ export default function VisualEditorOuter() {
                       }
                       title={"Automatic Constraint Discovery"}
                       initialData={
-                        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
                         {
                           countConstraints: {
                             coverFraction: 0.9,
                             objectTypes: [ocelInfo.object_types[0].name],
+                            enabled: true,
                           },
                           eventuallyFollowsConstraints: {
                             objectTypes: [ocelInfo.object_types[0].name],
                             coverFraction: 0.9,
+                            enabled: true,
                           },
-                        } satisfies DiscoverConstraintsRequest as DiscoverConstraintsRequest
+                          orConstraints: {
+                            objectTypes: [ocelInfo.object_types[0].name],
+                            enabled: true,
+                          },
+                        } satisfies DiscoverConstraintsRequestWrapper as DiscoverConstraintsRequestWrapper
                       }
                       content={({ data, setData }) => {
                         return (
                           <div>
-                            <h3 className="text-lg text-gray-900 flex gap-x-2 items-center">
-                              Count Constraints
-                              <Switch
-                                checked={data.countConstraints !== undefined}
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    setData({
-                                      ...data,
-                                      countConstraints: {
-                                        coverFraction: 0.9,
-                                        objectTypes: [
-                                          ocelInfo.object_types[0].name,
-                                        ],
-                                      },
-                                    });
-                                  } else {
-                                    setData({
-                                      ...data,
-                                      countConstraints: undefined,
-                                    });
-                                  }
-                                }}
-                              />
-                            </h3>
-                            {data.countConstraints !== undefined && (
-                              <div className="pl-4">
-                                <Label>Cover Fraction</Label>
-                                <Input
-                                  type="number"
-                                  min={0.0}
-                                  step={0.05}
-                                  max={1.0}
-                                  value={data.countConstraints.coverFraction}
-                                  onChange={(ev) => {
-                                    setData({
-                                      ...data,
-                                      countConstraints: {
-                                        ...data.countConstraints!,
-                                        coverFraction:
-                                          ev.currentTarget.valueAsNumber,
-                                      },
-                                    });
-                                  }}
-                                />
-                                <Label className="mt-3 mb-1 block">
-                                  Object Types
-                                </Label>
-                                <ul className="flex flex-col mb-1 list-disc ml-6 text-base">
-                                  {data.countConstraints.objectTypes.map(
-                                    (ot, i) => (
-                                      <li key={i} className="">
-                                        <div className="flex gap-x-2 items-center">
-                                          {ot}
-                                          <button
-                                            className="hover:text-red-500"
-                                            onClick={() => {
-                                              const newData = { ...data };
-                                              data.countConstraints!.objectTypes.splice(
-                                                i,
-                                                1,
-                                              );
-                                              setData(newData);
-                                            }}
-                                          >
-                                            <LuDelete className="w-4 h-4" />
-                                          </button>
-                                        </div>
-                                      </li>
-                                    ),
-                                  )}
-                                </ul>
-                                <Combobox
-                                  options={ocelInfo.object_types
-                                    .filter(
-                                      (ot) =>
-                                        !data.countConstraints!.objectTypes.includes(
-                                          ot.name,
+                            <Accordion type="multiple" defaultValue={Object.entries(data).filter(([k,v]) => v.enabled).map(([k,v]) => k)}>
+                              <AccordionItem value="countConstraints">
+                                <AccordionTrigger>
+                                  <h3 className="text-lg text-gray-900 flex gap-x-2 items-center">
+                                    Count Constraints
+                                    <Switch
+                                      checked={data.countConstraints.enabled}
+                                      onClick={(ev) => {
+                                        ev.preventDefault();
+                                        const newData = { ...data };
+                                        newData.countConstraints.enabled =
+                                          !newData.countConstraints.enabled;
+                                          if(newData.countConstraints.enabled){
+                                            const d = ev.currentTarget.parentElement?.parentElement;
+                                            if(d !== null && d?.dataset.state === "closed"){
+                                              d.click();
+                                            }
+                                          }
+                                        setData(newData);
+                                      }}
+                                    />
+                                  </h3>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                  <div
+                                    className={clsx(
+                                      "ml-2 pl-2 border-l-2",
+                                      !data.countConstraints.enabled &&
+                                        "text-gray-400",
+                                    )}
+                                  >
+                                    <Label>Cover Fraction</Label>
+                                    <Input
+                                      disabled={!data.countConstraints.enabled}
+                                      type="number"
+                                      min={0.0}
+                                      step={0.05}
+                                      max={1.0}
+                                      value={
+                                        data.countConstraints.coverFraction
+                                      }
+                                      onChange={(ev) => {
+                                        setData({
+                                          ...data,
+                                          countConstraints: {
+                                            ...data.countConstraints,
+                                            coverFraction:
+                                              ev.currentTarget.valueAsNumber,
+                                          },
+                                        });
+                                      }}
+                                    />
+                                    <Label className="mt-3 mb-1 block">
+                                      Object Types
+                                    </Label>
+                                    <ul className="flex flex-col mb-1 list-disc ml-6 text-base">
+                                      {data.countConstraints.objectTypes.map(
+                                        (ot, i) => (
+                                          <li key={i}>
+                                            <div className="flex gap-x-2 items-center">
+                                              {ot}
+                                              <button
+                                                disabled={
+                                                  !data.countConstraints.enabled
+                                                }
+                                                className="enabled:hover:text-red-500"
+                                                onClick={() => {
+                                                  const newData = { ...data };
+                                                  data.countConstraints.objectTypes.splice(
+                                                    i,
+                                                    1,
+                                                  );
+                                                  setData(newData);
+                                                }}
+                                              >
+                                                <LuDelete className="w-4 h-4" />
+                                              </button>
+                                            </div>
+                                          </li>
                                         ),
-                                    )
-                                    .map((ot) => ({
-                                      value: ot.name,
-                                      label: ot.name,
-                                    }))}
-                                  onChange={(value) => {
-                                    setData({
-                                      ...data,
-                                      countConstraints: {
-                                        ...data.countConstraints!,
-                                        objectTypes: [
-                                          ...data.countConstraints!.objectTypes,
-                                          value,
-                                        ],
-                                      },
-                                    });
-                                    console.log({ value });
-                                  }}
-                                  name={"Object Type"}
-                                  value={""}
-                                />
-                              </div>
-                            )}
-                            <h3 className="text-lg text-gray-900 flex gap-x-2 items-center mt-4 block">
-                              Eventually Follows Constraints
-                              <Switch
-                                checked={
-                                  data.eventuallyFollowsConstraints !==
-                                  undefined
-                                }
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    setData({
-                                      ...data,
-                                      eventuallyFollowsConstraints: {
-                                        coverFraction: 0.9,
-                                        objectTypes: [],
-                                      },
-                                    });
-                                  } else {
-                                    setData({
-                                      ...data,
-                                      eventuallyFollowsConstraints: undefined,
-                                    });
-                                  }
-                                }}
-                              />
-                            </h3>
-                            {data.eventuallyFollowsConstraints !==
-                              undefined && (
-                              <div className="pl-4">
-                                <Label>Cover Fraction</Label>
-                                <Input
-                                  type="number"
-                                  min={0.0}
-                                  max={1.0}
-                                  step={0.05}
-                                  value={
-                                    data.eventuallyFollowsConstraints
-                                      .coverFraction
-                                  }
-                                  onChange={(ev) => {
-                                    setData({
-                                      ...data,
-                                      eventuallyFollowsConstraints: {
-                                        ...data.eventuallyFollowsConstraints!,
-                                        coverFraction:
-                                          ev.currentTarget.valueAsNumber,
-                                      },
-                                    });
-                                  }}
-                                />
-                                <Label className="mt-3 mb-1 block">
-                                  Object Types
-                                </Label>
-                                <ul className="flex flex-col mb-1 list-disc ml-6 text-base">
-                                  {data.eventuallyFollowsConstraints.objectTypes.map(
-                                    (ot, i) => (
-                                      <li key={i} className="">
-                                        <div className="flex gap-x-2 items-center">
-                                          {ot}
-                                          <button
-                                            className="hover:text-red-500"
-                                            onClick={() => {
-                                              const newData = { ...data };
-                                              data.eventuallyFollowsConstraints!.objectTypes.splice(
-                                                i,
-                                                1,
-                                              );
-                                              setData(newData);
-                                            }}
-                                          >
-                                            <LuDelete className="w-4 h-4" />
-                                          </button>
-                                        </div>
-                                      </li>
-                                    ),
-                                  )}
-                                </ul>
-                                <Combobox
-                                  options={ocelInfo.object_types
-                                    .filter(
-                                      (ot) =>
-                                        !data.eventuallyFollowsConstraints!.objectTypes.includes(
-                                          ot.name,
+                                      )}
+                                    </ul>
+                                    <Combobox
+                                      disabled={!data.countConstraints.enabled}
+                                      options={ocelInfo.object_types
+                                        .filter(
+                                          (ot) =>
+                                            !data.countConstraints.objectTypes.includes(
+                                              ot.name,
+                                            ),
+                                        )
+                                        .map((ot) => ({
+                                          value: ot.name,
+                                          label: ot.name,
+                                        }))}
+                                      onChange={(value) => {
+                                        setData({
+                                          ...data,
+                                          countConstraints: {
+                                            ...data.countConstraints,
+                                            objectTypes: [
+                                              ...data.countConstraints
+                                                .objectTypes,
+                                              value,
+                                            ],
+                                          },
+                                        });
+                                      }}
+                                      name={"Add object type..."}
+                                      value={""}
+                                    />
+                                  </div>
+                                </AccordionContent>
+                              </AccordionItem>
+
+                              <AccordionItem value="eventuallyFollowsConstraints">
+                                <AccordionTrigger>
+                                  <h3 className="text-lg text-gray-900 flex gap-x-2 items-center">
+                                    Eventually Follows Constraints
+                                    <Switch
+                                      checked={
+                                        data.eventuallyFollowsConstraints
+                                          .enabled
+                                      }
+                                      onClick={(ev) => {
+                                        ev.preventDefault();
+                                        const newData = { ...data };
+                                        newData.eventuallyFollowsConstraints.enabled =
+                                          !newData.eventuallyFollowsConstraints
+                                            .enabled;
+                                            if(newData.eventuallyFollowsConstraints.enabled){
+                                              const d = ev.currentTarget.parentElement?.parentElement;
+                                              if(d !== null && d?.dataset.state === "closed"){
+                                                d.click();
+                                              }
+                                            }
+                                        setData(newData);
+                                      }}
+                                    />
+                                  </h3>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                  <div
+                                    className={clsx(
+                                      "ml-2 pl-2 border-l-2",
+                                      !data.eventuallyFollowsConstraints
+                                        .enabled && "text-gray-400",
+                                    )}
+                                  >
+                                    <Label>Cover Fraction</Label>
+                                    <Input
+                                      disabled={
+                                        !data.eventuallyFollowsConstraints
+                                          .enabled
+                                      }
+                                      type="number"
+                                      min={0.0}
+                                      step={0.05}
+                                      max={1.0}
+                                      value={
+                                        data.eventuallyFollowsConstraints
+                                          .coverFraction
+                                      }
+                                      onChange={(ev) => {
+                                        setData({
+                                          ...data,
+                                          eventuallyFollowsConstraints: {
+                                            ...data.eventuallyFollowsConstraints,
+                                            coverFraction:
+                                              ev.currentTarget.valueAsNumber,
+                                          },
+                                        });
+                                      }}
+                                    />
+                                    <Label className="mt-3 mb-1 block">
+                                      Object Types
+                                    </Label>
+                                    <ul className="flex flex-col mb-1 list-disc ml-6 text-base">
+                                      {data.eventuallyFollowsConstraints.objectTypes.map(
+                                        (ot, i) => (
+                                          <li key={i}>
+                                            <div className="flex gap-x-2 items-center">
+                                              {ot}
+                                              <button
+                                                disabled={
+                                                  !data
+                                                    .eventuallyFollowsConstraints
+                                                    .enabled
+                                                }
+                                                className="enabled:hover:text-red-500"
+                                                onClick={() => {
+                                                  const newData = { ...data };
+                                                  data.eventuallyFollowsConstraints.objectTypes.splice(
+                                                    i,
+                                                    1,
+                                                  );
+                                                  setData(newData);
+                                                }}
+                                              >
+                                                <LuDelete className="w-4 h-4" />
+                                              </button>
+                                            </div>
+                                          </li>
                                         ),
-                                    )
-                                    .map((ot) => ({
-                                      value: ot.name,
-                                      label: ot.name,
-                                    }))}
-                                  onChange={(value) => {
-                                    setData({
-                                      ...data,
-                                      eventuallyFollowsConstraints: {
-                                        ...data.eventuallyFollowsConstraints!,
-                                        objectTypes: [
-                                          ...data.eventuallyFollowsConstraints!
-                                            .objectTypes,
-                                          value,
-                                        ],
-                                      },
-                                    });
-                                    console.log({ value });
-                                  }}
-                                  name={"Object Type"}
-                                  value={""}
-                                />
-                              </div>
-                            )}
+                                      )}
+                                    </ul>
+                                    <Combobox
+                                      disabled={
+                                        !data.eventuallyFollowsConstraints
+                                          .enabled
+                                      }
+                                      options={ocelInfo.object_types
+                                        .filter(
+                                          (ot) =>
+                                            !data.eventuallyFollowsConstraints.objectTypes.includes(
+                                              ot.name,
+                                            ),
+                                        )
+                                        .map((ot) => ({
+                                          value: ot.name,
+                                          label: ot.name,
+                                        }))}
+                                      onChange={(value) => {
+                                        setData({
+                                          ...data,
+                                          eventuallyFollowsConstraints: {
+                                            ...data.eventuallyFollowsConstraints,
+                                            objectTypes: [
+                                              ...data
+                                                .eventuallyFollowsConstraints
+                                                .objectTypes,
+                                              value,
+                                            ],
+                                          },
+                                        });
+                                      }}
+                                      name={"Add object type..."}
+                                      value={""}
+                                    />
+                                  </div>
+                                </AccordionContent>
+                              </AccordionItem>
+
+                              <AccordionItem value="orConstraints">
+                                <AccordionTrigger>
+                                  <h3 className="text-lg text-gray-900 flex gap-x-2 items-center">
+                                    OR-Gate Constraints
+                                    <Switch
+                                      checked={data.orConstraints.enabled}
+                                      onClick={(ev) => {
+                                        ev.preventDefault();
+                                        const newData = { ...data };
+                                        newData.orConstraints.enabled =
+                                          !newData.orConstraints.enabled;
+
+                                          if(newData.orConstraints.enabled){
+                                            const d = ev.currentTarget.parentElement?.parentElement;
+                                            if(d !== null && d?.dataset.state === "closed"){
+                                              d.click();
+                                            }
+                                          }
+                                        setData(newData);
+                                      }}
+                                    />
+                                  </h3>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                  <div
+                                    className={clsx(
+                                      "ml-2 pl-2 border-l-2",
+                                      !data.orConstraints.enabled &&
+                                        "text-gray-400",
+                                    )}
+                                  >
+                                    <Label className="mt-3 mb-1 block">
+                                      Object Types
+                                    </Label>
+                                    <ul className="flex flex-col mb-1 list-disc ml-6 text-base">
+                                      {data.orConstraints.objectTypes.map(
+                                        (ot, i) => (
+                                          <li key={i}>
+                                            <div className="flex gap-x-2 items-center">
+                                              {ot}
+                                              <button
+                                                disabled={
+                                                  !data.orConstraints.enabled
+                                                }
+                                                className="enabled:hover:text-red-500"
+                                                onClick={() => {
+                                                  const newData = { ...data };
+                                                  data.orConstraints.objectTypes.splice(
+                                                    i,
+                                                    1,
+                                                  );
+                                                  setData(newData);
+                                                }}
+                                              >
+                                                <LuDelete className="w-4 h-4" />
+                                              </button>
+                                            </div>
+                                          </li>
+                                        ),
+                                      )}
+                                    </ul>
+                                    <Combobox
+                                      disabled={!data.orConstraints.enabled}
+                                      options={ocelInfo.object_types
+                                        .filter(
+                                          (ot) =>
+                                            !data.orConstraints.objectTypes.includes(
+                                              ot.name,
+                                            ),
+                                        )
+                                        .map((ot) => ({
+                                          value: ot.name,
+                                          label: ot.name,
+                                        }))}
+                                      onChange={(value) => {
+                                        setData({
+                                          ...data,
+                                          orConstraints: {
+                                            ...data.orConstraints,
+                                            objectTypes: [
+                                              ...data.orConstraints.objectTypes,
+                                              value,
+                                            ],
+                                          },
+                                        });
+                                      }}
+                                      name={"Add object type..."}
+                                      value={""}
+                                    />
+                                  </div>
+                                </AccordionContent>
+                              </AccordionItem>
+                            </Accordion>
                           </div>
                         );
                       }}
                       submitAction={"Run Discovery"}
-                      onSubmit={(data,ev) => {
-                        void toast
+                      onSubmit={async (data, ev) => {
+                        ev.preventDefault();
+                        const reqData: DiscoverConstraintsRequest = { ...data };
+                        for (const k of [
+                          "countConstraints",
+                          "eventuallyFollowsConstraints",
+                          "orConstraints",
+                        ] as const) {
+                          if (!data[k].enabled) {
+                            reqData[k] = undefined;
+                          }
+                        }
+                        await toast
                           .promise(
                             fetch(
                               "http://localhost:3000/ocel/discover-constraints",
                               {
                                 method: "post",
                                 headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify(
-                                  data satisfies DiscoverConstraintsRequest,
-                                ),
+                                body: JSON.stringify(reqData),
                               },
                             )
                               .then(async (res) => {
