@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     port: 4565,
     fs: {
-      allow: ["../../"]
+      allow: [".","../frontend"]
     }
   },
   build: {
@@ -15,8 +15,8 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "$": path.resolve(__dirname, "../../frontend/src"),
-      "@": path.resolve(__dirname, "../../frontend/src"),
+      "$": path.resolve(__dirname, "../frontend/src"),
+      "@": path.resolve(__dirname, "../frontend/src"),
     },
   },
 });

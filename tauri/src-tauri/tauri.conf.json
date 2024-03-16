@@ -1,10 +1,10 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "build": {
-    "beforeBuildCommand": "cd frontend-tauri && npm run build",
-    "beforeDevCommand": "cd frontend-tauri && npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run dev",
     "devPath": "http://localhost:4565",
-    "distDir": "../frontend-tauri/dist/"
+    "distDir": "../dist/"
   },
   "package": {
     "productName": "ocedeclare-tauri",
