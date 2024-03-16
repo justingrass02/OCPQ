@@ -5,6 +5,9 @@ import { defineConfig } from "vite";
 export default defineConfig({
   server: {
     port: 4565,
+    fs: {
+      allow: ["../../"]
+    }
   },
   build: {
     sourcemap: true,
