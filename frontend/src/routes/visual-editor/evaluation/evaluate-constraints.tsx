@@ -29,7 +29,7 @@ type TreeNodeConnection = {
   // eventType: EventTypeNodeData["eventType"];
 };
 
-type NewTreeNode = {
+export type NewTreeNode = {
   id: string;
   parents: TreeNodeConnection[];
   children: TreeNodeConnection[];
@@ -62,11 +62,11 @@ function replaceInfinity(x: number) {
   return x;
 }
 
-export async function evaluateConstraints(
+export function evaluateConstraints(
   variables: ObjectVariable[],
   nodes: Node<EventTypeNodeData | GateNodeData>[],
   edges: Edge<EventTypeLinkData | GateLinkData>[],
-): Promise<ViolationsPerNodes> {
+): { variables: ObjectVariable[]; inputNodes: NewTreeNode[] } {
   console.log({ variables, nodes });
   function getGateNodeType(node: Node<GateNodeData>): TreeNodeType {
     const outTargetNodeIDs = edges
@@ -285,50 +285,5 @@ export async function evaluateConstraints(
     ...Object.values(disconnectedTreeNodes),
     ...reachableFromRootIDs.map((id) => connectedTreeNodes[id]),
   ];
-  // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-  const [sizes, violations] = await toast.promise(
-    callCheckConstraintsEndpoint(variables, inputNodes),
-    {
-      loading: "Evaluating...",
-      success: ([sizes, violations]) => (
-        <span>
-          <b>Evaluation finished</b>
-          <br />
-          <span>
-            Bindings per step:
-            <br />
-            <span className="font-mono">{sizes.join(", ")}</span>
-            <br />
-            Violations per step:
-            <br />
-            <span className="font-mono">
-              {violations.map((vs) => vs.length).join(", ")}
-            </span>
-          </span>
-        </span>
-      ),
-      error: "Evaluation failed",
-    },
-  );
-
-  return violations.map((vs, i) => ({
-    nodeID: inputNodes[i].id,
-    violations: vs,
-    numBindings: sizes[i],
-  }));
-}
-
-async function callCheckConstraintsEndpoint(
-  variables: ObjectVariable[],
-  nodesOrder: NewTreeNode[],
-) {
-  const res = await fetch("http://localhost:3000/ocel/check-constraints", {
-    method: "post",
-    body: JSON.stringify({ variables, nodesOrder }),
-    headers: { "Content-Type": "application/json" },
-  });
-  const matchingSizesAndViolations: [number[], Violation[][]] =
-    await res.json();
-  console.log({ matchingSizesAndViolations });
-  return matchingSizesAndViolations;
+  return { variables, inputNodes };
 }

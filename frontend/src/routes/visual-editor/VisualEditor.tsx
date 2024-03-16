@@ -61,6 +61,7 @@ import {
   type ViolationsPerNodes,
 } from "./helper/types";
 import { MdClear } from "react-icons/md";
+import { BackendProviderContext } from "@/BackendProviderContext";
 
 interface VisualEditorProps {
   ocelInfo: OCELInfo;
@@ -90,6 +91,8 @@ export default function VisualEditor(props: VisualEditorProps) {
   }, [otherData?.nodes, otherData?.edges, instance]);
 
   const { objectVariables } = useContext(ConstraintInfoContext);
+
+  const backend = useContext(BackendProviderContext);
 
   const onConnect = useCallback(
     ({ source, sourceHandle, target, targetHandle }: Edge | Connection) => {
@@ -449,9 +452,10 @@ export default function VisualEditor(props: VisualEditorProps) {
               );
             }}
           />
-          <Button size="icon"
+          <Button
+            size="icon"
             variant="outline"
-            title={mode !== "view-tree" ? "Evaluate" : "Edit"}
+            title={"Clear evaluation"}
             className=""
             onClick={async () => {
               setViolationInfo({});
@@ -468,11 +472,42 @@ export default function VisualEditor(props: VisualEditorProps) {
             title={mode !== "view-tree" ? "Evaluate" : "Edit"}
             className="bg-fuchsia-100 border-fuchsia-300 hover:bg-fuchsia-200 hover:border-fuchsia-300"
             onClick={async () => {
-              const res = await evaluateConstraints(
+              const { variables, inputNodes } = evaluateConstraints(
                 objectVariables,
                 nodes,
                 edges,
               );
+              console.log({variables, inputNodes})
+              const [sizes, violations] = await toast.promise(
+                backend["ocel/check-constraints"](variables, inputNodes),
+                {
+                  loading: "Evaluating...",
+                  success: ([sizes, violations]) => (
+                    <span>
+                      <b>Evaluation finished</b>
+                      <br />
+                      <span>
+                        Bindings per step:
+                        <br />
+                        <span className="font-mono">{sizes.join(", ")}</span>
+                        <br />
+                        Violations per step:
+                        <br />
+                        <span className="font-mono">
+                          {violations.map((vs) => vs.length).join(", ")}
+                        </span>
+                      </span>
+                    </span>
+                  ),
+                  error: "Evaluation failed",
+                },
+              );
+
+              const res = violations.map((vs, i) => ({
+                nodeID: inputNodes[i].id,
+                violations: vs,
+                numBindings: sizes[i],
+              }));
               setViolationInfo((vi) => ({ ...vi, violationsPerNode: res }));
               flushData({ violations: res, objectVariables });
             }}
@@ -532,9 +567,11 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
               {violationDetails?.violations.length > VIOLATIONS_TO_SHOW && (
                 <>
                   <br />
-                 { <span className="text-xs">
-                    Showing only the first {VIOLATIONS_TO_SHOW} Violations
-                  </span>}
+                  {
+                    <span className="text-xs">
+                      Showing only the first {VIOLATIONS_TO_SHOW} Violations
+                    </span>
+                  }
                 </>
               )}
             </SheetDescription>

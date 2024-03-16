@@ -41,6 +41,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { BackendProviderContext } from "@/BackendProviderContext";
 const LOCALSTORAGE_SAVE_KEY_DATA = "oced-declare-data";
 const LOCALSTORAGE_SAVE_KEY_CONSTRAINTS_META = "oced-declare-meta";
 
@@ -64,10 +65,11 @@ export default function VisualEditorOuter() {
         }
       | undefined;
   }>({});
+  const backend = useContext(BackendProviderContext);
   useEffect(() => {
     toast
       .promise(
-        fetch("http://localhost:3000/ocel/event-qualifiers", { method: "get" }),
+        backend["ocel/event-qualifiers"](),
         {
           loading: "Fetching qualifier info...",
           success: "Loaded qualifier info",
@@ -76,8 +78,7 @@ export default function VisualEditorOuter() {
         { id: "fetch-event-qualifiers" },
       )
       .then(async (res) => {
-        const json: EventTypeQualifiers = await res.json();
-        setQualifiers(json);
+        setQualifiers(res);
       })
       .catch((e) => {
         console.error(e);
@@ -87,9 +88,7 @@ export default function VisualEditorOuter() {
   useEffect(() => {
     toast
       .promise(
-        fetch("http://localhost:3000/ocel/object-qualifiers", {
-          method: "get",
-        }),
+        backend["ocel/object-qualifiers"](),
         {
           loading: "Fetching object qualifier info...",
           success: "Loaded object qualifier info",
@@ -97,9 +96,8 @@ export default function VisualEditorOuter() {
         },
         { id: "fetch-object-qualifiers" },
       )
-      .then(async (res) => {
-        const json: ObjectTypeQualifiers = await res.json();
-        setObjectQualifiers(json);
+      .then((res) => {
+        setObjectQualifiers(res);
       })
       .catch((e) => {
         console.error(e);
@@ -258,7 +256,12 @@ export default function VisualEditorOuter() {
                       content={({ data, setData }) => {
                         return (
                           <div>
-                            <Accordion type="multiple" defaultValue={Object.entries(data).filter(([k,v]) => v.enabled).map(([k,v]) => k)}>
+                            <Accordion
+                              type="multiple"
+                              defaultValue={Object.entries(data)
+                                .filter(([k, v]) => v.enabled)
+                                .map(([k, v]) => k)}
+                            >
                               <AccordionItem value="countConstraints">
                                 <AccordionTrigger>
                                   <h3 className="text-lg text-gray-900 flex gap-x-2 items-center">
@@ -270,12 +273,17 @@ export default function VisualEditorOuter() {
                                         const newData = { ...data };
                                         newData.countConstraints.enabled =
                                           !newData.countConstraints.enabled;
-                                          if(newData.countConstraints.enabled){
-                                            const d = ev.currentTarget.parentElement?.parentElement;
-                                            if(d !== null && d?.dataset.state === "closed"){
-                                              d.click();
-                                            }
+                                        if (newData.countConstraints.enabled) {
+                                          const d =
+                                            ev.currentTarget.parentElement
+                                              ?.parentElement;
+                                          if (
+                                            d !== null &&
+                                            d?.dataset.state === "closed"
+                                          ) {
+                                            d.click();
                                           }
+                                        }
                                         setData(newData);
                                       }}
                                     />
@@ -388,12 +396,20 @@ export default function VisualEditorOuter() {
                                         newData.eventuallyFollowsConstraints.enabled =
                                           !newData.eventuallyFollowsConstraints
                                             .enabled;
-                                            if(newData.eventuallyFollowsConstraints.enabled){
-                                              const d = ev.currentTarget.parentElement?.parentElement;
-                                              if(d !== null && d?.dataset.state === "closed"){
-                                                d.click();
-                                              }
-                                            }
+                                        if (
+                                          newData.eventuallyFollowsConstraints
+                                            .enabled
+                                        ) {
+                                          const d =
+                                            ev.currentTarget.parentElement
+                                              ?.parentElement;
+                                          if (
+                                            d !== null &&
+                                            d?.dataset.state === "closed"
+                                          ) {
+                                            d.click();
+                                          }
+                                        }
                                         setData(newData);
                                       }}
                                     />
@@ -513,12 +529,17 @@ export default function VisualEditorOuter() {
                                         newData.orConstraints.enabled =
                                           !newData.orConstraints.enabled;
 
-                                          if(newData.orConstraints.enabled){
-                                            const d = ev.currentTarget.parentElement?.parentElement;
-                                            if(d !== null && d?.dataset.state === "closed"){
-                                              d.click();
-                                            }
+                                        if (newData.orConstraints.enabled) {
+                                          const d =
+                                            ev.currentTarget.parentElement
+                                              ?.parentElement;
+                                          if (
+                                            d !== null &&
+                                            d?.dataset.state === "closed"
+                                          ) {
+                                            d.click();
                                           }
+                                        }
                                         setData(newData);
                                       }}
                                     />
@@ -612,17 +633,8 @@ export default function VisualEditorOuter() {
                         }
                         await toast
                           .promise(
-                            fetch(
-                              "http://localhost:3000/ocel/discover-constraints",
-                              {
-                                method: "post",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify(reqData),
-                              },
-                            )
-                              .then(async (res) => {
-                                const json =
-                                  (await res.json()) as DiscoverConstraintsResponse;
+                            backend["ocel/discover-constraints"](reqData)
+                              .then(async (json) => {
                                 console.log({ json });
                                 const updatedConstraints = [...constraints];
                                 let index = constraints.length;

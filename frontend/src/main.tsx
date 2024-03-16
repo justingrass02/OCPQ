@@ -1,28 +1,19 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App.tsx";
-import "./index.css";
-import { RouterProvider, createBrowserRouter } from "react-router-dom";
-import ErrorPage from "./ErrorPage.tsx";
 import { Toaster } from "react-hot-toast";
-import OuterVisualEditor from "./routes/visual-editor/outer-visual-editor/OuterVisualEditor.tsx";
-import OcelInfoViewer from "./routes/ocel-info/OcelInfoViewer.tsx";
-const router = createBrowserRouter([
-  {
-    path: "/",
-    element: <App />,
-    errorElement: <ErrorPage />,
-    children: [
-      { path: "/beta", element: <OuterVisualEditor /> },
-      { path: "/ocel-info", element: <OcelInfoViewer /> },
-    ],
-  },
-]);
+import {
+  API_WEB_SERVER_BACKEND_PROVIDER,
+  BackendProviderContext,
+} from "./BackendProviderContext.ts";
+import "./index.css";
+import { MainRouterProvider } from "./router.tsx";
 
 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <Toaster position="bottom-left" />
-    <RouterProvider router={router} />
+    <BackendProviderContext.Provider value={API_WEB_SERVER_BACKEND_PROVIDER}>
+      <Toaster position="bottom-left" />
+      <MainRouterProvider/>
+    </BackendProviderContext.Provider>
   </React.StrictMode>,
 );

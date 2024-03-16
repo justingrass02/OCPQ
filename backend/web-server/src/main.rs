@@ -15,17 +15,17 @@ use itertools::Itertools;
 use ocedeclare_shared::{
     constraints::{check_with_tree, CheckWithTreeRequest, ViolationsWithoutID},
     discovery::{
-        auto_discover_count_constraints, auto_discover_eventually_follows,
-        auto_discover_or_constraints, get_obj_types_per_ev_type, AutoDiscoverConstraintsRequest,
-        AutoDiscoverConstraintsResponse,
+        auto_discover_constraints_with_options, auto_discover_count_constraints,
+        auto_discover_eventually_follows, auto_discover_or_constraints, get_obj_types_per_ev_type,
+        AutoDiscoverConstraintsRequest, AutoDiscoverConstraintsResponse,
     },
     ocel_qualifiers::qualifiers::{
         get_qualifiers_for_event_types, QualifierAndObjectType, QualifiersForEventType,
     },
     preprocessing::preprocess::link_ocel_info,
+    OCELInfo,
 };
-use process_mining::event_log::ocel::ocel_struct::{OCELType, OCEL};
-use serde::{Deserialize, Serialize};
+use process_mining::event_log::ocel::ocel_struct::OCEL;
 use tower_http::cors::CorsLayer;
 
 use crate::load_ocel::{
@@ -86,25 +86,6 @@ pub async fn get_loaded_ocel_info(
     match with_ocel_from_state(&State(state), |ocel| ocel.into()) {
         Some(ocel_info) => (StatusCode::OK, Json(Some(ocel_info))),
         None => (StatusCode::NOT_FOUND, Json(None)),
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct OCELInfo {
-    pub num_objects: usize,
-    pub num_events: usize,
-    pub object_types: Vec<OCELType>,
-    pub event_types: Vec<OCELType>,
-}
-
-impl From<&OCEL> for OCELInfo {
-    fn from(val: &OCEL) -> Self {
-        OCELInfo {
-            num_objects: val.objects.len(),
-            num_events: val.events.len(),
-            object_types: val.object_types.clone(),
-            event_types: val.event_types.clone(),
-        }
     }
 }
 
@@ -171,43 +152,6 @@ pub async fn auto_discover_constraints_handler(
     Json(req): Json<AutoDiscoverConstraintsRequest>,
 ) -> Json<Option<AutoDiscoverConstraintsResponse>> {
     Json(with_ocel_from_state(&state, |ocel| {
-        let linked_ocel = link_ocel_info(ocel);
-        let obj_types_per_ev_type = get_obj_types_per_ev_type(&linked_ocel);
-        let count_constraints = match req.count_constraints {
-            Some(count_options) => auto_discover_count_constraints(
-                ocel,
-                &obj_types_per_ev_type,
-                &linked_ocel,
-                None,
-                count_options,
-            ),
-            None => Vec::new(),
-        };
-        let eventually_follows_constraints = match req.eventually_follows_constraints {
-            Some(eventually_follows_options) => {
-                auto_discover_eventually_follows(&linked_ocel, None, eventually_follows_options)
-            }
-            None => Vec::new(),
-        };
-        let or_constraints = match req.or_constraints {
-            Some(or_constraint_option) => auto_discover_or_constraints(
-                ocel,
-                &linked_ocel,
-                &obj_types_per_ev_type,
-                or_constraint_option,
-            ),
-            None => Vec::new(),
-        };
-        AutoDiscoverConstraintsResponse {
-            count_constraints: count_constraints
-                .into_iter()
-                .map(|c| c.constraint)
-                .collect(),
-            eventually_follows_constraints: eventually_follows_constraints
-                .into_iter()
-                .map(|efc| efc.constraint)
-                .collect(),
-            or_constraints,
-        }
+        auto_discover_constraints_with_options(ocel, req)
     }))
 }

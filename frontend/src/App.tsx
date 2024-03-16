@@ -5,14 +5,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { Outlet, useLocation } from "react-router-dom";
+// import { Outlet, useLocation } from "react-router-dom";
 import "./App.css";
 import MenuLink from "./components/MenuLink";
 import Spinner from "./components/Spinner";
 import { Button } from "./components/ui/button";
 import { type OCELInfo } from "./types/ocel";
+import { BackendProviderContext } from "./BackendProviderContext";
+import { Outlet, useLocation } from "react-router-dom";
 
 export const OcelInfoContext = createContext<OCELInfo | undefined>(undefined);
 
@@ -22,38 +24,46 @@ function App() {
 
   const location = useLocation();
   const isAtRoot = location.pathname === "/";
-
   const [availableOcels, setAvailableOcels] = useState<string[]>([]);
   const [selectedOcel, setSelectedOcel] = useState<string>();
+  const backend = useContext(BackendProviderContext);
   useEffect(() => {
-    fetch("http://localhost:3000/ocel/info", { method: "get" })
-      .then(async (res) => {
-        if (res.ok) {
-          const json: OCELInfo = await res.json();
-          console.log({ json });
-          setOcelInfo(json);
-        }
+    void toast
+      .promise(backend["ocel/info"](), {
+        loading: "Loading OCEL Info",
+        success: "Got OCEL info",
+        error: "Failed to load OCEL info",
       })
-      .catch(() => {});
-    fetch("http://localhost:3000/ocel/available", { method: "get" })
-      .then(async (res) => {
-        const json: string[] = await res.json();
-        setAvailableOcels(json);
-        console.log(json);
+      .then((info) => {
+        setOcelInfo(info);
+      });
+
+    void toast
+      .promise(backend["ocel/available"](), {
+        loading: "Loading available OCEL",
+        success: "Got available OCEL",
+        error: "Failed to load available OCEL",
       })
-      .catch((e) => {
-        console.error(e);
+      .then((res) => {
+        setAvailableOcels(res);
       });
   }, []);
 
   async function loadOcel() {
-    const res = await fetch("http://localhost:3000/ocel/load", {
-      method: "post",
-      body: JSON.stringify({ name: selectedOcel }),
-      headers: { "Content-Type": "application/json" },
-    });
-    const ocelInfo: OCELInfo = await res.json();
-    setOcelInfo(ocelInfo);
+    if (selectedOcel == null) {
+      console.warn("No valid OCEL selected");
+      return;
+    }
+    await toast.promise(
+      backend["ocel/load"](selectedOcel).then((ocelInfo) => {
+        setOcelInfo(ocelInfo);
+      }),
+      {
+        loading: "Importing OCEL...",
+        success: "Imported OCEL",
+        error: "Failed to import OCEL",
+      },
+    );
   }
 
   return (

@@ -1,11 +1,12 @@
 use std::{fs::File, io::BufReader};
 
 use axum::{extract::State, http::StatusCode, Json};
+use ocedeclare_shared::OCELInfo;
 use serde::{Deserialize, Serialize};
 
 use process_mining::event_log::ocel::ocel_struct::OCEL;
 
-use crate::{AppState, OCELInfo};
+use crate::AppState;
 
 #[derive(Deserialize, Serialize)]
 pub struct LoadOcel {

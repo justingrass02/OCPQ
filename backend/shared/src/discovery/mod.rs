@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     constraints::{CountConstraint, EventType, SecondsRange},
-    preprocessing::preprocess::LinkedOCEL,
+    preprocessing::preprocess::{link_ocel_info, LinkedOCEL},
 };
 
 use self::evaluation::{get_count_constraint_fraction, get_ef_constraint_fraction};
@@ -570,4 +570,48 @@ pub struct AutoDiscoverConstraintsResponse {
     pub count_constraints: Vec<SimpleDiscoveredCountConstraints>,
     pub eventually_follows_constraints: Vec<EventuallyFollowsConstraints>,
     pub or_constraints: Vec<AutoDiscoveredORConstraint>,
+}
+
+pub fn auto_discover_constraints_with_options(
+    ocel: &OCEL,
+    options: AutoDiscoverConstraintsRequest,
+) -> AutoDiscoverConstraintsResponse {
+    let linked_ocel = link_ocel_info(ocel);
+    let obj_types_per_ev_type = get_obj_types_per_ev_type(&linked_ocel);
+    let count_constraints = match options.count_constraints {
+        Some(count_options) => auto_discover_count_constraints(
+            ocel,
+            &obj_types_per_ev_type,
+            &linked_ocel,
+            None,
+            count_options,
+        ),
+        None => Vec::new(),
+    };
+    let eventually_follows_constraints = match options.eventually_follows_constraints {
+        Some(eventually_follows_options) => {
+            auto_discover_eventually_follows(&linked_ocel, None, eventually_follows_options)
+        }
+        None => Vec::new(),
+    };
+    let or_constraints = match options.or_constraints {
+        Some(or_constraint_option) => auto_discover_or_constraints(
+            ocel,
+            &linked_ocel,
+            &obj_types_per_ev_type,
+            or_constraint_option,
+        ),
+        None => Vec::new(),
+    };
+    AutoDiscoverConstraintsResponse {
+        count_constraints: count_constraints
+            .into_iter()
+            .map(|c| c.constraint)
+            .collect(),
+        eventually_follows_constraints: eventually_follows_constraints
+            .into_iter()
+            .map(|efc| efc.constraint)
+            .collect(),
+        or_constraints,
+    }
 }
