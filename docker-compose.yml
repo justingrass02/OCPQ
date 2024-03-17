@@ -1,0 +1,9 @@
+services:
+  ocedeclare-frontend:
+    build: ./frontend
+    ports:
+      - "4567:4567"
+  ocedeclare-backend:
+    build: ./backend
+    ports:
+      - "3000:3000"
