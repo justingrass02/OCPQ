@@ -55,25 +55,31 @@ pub async fn load_ocel_file_req(
 
 pub fn load_ocel_file_to_state(name: &str, state: &AppState) -> Option<OCELInfo> {
     match load_ocel_file(name) {
-        Some(ocel) => {
+        Ok(ocel) => {
             let ocel_info: OCELInfo = (&ocel).into();
 
             let mut x = state.ocel.write().unwrap();
             *x = Some(ocel);
             Some(ocel_info)
         }
-        None => None,
+        Err(e) => {
+            eprintln!("Error importing OCEL: {:?}", e);
+            None
+        }
     }
 }
 
-pub fn load_ocel_file(name: &str) -> Option<OCEL> {
+pub fn load_ocel_file(name: &str) -> Result<OCEL, std::io::Error> {
     match OCEL_PATHS.iter().find(|op| op.name == name) {
         Some(ocel_path) => {
-            let file = File::open(ocel_path.path).unwrap();
+            let file = File::open(ocel_path.path)?;
             let reader = BufReader::new(file);
-            let ocel: OCEL = serde_json::from_reader(reader).unwrap();
-            Some(ocel)
+            let ocel: OCEL = serde_json::from_reader(reader)?;
+            Ok(ocel)
         }
-        None => None,
+        None => Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "OCEL with that name not found",
+        )),
     }
 }

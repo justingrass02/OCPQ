@@ -1,4 +1,7 @@
 ## Docker
+Note: Currently the API web server infrastructure used in the docker version only supports hardcoded included OCEL2 files.
+Make sure to include at least some of the following OCEL2 files in  `./backend/data/`: `order-management.json`, `ocel2-p2p.json`, `ContainerLogistics.json`(available at https://www.ocel-standard.org/event-logs/overview/).
+
 
 - __backend__:
   1. First build using `sudo docker build ./backend -t ocedeclare-backend`
