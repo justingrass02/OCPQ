@@ -14,8 +14,10 @@ import { createContext } from "react";
 
 export type BackendProvider = {
   "ocel/info": () => Promise<OCELInfo>;
-  "ocel/available": () => Promise<string[]>;
-  "ocel/load": (name: string) => Promise<OCELInfo>;
+  "ocel/upload"?: (file: File) => Promise<OCELInfo>;
+  "ocel/available"?: () => Promise<string[]>;
+  "ocel/load"?: (name: string) => Promise<OCELInfo>;
+  "ocel/picker"?: () => Promise<OCELInfo>;
   "ocel/check-constraints": (
     variables: ObjectVariable[],
     nodesOrder: NewTreeNode[],
@@ -36,8 +38,6 @@ export async function warnForNoBackendProvider<T>(): Promise<T> {
 
 export const BackendProviderContext = createContext<BackendProvider>({
   "ocel/info": warnForNoBackendProvider,
-  "ocel/available": warnForNoBackendProvider,
-  "ocel/load": warnForNoBackendProvider,
   "ocel/check-constraints": warnForNoBackendProvider,
   "ocel/event-qualifiers": warnForNoBackendProvider,
   "ocel/object-qualifiers": warnForNoBackendProvider,
@@ -53,6 +53,15 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
   "ocel/available": async () => {
     return await (
       await fetch("http://localhost:3000/ocel/available", { method: "get" })
+    ).json();
+  },
+  "ocel/upload": async (ocelFile) => {
+    const type = ocelFile.name.endsWith(".json") ? "json" : "xml";
+    return await (
+      await fetch(`http://localhost:3000/ocel/upload-${type}`, {
+        method: "post",
+        body: ocelFile,
+      })
     ).json();
   },
   "ocel/load": async (name) => {

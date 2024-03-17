@@ -390,18 +390,21 @@ pub fn check_with_tree(
                             BoundValue::Multiple(_) => todo!(),
                         }
                     }
-                    None => linked_ocel
-                        .objects_of_type
-                        .get(&v.object_type)
-                        .unwrap()
-                        .iter()
-                        .map(|obj| {
-                            let mut new_bound_val = bound_val.clone();
-                            new_bound_val
-                                .insert(v.name.clone(), BoundValue::Single(obj.id.clone()));
-                            (add_info.clone(), new_bound_val)
-                        })
-                        .collect_vec(),
+                    None => match linked_ocel.objects_of_type.get(&v.object_type) {
+                        Some(objs) => objs
+                            .iter()
+                            .map(|obj| {
+                                let mut new_bound_val = bound_val.clone();
+                                new_bound_val
+                                    .insert(v.name.clone(), BoundValue::Single(obj.id.clone()));
+                                (add_info.clone(), new_bound_val)
+                            })
+                            .collect_vec(),
+                        None =>{
+                            eprintln!("Object type {} not found!",v.object_type);
+                            Vec::new()
+                        },
+                    },
                 })
                 .collect();
         }

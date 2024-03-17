@@ -20,11 +20,7 @@ const tauriBackend: BackendProvider = {
     const ocelInfo: OCELInfo = await invoke("get_current_ocel_info");
     return ocelInfo;
   },
-  "ocel/available": async () => {
-    return ["Select file manually..."];
-  },
-  "ocel/load": async (fileName: string) => {
-    console.log(fileName);
+  "ocel/picker": async () => {
     const path = await dialog.open({
       title: "Select an OCEL2 file",
       filters: [{ name: "OCEL2", extensions: ["json", "xml"] }],
@@ -33,8 +29,9 @@ const tauriBackend: BackendProvider = {
       const ocelInfo: OCELInfo = await invoke("import_ocel", { path });
       return ocelInfo;
     }
-    throw new Error("No valid OCEL path");
+    throw new Error("No file selected");
   },
+
   "ocel/check-constraints": async (variables, nodes) => {
     return await invoke("check_constraint_with_tree", { variables, nodes });
   },

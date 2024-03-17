@@ -1,16 +1,16 @@
-use std::{
-    collections::{HashMap, HashSet},
-    env,
-    sync::{Arc, RwLock},
-};
-
 use axum::{
-    extract::State,
+    body::Bytes,
+    extract::{DefaultBodyLimit, State},
     http::{header::CONTENT_TYPE, Method, StatusCode},
     routing::{get, post},
     Json, Router,
 };
 use itertools::Itertools;
+use std::{
+    collections::{HashMap, HashSet},
+    env,
+    sync::{Arc, RwLock},
+};
 
 use ocedeclare_shared::{
     constraints::{check_with_tree, CheckWithTreeRequest, ViolationsWithoutID},
@@ -24,7 +24,9 @@ use ocedeclare_shared::{
     preprocessing::preprocess::link_ocel_info,
     OCELInfo,
 };
-use process_mining::event_log::ocel::ocel_struct::OCEL;
+use process_mining::{
+    event_log::ocel::ocel_struct::OCEL, import_ocel_xml_slice,
+};
 use tower_http::cors::CorsLayer;
 
 use crate::load_ocel::{
@@ -55,6 +57,14 @@ async fn main() {
     let app = Router::new()
         .route("/ocel/load", post(load_ocel_file_req))
         .route("/ocel/info", get(get_loaded_ocel_info))
+        .route(
+            "/ocel/upload-json",
+            post(upload_ocel_json).layer(DefaultBodyLimit::disable()),
+        )
+        .route(
+            "/ocel/upload-xml",
+            post(upload_ocel_xml).layer(DefaultBodyLimit::disable()),
+        )
         .route("/ocel/available", get(get_available_ocels))
         .route(
             "/ocel/event-qualifiers",
@@ -86,6 +96,29 @@ pub async fn get_loaded_ocel_info(
         Some(ocel_info) => (StatusCode::OK, Json(Some(ocel_info))),
         None => (StatusCode::NOT_FOUND, Json(None)),
     }
+}
+
+async fn upload_ocel_xml(
+    State(state): State<AppState>,
+    ocel_bytes: Bytes,
+) -> (StatusCode, Json<OCELInfo>) {
+    let ocel = import_ocel_xml_slice(&ocel_bytes);
+    let mut x = state.ocel.write().unwrap();
+    let ocel_info: OCELInfo = (&ocel).into();
+    *x = Some(ocel);
+
+    (StatusCode::OK, Json(ocel_info))
+}
+
+async fn upload_ocel_json(
+    State(state): State<AppState>,
+    ocel_bytes: Bytes,
+) -> (StatusCode, Json<OCELInfo>) {
+    let ocel: OCEL = serde_json::from_slice(&ocel_bytes).unwrap();
+    let mut x = state.ocel.write().unwrap();
+    let ocel_info: OCELInfo = (&ocel).into();
+    *x = Some(ocel);
+    (StatusCode::OK, Json(ocel_info))
 }
 
 pub fn with_ocel_from_state<T, F>(State(state): &State<AppState>, f: F) -> Option<T>

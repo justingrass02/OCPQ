@@ -111,7 +111,7 @@ export default function EventTypeNode({
   }
   const countConstraint = getCountConstraint();
   const canAddObjects =
-    objectVariables.filter((ot) => qualifierPerObjectType[ot.type].length > 0)
+    objectVariables.filter((ot) => qualifierPerObjectType[ot.type]?.length > 0)
       .length > 0;
   return (
     <div
@@ -485,6 +485,9 @@ export default function EventTypeNode({
                     label: `${ov.name} (${ov.type})`,
                   }))
               : objectVariables.flatMap((ot) => {
+                  if (qualifierPerObjectType[ot.type] == null) {
+                    return [];
+                  }
                   return qualifierPerObjectType[ot.type]
                     .filter(
                       (qualifier) =>
