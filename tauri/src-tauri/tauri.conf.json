@@ -54,7 +54,7 @@
         "digestAlgorithm": "sha256",
         "timestampUrl": "",
         "nsis": {
-          "installerIcon": "./icons/128x128.png",
+          "installerIcon": "./icons/icon.ico",
           "displayLanguageSelector": true
         }
       }
