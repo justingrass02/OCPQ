@@ -134,17 +134,12 @@ export default function ConstraintContainer({
                               // const valWithCorrectCaps = ocelInfo.object_types.find(
                               //   (o) => o.name.toLowerCase() === val,
                               // )?.name;
-                              console.log({ valWithCorrectCaps });
                               if (
                                 valWithCorrectCaps == null ||
                                 valWithCorrectCaps === ""
                               ) {
                                 return;
                               }
-                              console.log(
-                                { valWithCorrectCaps },
-                                ocelInfo.object_types,
-                              );
                               if (
                                 editMetaInfoData.name === "" ||
                                 editMetaInfoData.name.match(

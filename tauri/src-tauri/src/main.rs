@@ -37,7 +37,7 @@ fn import_ocel(path: &str, state: tauri::State<OCELStore>) -> Result<OCELInfo, S
 fn get_current_ocel_info(state: tauri::State<OCELStore>) -> Result<OCELInfo, String> {
     let res: Result<OCELInfo, String> = match state.lock().unwrap().as_ref() {
         Some(ocel) => Ok(ocel.into()),
-        None => Err(format!("No OCEL loaded")),
+        None => Err("No OCEL loaded".to_string()),
     };
     res
 }
@@ -48,7 +48,7 @@ fn get_event_qualifiers(
 ) -> Result<HashMap<String, HashMap<String, QualifiersForEventType>>, String> {
     match state.lock().unwrap().as_ref() {
         Some(ocel) => Ok(get_qualifiers_for_event_types(ocel)),
-        None => Err(format!("No OCEL loaded")),
+        None => Err("No OCEL loaded".to_string()),
     }
 }
 
@@ -58,7 +58,7 @@ fn get_object_qualifiers(
 ) -> Result<HashMap<String, HashSet<(String, String)>>, String> {
     match state.lock().unwrap().as_ref() {
         Some(ocel) => Ok(link_ocel_info(ocel).object_rels_per_type),
-        None => Err(format!("No OCEL loaded")),
+        None => Err("No OCEL loaded".to_string()),
     }
 }
 
@@ -70,7 +70,7 @@ fn check_constraint_with_tree(
 ) -> Result<(Vec<usize>, Vec<ViolationsWithoutID>), String> {
     match state.lock().unwrap().as_ref() {
         Some(ocel) => Ok(check_with_tree(variables, nodes, ocel)),
-        None => Err(format!("No OCEL loaded")),
+        None => Err("No OCEL loaded".to_string()),
     }
 }
 
@@ -81,7 +81,7 @@ fn auto_discover_constraints(
 ) -> Result<AutoDiscoverConstraintsResponse, String> {
     match state.lock().unwrap().as_ref() {
         Some(ocel) => Ok(auto_discover_constraints_with_options(ocel, options)),
-        None => Err(format!("No OCEL loaded")),
+        None => Err("No OCEL loaded".to_string()),
     }
 }
 

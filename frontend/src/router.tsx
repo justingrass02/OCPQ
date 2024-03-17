@@ -4,25 +4,13 @@ import OuterVisualEditor from "./routes/visual-editor/outer-visual-editor/OuterV
 import OcelInfoViewer from "./routes/ocel-info/OcelInfoViewer.tsx";
 import ErrorPage from "./ErrorPage.tsx";
 
-// export const router = createBrowserRouter([
-//   {
-//     path: "/",
-//     element: <App />,
-//     errorElement: <ErrorPage />,
-//     children: [
-//       { path: "/beta", element: <OuterVisualEditor /> },
-//       { path: "/ocel-info", element: <OcelInfoViewer /> },
-//     ],
-//   },
-// ]);
-
 const router = createBrowserRouter([
   {
     path: "/",
     element: <App />,
     errorElement: <ErrorPage />,
     children: [
-      { path: "/beta", element: <OuterVisualEditor /> },
+      { path: "/constraints", element: <OuterVisualEditor /> },
       { path: "/ocel-info", element: <OcelInfoViewer /> },
     ],
   },

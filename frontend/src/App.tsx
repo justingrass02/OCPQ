@@ -70,24 +70,19 @@ function App() {
     <OcelInfoContext.Provider value={ocelInfo}>
       <div className="max-w-full overflow-hidden h-screen text-center grid grid-cols-[15rem_auto]">
         <div className="bg-gray-50 border-r border-r-slate-200 px-2">
-          <div className="flex justify-center py-2 px-2">
-            <h1 className="text-pink-500 opacity-90 py-1 text-2xl font-black">
-              OCED
-            </h1>
-            <h1 className="text-blue-500 opacity-90 py-1 text-2xl font-black -ml-[0.5ch]">
-              DECLARE
-            </h1>
-          </div>
+        <img src="/favicon.png" className="w-[7rem] h-[7rem] mx-auto my-4"/>
           <div className="flex flex-col gap-2">
             {ocelInfo !== undefined && (
-              <span className="flex flex-col items-start mx-auto">
-                <span className="font-mono">{ocelInfo.num_events} Events</span>
+              <span className="flex flex-col items-center mx-auto text-xl">
+                <span className=" font-semibold text-green-700">OCEL loaded</span>
+                <span>{ocelInfo.num_events} Events</span>
+                <span>{ocelInfo.num_objects} Objects</span>
               </span>
             )}
             {ocelInfo !== undefined && (
               <>
-                <MenuLink to="/ocel-info">View OCEL Info</MenuLink>
-                <MenuLink to="/beta">Open Beta</MenuLink>
+                <MenuLink to="/ocel-info">OCEL Info</MenuLink>
+                <MenuLink to="/constraints">Constraints</MenuLink>
               </>
             )}
             <br />
@@ -98,16 +93,7 @@ function App() {
             )}
           </div>
         </div>
-        <div className="px-4 overflow-auto">
-          <div className="flex justify-center px-2 pt-4">
-            <h1 className="text-pink-500 opacity-90 py-1 text-5xl font-black">
-              OCED
-            </h1>
-            <h1 className="text-blue-500 opacity-90 py-1 text-5xl font-black -ml-[0.5ch]">
-              DECLARE
-            </h1>
-          </div>
-
+        <div className="px-4 overflow-auto py-8">
           {/* <Spinner loadingText="Importing OCEL..." spinning={loading} /> */}
           {isAtRoot && (
             <div className="">

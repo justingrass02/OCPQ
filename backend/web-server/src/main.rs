@@ -15,9 +15,8 @@ use itertools::Itertools;
 use ocedeclare_shared::{
     constraints::{check_with_tree, CheckWithTreeRequest, ViolationsWithoutID},
     discovery::{
-        auto_discover_constraints_with_options, auto_discover_count_constraints,
-        auto_discover_eventually_follows, auto_discover_or_constraints, get_obj_types_per_ev_type,
-        AutoDiscoverConstraintsRequest, AutoDiscoverConstraintsResponse,
+        auto_discover_constraints_with_options, AutoDiscoverConstraintsRequest,
+        AutoDiscoverConstraintsResponse,
     },
     ocel_qualifiers::qualifiers::{
         get_qualifiers_for_event_types, QualifierAndObjectType, QualifiersForEventType,

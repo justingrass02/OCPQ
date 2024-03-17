@@ -52,7 +52,11 @@
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
-        "timestampUrl": ""
+        "timestampUrl": "",
+        "nsis": {
+          "installerIcon": "./icons/128x128.png",
+          "displayLanguageSelector": true
+        }
       }
     },
     "security": {

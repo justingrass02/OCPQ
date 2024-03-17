@@ -12,8 +12,6 @@ pub mod preprocessing {
     pub mod tests;
 }
 
-
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OCELInfo {
     pub num_objects: usize,
@@ -32,4 +30,3 @@ impl From<&OCEL> for OCELInfo {
         }
     }
 }
-
