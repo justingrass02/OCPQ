@@ -243,6 +243,7 @@ export default function VisualEditor(props: VisualEditorProps) {
             setInstance(flow);
           }
         }}
+        maxZoom={10}
         edgeTypes={edgeTypes}
         nodeTypes={nodeTypes}
         nodes={nodes}
@@ -477,7 +478,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                 nodes,
                 edges,
               );
-              console.log({variables, inputNodes})
+              console.log({ variables, inputNodes });
               const [sizes, violations] = await toast.promise(
                 backend["ocel/check-constraints"](variables, inputNodes),
                 {
@@ -505,9 +506,18 @@ export default function VisualEditor(props: VisualEditorProps) {
 
               const res = violations.map((vs, i) => ({
                 nodeID: inputNodes[i].id,
-                violations: vs,
+                // Remove violations for "hideViolations" (not only visually)
+                // They can be very large and e.g., cause issues with the "save" feature
+                violations:
+                  (
+                    instance.getNode(inputNodes[i].id)
+                      ?.data as EventTypeNodeData
+                  ).hideViolations ?? false
+                    ? []
+                    : vs,
                 numBindings: sizes[i],
               }));
+              console.log("Evaluation res:", res);
               setViolationInfo((vi) => ({ ...vi, violationsPerNode: res }));
               flushData({ violations: res, objectVariables });
             }}

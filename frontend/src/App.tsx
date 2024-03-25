@@ -8,9 +8,7 @@ import {
 import { createContext, useContext, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 // import { Outlet, useLocation } from "react-router-dom";
-import {
-  PiSealCheckBold
-} from "react-icons/pi";
+import { PiSealCheckBold } from "react-icons/pi";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import "./App.css";
 import { BackendProviderContext } from "./BackendProviderContext";

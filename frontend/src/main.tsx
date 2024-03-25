@@ -13,7 +13,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BackendProviderContext.Provider value={API_WEB_SERVER_BACKEND_PROVIDER}>
       <Toaster position="bottom-left" />
-      <MainRouterProvider/>
+      <MainRouterProvider />
     </BackendProviderContext.Provider>
   </React.StrictMode>,
 );

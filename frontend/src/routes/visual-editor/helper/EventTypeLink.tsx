@@ -21,22 +21,46 @@ import {
   EdgeLabelRenderer,
   getBezierPath,
   type EdgeProps,
+  MarkerType,
+  type EdgeMarkerType,
 } from "reactflow";
 import type { EventTypeLinkData, TimeConstraint } from "./types";
 import { VisualEditorContext } from "./VisualEditorContext";
+import QuantifiedObjectEdge from "./QuantifiedObjectEdge";
 
-export default function EventTypeLink({
-  id,
-  sourceX,
-  sourceY,
-  targetX,
-  targetY,
-  sourcePosition,
-  targetPosition,
-  markerEnd,
-  data,
-  style = {},
-}: EdgeProps<EventTypeLinkData>) {
+// const markerEndStyle: EdgeMarkerType = {
+//   type: MarkerType.ArrowClosed,
+//   width: 15,
+//   height: 12,
+//   color: "blue",
+// };
+const STROKE_WIDTH = 2.5;
+const pathStyle = {
+  stroke: "#44444410",
+  strokeWidth: STROKE_WIDTH,
+};
+const pathStyle2 = {
+  stroke: "#6b9cef",
+  strokeWidth: STROKE_WIDTH,
+};
+const pathStyle3 = {
+  stroke: "#6befab",
+  strokeWidth: STROKE_WIDTH,
+};
+export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
+  const {
+    id,
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+    markerEnd,
+    data,
+    style = {},
+  } = props;
+  // TODO: Fix, currently needs to be calculated twice
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -45,10 +69,23 @@ export default function EventTypeLink({
     targetY,
     targetPosition,
   });
+
   const { onEdgeDataChange } = useContext(VisualEditorContext);
+
+  // markerEnd: {
+  //   type: MarkerType.ArrowClosed,
+  //   width: 15,
+  //   height: 12,
+  //   color,
+  // },
+  // style: {
+  //   strokeWidth: 2,
+  //   stroke: color,
+  // },
+  // gerMarkerId()
   return (
     <>
-      <BaseEdge path={edgePath} markerEnd={markerEnd} style={style} />
+      <QuantifiedObjectEdge {...props} />
       {data !== undefined && (
         <EdgeLabelRenderer>
           <div

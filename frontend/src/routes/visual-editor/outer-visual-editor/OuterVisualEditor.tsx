@@ -252,14 +252,14 @@ export default function VisualEditorOuter() {
                           ]);
                         }}
                       >
-                        <RxPlusCircled className="mr-2"/>
+                        <RxPlusCircled className="mr-2" />
                         Add Constraint
                       </Button>
                       <AlertHelper
                         mode="promise"
                         trigger={
                           <Button
-                          className="text-xl py-6 px-4"
+                            className="text-xl py-6 px-4"
                             title="Automatically Discover Constraints"
                             variant="outline"
                           >
@@ -807,9 +807,7 @@ export default function VisualEditorOuter() {
                       <LuSave />
                     </Button>
                   </div>
-                    <p className="mt-4 mb-2">
-                      {constraints.length} Constraints
-                      </p>
+                  <p className="mt-4 mb-2">{constraints.length} Constraints</p>
                   {constraints.length > 0 && (
                     <ToggleGroup
                       type="single"
@@ -837,7 +835,9 @@ export default function VisualEditorOuter() {
                             )}
                             title={c.name}
                           >
-                            <span className="w-[21ch] whitespace-nowrap overflow-hidden text-ellipsis">{c.name !== "" ? c.name : `Constraint ${i + 1}`}</span>
+                            <span className="w-[21ch] whitespace-nowrap overflow-hidden text-ellipsis">
+                              {c.name !== "" ? c.name : `Constraint ${i + 1}`}
+                            </span>
                           </ToggleGroupItem>
                           <AlertHelper
                             trigger={

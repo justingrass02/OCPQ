@@ -28,24 +28,24 @@ import {
 import type { EventTypeLinkData, GateLinkData, TimeConstraint } from "./types";
 import { VisualEditorContext } from "./VisualEditorContext";
 import { GATE_NODE_TYPE } from "./const";
+import QuantifiedObjectEdge from "./QuantifiedObjectEdge";
 
-export default function GateLink({
-  id,
-  source,
-  sourceHandleId,
-  target,
-  targetHandleId,
-  sourceX,
-  sourceY,
-  targetX,
-  targetY,
-  sourcePosition,
-  targetPosition,
-  markerEnd,
-  data,
-  style = {},
-}: EdgeProps<GateLinkData>) {
-  const {getNode} = useReactFlow();
+export default function GateLink(props: EdgeProps<GateLinkData>) {
+  const {
+    id,
+    sourceX,
+    sourceY,
+    source,
+    target,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+    markerEnd,
+    data,
+    style = {},
+  } = props;
+  const { getNode } = useReactFlow();
   const isSourceNodeGate = getNode(source)?.type === GATE_NODE_TYPE;
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -58,7 +58,8 @@ export default function GateLink({
   const { onEdgeDataChange } = useContext(VisualEditorContext);
   return (
     <>
-      <BaseEdge path={edgePath} markerEnd={markerEnd} style={style} />
+      <QuantifiedObjectEdge {...props} />
+      {/* <BaseEdge path={edgePath} markerEnd={markerEnd} style={style} /> */}
       <EdgeLabelRenderer>
         <div
           style={{

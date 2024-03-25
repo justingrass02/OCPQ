@@ -16,6 +16,7 @@ import { FlowContext } from "../helper/FlowContext";
 import type { ObjectVariable } from "../helper/types";
 import VisualEditor from "../VisualEditor";
 import { Input } from "@/components/ui/input";
+import { COLORS } from "../helper/colors";
 
 interface ConstraintContainerProps {
   qualifiers: EventTypeQualifiers;
@@ -60,8 +61,9 @@ export default function ConstraintContainer({
         <div className="flex flex-wrap gap-x-2 absolute ml-1 mt-1 z-10">
           {info.objectVariables.map((m, i) => (
             <div
-              className="text-center flex items-center px-1 bg-slate-100 rounded-md border cursor-help"
+              className="text-center flex items-center px-1 bg-slate-100 rounded-md border cursor-help text-xl font-semibold"
               key={i}
+              style={{ color: COLORS[i] }}
               title={
                 "Type: " +
                 m.type +
@@ -83,11 +85,16 @@ export default function ConstraintContainer({
                 <LuX />
               </button>
               {m.name}
-              {m.o2o != null && (
-                <span className="pl-2 text-gray-600">
-                  {m.o2o.qualifier}@{m.o2o.parentVariableName}
-                </span>
-              )}
+              <span className="font-normal text-gray-600 text-base">
+                {m.o2o != null && (
+                  <span className="pl-2">
+                    {m.o2o.qualifier}@{m.o2o.parentVariableName}
+                  </span>
+                )}
+                {m.type != null && (
+                  <span className="pl-1 italic">({m.type})</span>
+                )}
+              </span>
               {!m.initiallyBound && <LuUnlink className="ml-2" />}
             </div>
           ))}

@@ -11,7 +11,7 @@ import type {
   ViolationsPerNodes,
 } from "./types";
 import { EVENT_TYPE_LINK_TYPE, GATE_LINK_TYPE, GATE_NODE_TYPE } from "./const";
-import {type Edge, MarkerType, type ReactFlowJsonObject } from "reactflow";
+import { type Edge, MarkerType, type ReactFlowJsonObject } from "reactflow";
 
 export function constructDiscoveredCountConstraint(
   c: DiscoveredCountConstraint,
@@ -268,8 +268,14 @@ export function constructDiscoveredORConstraint(
             position: { x: 400, y: 20 },
             data: { type: "or" },
           },
-          ...efFlow.constraint.flowJson.nodes.map(n => ({...n, position: {...n.position, y: n.position.y + 100}})),
-          ...countFlow.constraint.flowJson.nodes.map(n => ({...n, position: {...n.position, y: n.position.y + 100}})),
+          ...efFlow.constraint.flowJson.nodes.map((n) => ({
+            ...n,
+            position: { ...n.position, y: n.position.y + 100 },
+          })),
+          ...countFlow.constraint.flowJson.nodes.map((n) => ({
+            ...n,
+            position: { ...n.position, y: n.position.y + 100 },
+          })),
         ],
         edges: [...newEdges, ...efFlow.constraint.flowJson.edges],
         viewport: { x: 0, y: 0, zoom: 1.5 },

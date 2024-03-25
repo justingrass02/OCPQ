@@ -14,7 +14,10 @@ export const CONSTRAINT_TYPES = [
   "non-response",
 ] as const;
 
-export const nodeTypes = { [EVENT_TYPE_NODE_TYPE]: EventTypeNode, [GATE_NODE_TYPE]: GateNode };
+export const nodeTypes = {
+  [EVENT_TYPE_NODE_TYPE]: EventTypeNode,
+  [GATE_NODE_TYPE]: GateNode,
+};
 export const edgeTypes = {
   [EVENT_TYPE_LINK_TYPE]: EventTypeLink,
   [GATE_LINK_TYPE]: GateLink,

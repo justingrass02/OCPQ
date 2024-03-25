@@ -24,8 +24,8 @@ export const FlowContext = createContext<{
     | {
         violations?: ViolationsPerNodes;
         objectVariables?: ObjectVariable[];
-        nodes?: Node<EventTypeNodeData|GateNodeData>[];
-        edges?: Edge<EventTypeLinkData|GateLinkData>[];
+        nodes?: Node<EventTypeNodeData | GateNodeData>[];
+        edges?: Edge<EventTypeLinkData | GateLinkData>[];
       }
     | undefined;
   flushData: (

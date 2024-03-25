@@ -30,6 +30,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import toast from "react-hot-toast";
+import { COLORS } from "../colors";
 function getObjectType(qualInfo: EventTypeQualifierInfo) {
   if (qualInfo.object_types.length > 1) {
     console.warn(
@@ -429,8 +430,21 @@ export default function EventTypeNode({
             >
               <LuX />
             </button>
-            <span className="text-left mb-1">
-              <span title={"Object type: " + selectedVar.variable.type}>
+            <span
+              className="text-left mb-1"
+              style={{
+                color:
+                  COLORS[
+                    objectVariables.findIndex(
+                      (v) => v.name === selectedVar.variable.name,
+                    )
+                  ],
+              }}
+            >
+              <span
+                className="font-semibold"
+                title={"Object type: " + selectedVar.variable.type}
+              >
                 {selectedVar.variable.name}
               </span>
               <span

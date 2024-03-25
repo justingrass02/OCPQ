@@ -11,10 +11,7 @@ type MenuLinkProps = {
 export default function MenuLink(props: MenuLinkProps) {
   return (
     <Link
-      className={clsx(
-        buttonVariants({ variant: "outline" }),
-        props.classNames,
-      )}
+      className={clsx(buttonVariants({ variant: "outline" }), props.classNames)}
       onClick={props.onClick}
       to={props.to}
     >

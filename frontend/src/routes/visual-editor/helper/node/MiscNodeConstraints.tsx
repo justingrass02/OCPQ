@@ -302,7 +302,10 @@ export default function MiscNodeConstraints({
                   <Combobox
                     value={d.currentlyEditing.qualifier}
                     options={Object.values(data.eventTypeQualifier)
-                      .filter((q) => !(q.qualifier in d.numQualifiedObjectsConstraint))
+                      .filter(
+                        (q) =>
+                          !(q.qualifier in d.numQualifiedObjectsConstraint),
+                      )
                       .map((q) => ({
                         value: q.qualifier,
                         label: q.qualifier,

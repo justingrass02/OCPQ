@@ -22,9 +22,15 @@ export default function EventTypeNode({ data, id }: NodeProps<GateNodeData>) {
     <div
       title={data.type}
       className={`border shadow z-10 backdrop-blur flex flex-col items-center justify-center pt-1.5 py-0.5 px-0.5 rounded-md relative min-w-[8rem] min-h-[5rem] font-mono text-4xl font-bold
-      ${violations?.violations !== undefined && violations.violations.length > 0 ? "bg-red-200 border-red-300" : violations?.violations === undefined ? "bg-blue-50 border-blue-100" : "bg-green-200 border-green-300"}`}
+      ${
+        violations?.violations !== undefined && violations.violations.length > 0
+          ? "bg-red-200 border-red-300"
+          : violations?.violations === undefined
+          ? "bg-blue-50 border-blue-100"
+          : "bg-green-200 border-green-300"
+      }`}
     >
-            {violations?.violations !== undefined && (
+      {violations?.violations !== undefined && (
         <button
           onClick={() => {
             if (showViolationsFor !== undefined) {
@@ -53,43 +59,44 @@ export default function EventTypeNode({ data, id }: NodeProps<GateNodeData>) {
           </div>
         </button>
       )}
-    <div className="">
-      {data.type === "not" && "¬"}
-      {data.type === "or" && "∨"}
-      {data.type === "and" && "∧"}
-      <Handle
-        className="!w-3 !h-3"
-        position={Position.Top}
-        type="target"
-        id={id + "-target"}
-      />
-      {data.type === "not" && (
-        <>
-          <Handle
-            className="!w-3 !h-3"
-            position={Position.Bottom}
-            type="source"
-            id={id + "-source"}
-          />
-        </>
-      )}
+      <div className="">
+        {data.type === "not" && "¬"}
+        {data.type === "or" && "∨"}
+        {data.type === "and" && "∧"}
+        <Handle
+          className="!w-3 !h-3"
+          position={Position.Top}
+          type="target"
+          id={id + "-target"}
+        />
+        {data.type === "not" && (
+          <>
+            <Handle
+              className="!w-3 !h-3"
+              position={Position.Bottom}
+              type="source"
+              id={id + "-source"}
+            />
+          </>
+        )}
 
-      {data.type !== "not" && (
-        <>
-          <Handle
-            className="!w-3 !h-3 mt-9"
-            position={Position.Left}
-            type="source"
-            id={id + "-left-source"}
-          />
-          <Handle
-            className="!w-3 !h-3 mt-9"
-            position={Position.Right}
-            type="source"
-            id={id + "-right-source"}
-          />
-        </>
-      )}</div>
+        {data.type !== "not" && (
+          <>
+            <Handle
+              className="!w-3 !h-3 mt-9"
+              position={Position.Left}
+              type="source"
+              id={id + "-left-source"}
+            />
+            <Handle
+              className="!w-3 !h-3 mt-9"
+              position={Position.Right}
+              type="source"
+              id={id + "-right-source"}
+            />
+          </>
+        )}
+      </div>
       <AlertHelper
         trigger={
           <button
