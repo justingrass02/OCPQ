@@ -50,7 +50,7 @@ export default function QuantifiedObjectEdge({
         const index = objectVariables.findIndex(
           (v3) => v3.name === v.variable.name,
         );
-        connectedObjects.push({ color: COLORS[index] });
+        connectedObjects.push({ color: COLORS[index % COLORS.length] });
       }
     }
   }

@@ -175,7 +175,7 @@ export function constructDiscoveredEFConstraint(
             type: MarkerType.ArrowClosed,
             width: 15,
             height: 12,
-            color: "#969696",
+            color: "#000000ff",
           },
           style: {
             strokeWidth: 2,

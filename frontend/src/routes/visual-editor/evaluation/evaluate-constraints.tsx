@@ -147,6 +147,13 @@ export function evaluateConstraints(
       console.warn("No source/target handle", e);
       continue;
     }
+    if (
+      treeNodes[e.source] === undefined ||
+      treeNodes[e.target] === undefined
+    ) {
+      console.warn("Invalid edge", e);
+      continue;
+    }
     if (e.data == null) {
       if (
         treeNodes[e.target] !== undefined &&
@@ -168,6 +175,7 @@ export function evaluateConstraints(
       console.warn("GateLink edge not handled yet. TODO!", e);
       continue;
     }
+    console.log(e.source, treeNodes);
     const dependencyConnection: Connection | null =
       "Event" in treeNodes[e.source].data
         ? {

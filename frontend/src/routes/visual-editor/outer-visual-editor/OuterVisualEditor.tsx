@@ -103,7 +103,6 @@ export default function VisualEditorOuter() {
       });
   }, []);
 
-  const [activeIndex, setActiveIndex] = useState<number>();
   const prevDataRef = useRef<
     {
       flowJson: ReactFlowJsonObject<
@@ -114,6 +113,7 @@ export default function VisualEditorOuter() {
       objectVariables?: ObjectVariable[];
     }[]
   >([]);
+  const [activeIndex, setActiveIndex] = useState<number>();
   useEffect(() => {
     const meta = parse(
       localStorage.getItem(LOCALSTORAGE_SAVE_KEY_CONSTRAINTS_META) ?? "[]",
@@ -141,7 +141,6 @@ export default function VisualEditorOuter() {
 
   function changeIndex(newIndex: number, length = constraints.length) {
     if (!isNaN(newIndex) && newIndex >= 0 && newIndex < length) {
-      console.log("Change index", newIndex);
       if (
         currentInstanceAndData.instance !== undefined &&
         activeIndex !== undefined &&
@@ -242,6 +241,7 @@ export default function VisualEditorOuter() {
                       <Button
                         className="text-xl py-7 px-4"
                         onClick={() => {
+                          prevDataRef.current.splice(constraints.length, 1);
                           changeIndex(
                             constraints.length,
                             constraints.length + 1,

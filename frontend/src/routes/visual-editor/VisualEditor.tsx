@@ -33,9 +33,14 @@ import {
 import { ImageIcon } from "@radix-ui/react-icons";
 import { toPng } from "html-to-image";
 import toast from "react-hot-toast";
-import { LuLayoutDashboard } from "react-icons/lu";
+import { LuLayoutDashboard, LuX } from "react-icons/lu";
 import { PiPlayFill } from "react-icons/pi";
-import { TbLogicAnd, TbRestore, TbSquarePlus } from "react-icons/tb";
+import {
+  TbLogicAnd,
+  TbRestore,
+  TbSquarePlus,
+  TbVariablePlus,
+} from "react-icons/tb";
 import "reactflow/dist/style.css";
 import type { EventTypeQualifiers, OCELInfo } from "../../types/ocel";
 import { evaluateConstraints } from "./evaluation/evaluate-constraints";
@@ -62,6 +67,7 @@ import {
 } from "./helper/types";
 import { MdClear } from "react-icons/md";
 import { BackendProviderContext } from "@/BackendProviderContext";
+import clsx from "clsx";
 
 interface VisualEditorProps {
   ocelInfo: OCELInfo;
@@ -94,6 +100,8 @@ export default function VisualEditor(props: VisualEditorProps) {
 
   const backend = useContext(BackendProviderContext);
 
+  const [hideHints, setHideHints] = useState(false);
+
   const onConnect = useCallback(
     ({ source, sourceHandle, target, targetHandle }: Edge | Connection) => {
       setEdges((eds) => {
@@ -121,7 +129,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                 type: MarkerType.ArrowClosed,
                 width: 15,
                 height: 12,
-                color,
+                color: "#000000ff",
               },
               style: {
                 strokeWidth: 2,
@@ -148,7 +156,7 @@ export default function VisualEditor(props: VisualEditorProps) {
               type: MarkerType.ArrowClosed,
               width: 15,
               height: 12,
-              color,
+              color: "#000000ff",
             },
             style: {
               strokeWidth: 2,
@@ -214,6 +222,11 @@ export default function VisualEditor(props: VisualEditorProps) {
             }
             return newNodes;
           });
+          if (newData === undefined) {
+            setEdges((edges) =>
+              edges.filter((e) => e.source !== id && e.target !== id),
+            );
+          }
         },
         onEdgeDataChange: (id, newData) => {
           if (newData !== undefined) {
@@ -409,7 +422,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                   instance != null
                     ? instance.screenToFlowPosition({
                         x: window.innerWidth / 2,
-                        y: window.innerHeight / 2,
+                        y: window.innerHeight / 1.5,
                       })
                     : { x: 0, y: 0 };
                 return [
@@ -529,6 +542,73 @@ export default function VisualEditor(props: VisualEditorProps) {
           </Button>
         </Panel>
         <Background />
+        {!hideHints &&
+          (objectVariables.length === 0 ||
+            nodes.length === 0 ||
+            ("selectedVariables" in nodes[0].data &&
+              nodes[0].data.selectedVariables.length === 0)) && (
+            <div className="mt-16 text-base h-fit mx-auto p-4 bg-orange-200/50 rounded-md relative z-10 w-full max-w-lg">
+              <button
+                className="absolute right-2 top-2 bg-transparent hover:bg-red-400 rounded-full p-1"
+                title="Hide hints"
+                onClick={() => {
+                  setHideHints(true);
+                }}
+              >
+                <LuX />
+              </button>
+              {objectVariables.length === 0 && (
+                <>
+                  <h2 className="text-3xl font-bold">Welcome!</h2>
+                  <p
+                    className={clsx(
+                      "text-left mt-2",
+                      objectVariables.length === 0 && "font-semibold",
+                      objectVariables.length > 0 && "text-gray-600",
+                    )}
+                  >
+                    Start by adding an object variable using the{" "}
+                    <TbVariablePlus className="inline-block" /> button above.
+                    <br />
+                    <span className="text-gray-700">
+                      e.g., <code className="text-blue-600">or_0</code> of type{" "}
+                      <code className="text-blue-600">orders</code>
+                    </span>
+                  </p>
+                </>
+              )}
+              {objectVariables.length > 0 && nodes.length === 0 && (
+                <p
+                  className={clsx(
+                    "text-left mt-2",
+                    nodes.length === 0 && "font-semibold",
+                    nodes.length > 0 && "text-gray-600",
+                  )}
+                >
+                  Great! Next, add an event filter node using the{" "}
+                  <TbSquarePlus className="inline-block" /> button above.
+                  <br />
+                  <span className="text-gray-500">
+                    e.g., for the event type{" "}
+                    <code className="text-blue-600">pay order</code>
+                  </span>
+                </p>
+              )}
+              {nodes.length > 0 && (
+                <p className={clsx("text-left mt-2 font-semibold")}>
+                  Awesome! Next, link the node with the object variable.
+                  <br />
+                  For that, select the variable from the dropdown list on the
+                  bottom of the node.
+                  <br />
+                  <span className="font-normal text-xs">
+                    If the object variable does not appear in the dropdown list,
+                    select a different node event type or variable object type.
+                  </span>
+                </p>
+              )}
+            </div>
+          )}
       </ReactFlow>
       {violationDetails !== undefined && (
         <ViolationDetailsSheet

@@ -63,7 +63,7 @@ export default function ConstraintContainer({
             <div
               className="text-center flex items-center px-1 bg-slate-100 rounded-md border cursor-help text-xl font-semibold"
               key={i}
-              style={{ color: COLORS[i] }}
+              style={{ color: COLORS[i % COLORS.length] }}
               title={
                 "Type: " +
                 m.type +

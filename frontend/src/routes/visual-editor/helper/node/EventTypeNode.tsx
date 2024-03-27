@@ -119,9 +119,9 @@ export default function EventTypeNode({
       className={`border shadow z-10 backdrop-blur flex flex-col py-2 px-0.5 rounded-md relative w-[15rem] ${
         violations !== undefined
           ? violations.violations.length > 0
-            ? "bg-red-100/70  border-red-200"
-            : "bg-emerald-100/70  border-emerald-200 "
-          : "bg-blue-100/70 border-blue-200"
+            ? "bg-red-50  border-red-200"
+            : "bg-emerald-50  border-emerald-200 "
+          : "bg-blue-50 border-blue-200"
       }`}
     >
       <Toggle
@@ -437,7 +437,7 @@ export default function EventTypeNode({
                   COLORS[
                     objectVariables.findIndex(
                       (v) => v.name === selectedVar.variable.name,
-                    )
+                    ) % COLORS.length
                   ],
               }}
             >
