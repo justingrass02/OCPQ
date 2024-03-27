@@ -1,4 +1,7 @@
-use std::{fs::File, io::BufReader};
+use std::{
+    fs::{self, File},
+    io::BufReader,
+};
 
 use axum::{extract::State, http::StatusCode, Json};
 use ocedeclare_shared::OCELInfo;
@@ -19,28 +22,23 @@ pub struct OCELFilePath {
     path: &'static str,
 }
 
-pub const DEFAULT_OCEL_FILE: &str = "order-management";
+pub const DEFAULT_OCEL_FILE: &str = "order-management.json";
+pub const DATA_PATH: &str = "./data/";
 
-pub const OCEL_PATHS: &[OCELFilePath] = &[
-    OCELFilePath {
-        name: "ContainerLogistics",
-        path: "./data/ContainerLogistics.json",
-    },
-    OCELFilePath {
-        name: "ocel2-p2p",
-        path: "./data/ocel2-p2p.json",
-    },
-    OCELFilePath {
-        name: "order-management",
-        path: "./data/order-management.json",
-    },
-];
-
-pub async fn get_available_ocels() -> (StatusCode, Json<Option<Vec<&'static str>>>) {
-    return (
-        StatusCode::OK,
-        Json(Some(OCEL_PATHS.iter().map(|p| p.name).collect())),
-    );
+pub async fn get_available_ocels() -> (StatusCode, Json<Option<Vec<String>>>) {
+    let mut ocel_names: Vec<String> = Vec::new();
+    if let Ok(paths) = fs::read_dir(DATA_PATH) {
+        for dir_entry_res in paths {
+            if let Ok(dir_entry) = dir_entry_res {
+                let path_buf = dir_entry.path();
+                let path = path_buf.as_os_str().to_str().unwrap();
+                if path.ends_with(".json") || path.ends_with(".xml") {
+                    ocel_names.push(path.split("/").last().unwrap().to_string())
+                }
+            }
+        }
+    }
+    return (StatusCode::OK, Json(Some(ocel_names)));
 }
 
 pub async fn load_ocel_file_req(
@@ -70,16 +68,8 @@ pub fn load_ocel_file_to_state(name: &str, state: &AppState) -> Option<OCELInfo>
 }
 
 pub fn load_ocel_file(name: &str) -> Result<OCEL, std::io::Error> {
-    match OCEL_PATHS.iter().find(|op| op.name == name) {
-        Some(ocel_path) => {
-            let file = File::open(ocel_path.path)?;
-            let reader = BufReader::new(file);
-            let ocel: OCEL = serde_json::from_reader(reader)?;
-            Ok(ocel)
-        }
-        None => Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "OCEL with that name not found",
-        )),
-    }
+    let file = File::open(format!("{DATA_PATH}{name}"))?;
+    let reader = BufReader::new(file);
+    let ocel: OCEL = serde_json::from_reader(reader)?;
+    Ok(ocel)
 }

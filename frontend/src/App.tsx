@@ -35,13 +35,8 @@ function App() {
   const [selectedOcel, setSelectedOcel] = useState<string>();
   const backend = useContext(BackendProviderContext);
   useEffect(() => {
-    void toast
-      .promise(backend["ocel/info"](), {
-        loading: "Loading OCEL Info",
-        success: "Got OCEL info",
-        error: "Failed to load OCEL info",
-      })
-      .then((info) => {
+    console.log({backend});
+        void backend["ocel/info"]().then((info) => {
         if (info !== undefined) {
           setOcelInfo(info);
         } else {
@@ -121,7 +116,7 @@ function App() {
         <div className="bg-gray-50 border-r border-r-slate-200 px-2">
           <img src="/favicon.png" className="w-[7rem] h-[7rem] mx-auto my-4" />
           <div className="flex flex-col gap-2">
-            {ocelInfo !== undefined && (
+            {ocelInfo != null && (
               <span className="flex flex-col items-center mx-auto text-xl">
                 <span className=" font-semibold text-green-700">
                   OCEL loaded
@@ -130,7 +125,7 @@ function App() {
                 <span>{ocelInfo.num_objects} Objects</span>
               </span>
             )}
-            {ocelInfo !== undefined && (
+            {ocelInfo != null && (
               <>
                 <MenuLink to="/ocel-info">OCEL Info</MenuLink>
                 <MenuLink

@@ -46,9 +46,10 @@ export const BackendProviderContext = createContext<BackendProvider>({
 
 export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
   "ocel/info": async () => {
-    return await (
+    const res = (
       await fetch("http://localhost:3000/ocel/info", { method: "get" })
-    ).json();
+    );
+    return await res.json();
   },
   "ocel/available": async () => {
     return await (
