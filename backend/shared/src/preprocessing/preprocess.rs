@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Display,
+};
 
 use itertools::Itertools;
 use process_mining::{
@@ -148,8 +151,19 @@ pub fn get_object_rels_per_type(
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct EventIndex(usize);
 
+impl Display for EventIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Ev:{}", self.0)
+    }
+}
+
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct ObjectIndex(usize);
+impl Display for ObjectIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Ob:{}", self.0)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct LinkedOCEL<'a> {

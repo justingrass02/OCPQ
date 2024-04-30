@@ -1,5 +1,7 @@
-
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Display,
+};
 
 use itertools::Itertools;
 use process_mining::ocel::ocel_struct::{OCELEvent, OCELObject};
@@ -30,7 +32,6 @@ impl Binding {
         self.object_map.insert(ev_var, ob_index);
         self
     }
-
     pub fn get_ev<'a>(
         &self,
         ev_var: &EventVariable,
@@ -41,7 +42,6 @@ impl Binding {
             None => None,
         }
     }
-
     pub fn get_ob<'a>(
         &self,
         ob_var: &ObjectVariable,
@@ -54,17 +54,53 @@ impl Binding {
     }
 }
 
+impl Display for Binding {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Binding [\n")?;
+        write!(f, "\tEvents: {{ ")?;
+        for (i, (ev_var, ev_index)) in self.event_map.iter().enumerate() {
+            write!(f, "{} => {}", ev_var, ev_index)?;
+            if i < self.event_map.len() - 1 {
+                write!(f, ", ")?;
+            }
+        }
+        write!(f, " }}\n\tObjects: {{ ")?;
+        for (i, (ob_var, ob_index)) in self.object_map.iter().enumerate() {
+            write!(f, "{} => {}", ob_var, ob_index)?;
+            if i < self.object_map.len() - 1 {
+                write!(f, ", ")?;
+            }
+        }
+        write!(f, " }}")?;
+        write!(f, "\n]")?;
+        Ok(())
+    }
+}
+
 impl BindingBox {
-    pub fn expand(&self, ocel: &LinkedOCEL) -> Vec<Binding> {
-        self.expand_with_steps(ocel, &BindingStep::get_binding_order(self))
+    pub fn expand_empty(&self, ocel: &LinkedOCEL) -> Vec<Binding> {
+        self.expand(vec![Binding::default()], ocel)
     }
 
-    pub fn expand_with_steps(
+    pub fn expand_with_steps_empty(
         &self,
         ocel: &LinkedOCEL,
         steps: &[BindingStep],
     ) -> Vec<Binding> {
-        let mut ret = vec![Binding::default()];
+        self.expand_with_steps(vec![Binding::default()], ocel, steps)
+    }
+
+    pub fn expand(&self, parent_bindings: Vec<Binding>, ocel: &LinkedOCEL) -> Vec<Binding> {
+        self.expand_with_steps(parent_bindings, ocel, &BindingStep::get_binding_order(self))
+    }
+
+    pub fn expand_with_steps(
+        &self,
+        parent_bindings: Vec<Binding>,
+        ocel: &LinkedOCEL,
+        steps: &[BindingStep],
+    ) -> Vec<Binding> {
+        let mut ret = parent_bindings;
 
         for step in steps {
             match &step {
@@ -95,9 +131,7 @@ impl BindingBox {
                                             },
                                         )
                                     {
-                                        Some(
-                                            b.clone().expand_with_ev(*ev_var, *e_index),
-                                        )
+                                        Some(b.clone().expand_with_ev(*ev_var, *e_index))
                                     } else {
                                         None
                                     }
@@ -115,9 +149,7 @@ impl BindingBox {
                                 .flat_map(|ob_type| {
                                     ocel.objects_of_type_index.get(ob_type).unwrap()
                                 })
-                                .map(move |o_index| {
-                                    b.clone().expand_with_ob(*ob_var, *o_index)
-                                })
+                                .map(move |o_index| b.clone().expand_with_ob(*ob_var, *o_index))
                         })
                         .collect();
                 }
@@ -292,6 +324,11 @@ impl From<usize> for EventVariable {
         Self(value)
     }
 }
+impl Display for EventVariable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ev_{}", self.0)
+    }
+}
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct ObjectVariable(usize);
@@ -300,9 +337,13 @@ impl From<usize> for ObjectVariable {
         Self(value)
     }
 }
+impl Display for ObjectVariable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ob_{}", self.0)
+    }
+}
 
 pub type Qualifier = Option<String>;
-
 
 type DurationIntervalSeconds = (Option<f64>, Option<f64>);
 
@@ -332,13 +373,15 @@ impl BindingStep {
     pub fn get_binding_order(bbox: &BindingBox) -> Vec<Self> {
         let mut ret = Vec::new();
 
-        // bool: is object variable
         let mut var_requiring_bindings: HashSet<Variable> = bbox
-            .new_event_vars.keys().map(|v| Variable::Event(*v))
-            .chain(
-                bbox.new_object_vars.keys().map(|v| Variable::Object(*v)),
-            )
+            .new_event_vars
+            .keys()
+            .map(|v| Variable::Event(*v))
+            .chain(bbox.new_object_vars.keys().map(|v| Variable::Object(*v)))
             .collect();
+
+
+        let new_vars = var_requiring_bindings.clone();
         // Maps a variable A to the set of variable that can be bound based on A
         let mut var_can_bind: HashMap<Variable, HashSet<Variable>> = HashMap::new();
         // Additional info, with a qualifier and the index of a filter constraint
@@ -360,31 +403,31 @@ impl BindingStep {
             match f {
                 FilterConstraint::ObjectAssociatedWithEvent(ob_var, ev_var, qualifier) => {
                     var_can_bind
-                        .get_mut(&Variable::Object(*ob_var))
-                        .unwrap()
+                        .entry(Variable::Object(*ob_var))
+                        .or_default()
                         .insert(Variable::Event(*ev_var));
                     var_can_bind_with_qualifier
-                        .get_mut(&Variable::Object(*ob_var))
-                        .unwrap()
+                        .entry(Variable::Object(*ob_var))
+                        .or_default()
                         .insert((Variable::Event(*ev_var), qualifier.clone(), i));
 
                     var_can_bind
-                        .get_mut(&Variable::Event(*ev_var))
-                        .unwrap()
+                        .entry(Variable::Event(*ev_var))
+                        .or_default()
                         .insert(Variable::Object(*ob_var));
                     var_can_bind_with_qualifier
-                        .get_mut(&Variable::Event(*ev_var))
-                        .unwrap()
+                        .entry(Variable::Event(*ev_var))
+                        .or_default()
                         .insert((Variable::Object(*ob_var), qualifier.clone(), i));
                 }
                 FilterConstraint::ObjectAssociatedWithObject(ob_var_1, ob_var_2, qualifier) => {
                     var_can_bind
-                        .get_mut(&Variable::Object(*ob_var_1))
-                        .unwrap()
+                        .entry(Variable::Object(*ob_var_1))
+                        .or_default()
                         .insert(Variable::Object(*ob_var_2));
                     var_can_bind_with_qualifier
-                        .get_mut(&Variable::Object(*ob_var_1))
-                        .unwrap()
+                        .entry(Variable::Object(*ob_var_1))
+                        .or_default()
                         .insert((Variable::Object(*ob_var_2), qualifier.clone(), i));
                 }
                 _ => {}
@@ -395,11 +438,13 @@ impl BindingStep {
             .clone()
             .into_iter()
             // Prefer binding events over objects first
+            // Prefer already bound events + objects
             .sorted_by_key(|(v, vs)| {
-                (vs.len() as i32) * 1000 + if let Variable::Object(_) = v { 0 } else { 1 }
+              (if new_vars.contains(v) { 0 } else { 10000000 } +  (vs.len() as i32) * 1000 + if let Variable::Object(_) = v { 0 } else { 1 })
             })
             .map(|(k, _)| k)
             .collect_vec();
+        
         while !expansion.is_empty() {
             if let Some(var) = expansion.pop() {
                 let can_bind_vars = var_can_bind.get(&var).unwrap();
@@ -549,10 +594,10 @@ mod test {
             .into_iter()
             .collect(),
             new_object_vars: vec![
-                // (
-                //     0.into(),
-                //     vec!["customers".to_string()].into_iter().collect(),
-                // ),
+                (
+                    0.into(),
+                    vec!["customers".to_string()].into_iter().collect(),
+                ),
                 (1.into(), vec!["orders".to_string()].into_iter().collect()),
                 (2.into(), vec!["orders".to_string()].into_iter().collect()),
             ]
@@ -562,16 +607,16 @@ mod test {
                 FilterConstraint::TimeBetweenEvents(0.into(), 1.into(), (Some(0.0000000001), None)),
                 FilterConstraint::ObjectAssociatedWithEvent(1.into(), 0.into(), None),
                 FilterConstraint::ObjectAssociatedWithEvent(2.into(), 1.into(), None),
-                // FilterConstraint::ObjectAssociatedWithObject(
-                //     0.into(),
-                //     1.into(),
-                //     Some("places".to_string()),
-                // ),
-                // FilterConstraint::ObjectAssociatedWithObject(
-                //     0.into(),
-                //     2.into(),
-                //     Some("places".to_string()),
-                // ),
+                FilterConstraint::ObjectAssociatedWithObject(
+                    0.into(),
+                    1.into(),
+                    Some("places".to_string()),
+                ),
+                FilterConstraint::ObjectAssociatedWithObject(
+                    0.into(),
+                    2.into(),
+                    Some("places".to_string()),
+                ),
             ],
         };
 
@@ -580,8 +625,62 @@ mod test {
         let steps = BindingStep::get_binding_order(&binding_box);
         println!("Steps: {:?}", steps);
         let now = Instant::now();
-        let res = binding_box.expand_with_steps(&linked_ocel, &steps);
+        let res = binding_box.expand_with_steps_empty(&linked_ocel, &steps);
         println!("Output binding size: {} in {:?}", res.len(), now.elapsed());
-        println!("First binding: {:#?}", res.first());
+        println!("First binding: {}", res.first().unwrap());
+    }
+
+
+    #[test]
+    fn connected_binding_box() {
+        let binding_box = BindingBox {
+            new_event_vars: vec![
+            ]
+            .into_iter()
+            .collect(),
+            new_object_vars: vec![
+                (0.into(), vec!["orders".to_string()].into_iter().collect()),
+            ]
+            .into_iter()
+            .collect(),
+            filter_constraint: vec![
+            ],
+        };
+        let binding_box_2 = BindingBox {
+            new_event_vars: vec![
+                (0.into(),vec!["pay order".to_string()].into_iter().collect())
+            ]
+            .into_iter()
+            .collect(),
+            new_object_vars: vec![
+                // (1.into(),vec!["employees".to_string()].into_iter().collect())
+            ]
+            .into_iter()
+            .collect(),
+            filter_constraint: vec![
+                FilterConstraint::ObjectAssociatedWithEvent(0.into(), 0.into(), None),
+                // FilterConstraint::ObjectAssociatedWithEvent(1.into(), 0.into(), None)
+            ],
+        };
+
+        let ocel = import_ocel_json_from_path("../data/order-management.json").unwrap();
+        let linked_ocel = link_ocel_info(&ocel);
+        let now = Instant::now();
+        println!("Steps: {:?}", BindingStep::get_binding_order(&binding_box));
+        let res = binding_box.expand_empty(&linked_ocel);
+        println!("Output binding size: {} in {:?}", res.len(), now.elapsed());
+        println!("Steps: {:?}", BindingStep::get_binding_order(&binding_box_2));
+        let (min,max) = (1,1);
+        let mut outcome = Vec::new();
+        for b in res {
+            let res2 = binding_box_2.expand(vec![b.clone()],&linked_ocel);
+            if res2.len() >= min && res2.len() <= max {
+                outcome.push((b,true));
+            }else{
+                outcome.push((b,false));
+            }
+        }
+        let num_sat = outcome.iter().filter(|(_,sat)| *sat).count() as f32;
+        println!("Total time {:?} {}", now.elapsed(), num_sat / outcome.len() as f32);
     }
 }
