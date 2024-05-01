@@ -176,24 +176,119 @@ fn binding_box_tree() {
 
     let tree = BindingBoxTree {
         nodes: vec![
-
             BindingBoxTreeNode::Box(bb1, vec![1]), // 0
             BindingBoxTreeNode::OR(2, 4),          // 1
             BindingBoxTreeNode::Box(bb2, vec![3]), // 2
             BindingBoxTreeNode::Box(bb3, vec![]),  // 3
             BindingBoxTreeNode::Box(bb4, vec![]),  // 4
-            ],
-        size_constraints: vec![
-          ((1, 4), (Some(1), None)),((2, 3), (Some(1), None))
-          ].into_iter().collect(),
+        ],
+        size_constraints: vec![((1, 4), (Some(1), None)), ((2, 3), (Some(1), None))]
+            .into_iter()
+            .collect(),
     };
 
     let ocel = import_ocel_json_from_path("../data/order-management.json").unwrap();
     let linked_ocel = link_ocel_info(&ocel);
     let now = Instant::now();
-    let res = tree.evaluate(&linked_ocel).into_iter().filter(|(_,_,reason)| !matches!(reason,Some(ViolationReason::ChildNotSatisfied))).collect_vec();
-    println!("Took {:?}",now.elapsed());
+    let res = tree
+        .evaluate(&linked_ocel)
+        .into_iter()
+        .filter(|(_, _, reason)| !matches!(reason, Some(ViolationReason::ChildNotSatisfied)))
+        .collect_vec();
+    println!("Took {:?}", now.elapsed());
     for i in 1..tree.nodes.len() {
+        let total_num = res.iter().filter(|(index, _, _)| *index == i).count();
+        let satisfied_num = res
+            .iter()
+            .filter(|(index, _, v)| v.is_none() && *index == i)
+            .count();
+        println!(
+            "Node {i}: {} / {} satisfied (Violations: {:.2}%)",
+            satisfied_num,
+            total_num,
+            100.0 * (total_num as f32 - satisfied_num as f32) / total_num as f32
+        )
+    }
+}
+
+#[test]
+fn binding_box_tree2() {
+    let bb1 = BindingBox {
+        new_event_vars: vec![
+            (
+                0.into(),
+                vec!["place order".to_string()].into_iter().collect(),
+            ),
+            (
+                1.into(),
+                vec!["place order".to_string()].into_iter().collect(),
+            ),
+        ]
+        .into_iter()
+        .collect(),
+        new_object_vars: vec![
+            (1.into(), vec!["orders".to_string()].into_iter().collect()),
+            (2.into(), vec!["orders".to_string()].into_iter().collect()),
+            (
+                0.into(),
+                vec!["customers".to_string()].into_iter().collect(),
+            ),
+        ]
+        .into_iter()
+        .collect(),
+        filter_constraint: vec![
+            FilterConstraint::ObjectAssociatedWithEvent(0.into(), 0.into(), None),
+            FilterConstraint::ObjectAssociatedWithEvent(0.into(), 1.into(), None),
+            FilterConstraint::ObjectAssociatedWithEvent(1.into(), 0.into(), None),
+            FilterConstraint::ObjectAssociatedWithEvent(2.into(), 1.into(), None),
+            FilterConstraint::TimeBetweenEvents(0.into(), 1.into(), (Some(0.0001), None)),
+        ],
+    };
+
+    let bb2 = BindingBox {
+        new_event_vars: vec![
+            (
+                2.into(),
+                vec!["confirm order".to_string()].into_iter().collect(),
+            ),
+            (
+                3.into(),
+                vec!["confirm order".to_string()].into_iter().collect(),
+            ),
+        ]
+        .into_iter()
+        .collect(),
+        new_object_vars: vec![
+        ]
+        .into_iter()
+        .collect(),
+        filter_constraint: vec![
+            FilterConstraint::ObjectAssociatedWithEvent(1.into(), 2.into(), None),
+            FilterConstraint::ObjectAssociatedWithEvent(2.into(), 3.into(), None),
+            FilterConstraint::TimeBetweenEvents(2.into(), 3.into(), (Some(0.0001), None)),
+        ],
+    };
+
+    let tree = BindingBoxTree {
+        nodes: vec![
+            BindingBoxTreeNode::Box(bb1, vec![1]), // 0
+            BindingBoxTreeNode::Box(bb2,vec![]),  // 1
+        ],
+        size_constraints: vec![((0, 0), (Some(100), Some(100000000))),((0, 1), (Some(1), Some(1)))]
+            .into_iter()
+            .collect(),
+    };
+
+    let ocel = import_ocel_json_from_path("../data/order-management.json").unwrap();
+    let linked_ocel = link_ocel_info(&ocel);
+    let now = Instant::now();
+    let res = tree
+        .evaluate(&linked_ocel)
+        .into_iter()
+        .filter(|(_, _, reason)| !matches!(reason, Some(ViolationReason::ChildNotSatisfied)))
+        .collect_vec();
+    println!("Took {:?}", now.elapsed());
+    for i in 0..tree.nodes.len() {
         let total_num = res.iter().filter(|(index, _, _)| *index == i).count();
         let satisfied_num = res
             .iter()

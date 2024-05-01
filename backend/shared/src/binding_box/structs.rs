@@ -118,6 +118,7 @@ pub enum ViolationReason {
 
 pub type EvaluationResult = (usize, Binding, Option<ViolationReason>);
 pub type EvaluationResults = Vec<EvaluationResult>;
+use rayon::prelude::*;
 
 impl BindingBoxTreeNode {
     pub fn evaluate(
@@ -146,21 +147,29 @@ impl BindingBoxTreeNode {
                     // return vec![(own_index, parent_binding,Some(ViolationReason::TooManyMatchingEvents))];
                 }
 
-                let mut ret = vec![];
-
-                let mut child_not_sat = false;
-                for b in &expanded {
-                    for c in children {
-                        let (c_res, violation) =
-                            tree.nodes[*c].evaluate(*c, own_index, b.clone(), tree, ocel);
-                        ret.push((*c, b.clone(), violation));
-                        ret.extend(c_res);
-                        if let Some(x) = violation {
-                            child_not_sat = true;
-                            break;
-                        }
-                    }
-                }
+                let (child_not_sat, ret) = expanded
+                    .into_par_iter()
+                    .flat_map_iter(|b| {
+                        children.iter().map(move |c| {
+                            let (mut c_res, violation) =
+                                tree.nodes[*c].evaluate(*c, own_index, b.clone(), tree, ocel);
+                            c_res.push((*c, b.clone(), violation));
+                            if let Some(x) = violation {
+                                return (true, c_res);
+                            } else {
+                                return (false, c_res);
+                            }
+                        })
+                    })
+                    .reduce(
+                        || (false, vec![]),
+                        |(violated1, res1), (violated2, res2)| {
+                            (
+                                violated1 || violated2,
+                                res1.iter().chain(res2.iter()).cloned().collect(),
+                            )
+                        },
+                    );
                 if child_not_sat {
                     return (ret, Some(ViolationReason::ChildNotSatisfied));
                 } else {
@@ -178,7 +187,7 @@ impl BindingBoxTreeNode {
 
                 ret.extend(res_1);
                 ret.push((*i1, parent_binding.clone(), violation_1));
-                
+
                 let (res_2, violation_2) =
                     node2.evaluate(*i2, own_index, parent_binding.clone(), tree, ocel);
 
@@ -242,6 +251,28 @@ pub enum FilterConstraint {
     ObjectAssociatedWithObject(ObjectVariable, ObjectVariable, Qualifier),
     /// Time duration betweeen event1 and event2 is in the specified interval (min,max) (given in Some(seconds); where None represents no restriction)
     TimeBetweenEvents(EventVariable, EventVariable, (Option<f64>, Option<f64>)),
+}
+
+impl FilterConstraint {
+    pub fn get_involved_variables(&self) -> HashSet<Variable> {
+        match self {
+            FilterConstraint::ObjectAssociatedWithEvent(ov, ev, _) => {
+                vec![Variable::Object(*ov), Variable::Event(*ev)]
+                    .into_iter()
+                    .collect()
+            }
+            FilterConstraint::ObjectAssociatedWithObject(ov1, ov2, _) => {
+                vec![Variable::Object(*ov1), Variable::Object(*ov2)]
+                    .into_iter()
+                    .collect()
+            }
+            FilterConstraint::TimeBetweenEvents(ev1, ev2, _) => {
+                vec![Variable::Event(*ev1), Variable::Event(*ev2)]
+                    .into_iter()
+                    .collect()
+            }
+        }
+    }
 }
 
 type DurationIntervalSeconds = (Option<f64>, Option<f64>);
