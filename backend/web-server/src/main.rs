@@ -24,9 +24,7 @@ use ocedeclare_shared::{
     preprocessing::preprocess::link_ocel_info,
     OCELInfo,
 };
-use process_mining::{
-    event_log::ocel::ocel_struct::OCEL, import_ocel_xml_slice,
-};
+use process_mining::{event_log::ocel::ocel_struct::OCEL, import_ocel_xml_slice};
 use tower_http::cors::CorsLayer;
 
 use crate::load_ocel::{

@@ -118,7 +118,7 @@ fn connected_binding_box() {
 }
 
 #[test]
-fn binding_box_tree() {
+fn simple_binding_box_tree() {
     let bb1 = BindingBox {
         new_event_vars: vec![].into_iter().collect(),
         new_object_vars: vec![(0.into(), vec!["orders".to_string()].into_iter().collect())]
@@ -212,7 +212,7 @@ fn binding_box_tree() {
 }
 
 #[test]
-fn binding_box_tree2() {
+fn complex_binding_box_tree() {
     let bb1 = BindingBox {
         new_event_vars: vec![
             (
@@ -241,10 +241,12 @@ fn binding_box_tree2() {
             FilterConstraint::ObjectAssociatedWithEvent(0.into(), 1.into(), None),
             FilterConstraint::ObjectAssociatedWithEvent(1.into(), 0.into(), None),
             FilterConstraint::ObjectAssociatedWithEvent(2.into(), 1.into(), None),
+            FilterConstraint::ObjectAssociatedWithObject(0.into(), 1.into(), Some("places".into())),
+            FilterConstraint::ObjectAssociatedWithObject(0.into(), 2.into(), Some("places".into())),
             FilterConstraint::TimeBetweenEvents(0.into(), 1.into(), (Some(0.0001), None)),
         ],
     };
-
+    println!("Steps: {:?}", BindingStep::get_binding_order(&bb1));
     let bb2 = BindingBox {
         new_event_vars: vec![
             (
@@ -258,10 +260,7 @@ fn binding_box_tree2() {
         ]
         .into_iter()
         .collect(),
-        new_object_vars: vec![
-        ]
-        .into_iter()
-        .collect(),
+        new_object_vars: vec![].into_iter().collect(),
         filter_constraint: vec![
             FilterConstraint::ObjectAssociatedWithEvent(1.into(), 2.into(), None),
             FilterConstraint::ObjectAssociatedWithEvent(2.into(), 3.into(), None),
@@ -272,12 +271,17 @@ fn binding_box_tree2() {
     let tree = BindingBoxTree {
         nodes: vec![
             BindingBoxTreeNode::Box(bb1, vec![1]), // 0
-            BindingBoxTreeNode::Box(bb2,vec![]),  // 1
+            BindingBoxTreeNode::Box(bb2, vec![]),  // 1
         ],
-        size_constraints: vec![((0, 0), (Some(100), Some(100000000))),((0, 1), (Some(1), Some(1)))]
-            .into_iter()
-            .collect(),
+        size_constraints: vec![
+            ((0, 0), (Some(100), Some(100000000))),
+            ((0, 1), (Some(1), Some(1))),
+        ]
+        .into_iter()
+        .collect(),
     };
+
+    println!("\n{}\n", serde_json::to_string_pretty(&tree).unwrap());
 
     let ocel = import_ocel_json_from_path("../data/order-management.json").unwrap();
     let linked_ocel = link_ocel_info(&ocel);

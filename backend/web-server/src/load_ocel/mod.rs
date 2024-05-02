@@ -33,12 +33,12 @@ pub async fn get_available_ocels() -> (StatusCode, Json<Option<Vec<String>>>) {
                 let path_buf = dir_entry.path();
                 let path = path_buf.as_os_str().to_str().unwrap();
                 if path.ends_with(".json") || path.ends_with(".xml") {
-                    ocel_names.push(path.split("/").last().unwrap().to_string())
+                    ocel_names.push(path.split('/').last().unwrap().to_string())
                 }
             }
         }
     }
-    return (StatusCode::OK, Json(Some(ocel_names)));
+    (StatusCode::OK, Json(Some(ocel_names)))
 }
 
 pub async fn load_ocel_file_req(

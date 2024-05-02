@@ -4,24 +4,32 @@ use std::{
 };
 
 use process_mining::ocel::ocel_struct::{OCELEvent, OCELObject};
+use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
+use ts_rs::TS;
 
 use crate::preprocessing::preprocess::{EventIndex, LinkedOCEL, ObjectIndex};
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Variable {
     Event(EventVariable),
     Object(ObjectVariable),
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EventVariable(usize);
 impl From<usize> for EventVariable {
     fn from(value: usize) -> Self {
         Self(value)
     }
 }
-
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ObjectVariable(usize);
 impl From<usize> for ObjectVariable {
     fn from(value: usize) -> Self {
@@ -31,7 +39,10 @@ impl From<usize> for ObjectVariable {
 
 pub type Qualifier = Option<String>;
 
-#[derive(Debug, Default, Clone)]
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Binding {
     pub event_map: HashMap<EventVariable, EventIndex>,
     pub object_map: HashMap<ObjectVariable, ObjectIndex>,
@@ -74,14 +85,26 @@ impl Binding {
 pub type NewObjectVariables = HashMap<ObjectVariable, HashSet<String>>;
 pub type NewEventVariables = HashMap<EventVariable, HashSet<String>>;
 
+
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BindingBox {
     pub new_event_vars: NewEventVariables,
     pub new_object_vars: NewObjectVariables,
     pub filter_constraint: Vec<FilterConstraint>,
 }
 
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
+#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BindingBoxTree {
     pub nodes: Vec<BindingBoxTreeNode>,
+    #[serde_as(as = "Vec<(_, _)>")]
+    #[ts(as = "Vec<((usize, usize), (Option<usize>, Option<usize>))>")]
     pub size_constraints: HashMap<(usize, usize), (Option<usize>, Option<usize>)>,
 }
 
@@ -96,7 +119,9 @@ impl BindingBoxTree {
         }
     }
 }
-
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
+#[derive( Debug, Clone, Serialize, Deserialize)]
 pub enum BindingBoxTreeNode {
     Box(BindingBox, Vec<usize>),
     OR(usize, usize),
@@ -104,6 +129,8 @@ pub enum BindingBoxTreeNode {
     NOT(usize),
 }
 
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
 #[derive(Debug, Clone, Copy)]
 pub enum ViolationReason {
     TooFewMatchingEvents,
@@ -154,7 +181,7 @@ impl BindingBoxTreeNode {
                             let (mut c_res, violation) =
                                 tree.nodes[*c].evaluate(*c, own_index, b.clone(), tree, ocel);
                             c_res.push((*c, b.clone(), violation));
-                            if let Some(x) = violation {
+                            if let Some(_x) = violation {
                                 return (true, c_res);
                             } else {
                                 return (false, c_res);
@@ -194,10 +221,8 @@ impl BindingBoxTreeNode {
                 ret.extend(res_2);
                 ret.push((*i2, parent_binding.clone(), violation_2));
 
-                if let Some(violation_reason_1) = violation_1 {
-                    if let Some(violation_reason_2) = violation_2 {
-                        return (ret, Some(ViolationReason::NoChildrenOfORSatisfied));
-                    }
+                if violation_1.is_some() && violation_2.is_some() {
+                    return (ret, Some(ViolationReason::NoChildrenOfORSatisfied));
                 }
                 return (ret, None);
             }
@@ -217,12 +242,10 @@ impl BindingBoxTreeNode {
                 ret.push((*i2, parent_binding.clone(), violation_2));
                 ret.extend(res_2);
 
-                if let Some(violation_reason_1) = violation_1 {
+                if violation_1.is_some() {
                     return (ret, Some(ViolationReason::LeftChildOfANDUnsatisfied));
-                } else {
-                    if let Some(violation_reason_2) = violation_2 {
-                        return (ret, Some(ViolationReason::RightChildOfANDUnsatisfied));
-                    }
+                } else if violation_2.is_some() {
+                    return (ret, Some(ViolationReason::RightChildOfANDUnsatisfied));
                 }
                 return (ret, None);
             }
@@ -232,7 +255,7 @@ impl BindingBoxTreeNode {
 
                 let (res_c, violation_c) = node.evaluate(*i, own_index, parent_binding, tree, ocel);
                 ret.extend(res_c);
-                if let Some(violation) = violation_c {
+                if violation_c.is_some() {
                     // NOT satisfied
                     return (ret, None);
                 } else {
@@ -243,7 +266,10 @@ impl BindingBoxTreeNode {
     }
 }
 
-#[derive(Debug, Clone)]
+
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FilterConstraint {
     /// Object is associated with event (optionally through a qualifier)
     ObjectAssociatedWithEvent(ObjectVariable, EventVariable, Qualifier),

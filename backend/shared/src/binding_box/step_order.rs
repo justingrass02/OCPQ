@@ -141,7 +141,7 @@ impl BindingStep {
                         }
                         for (child_var, qualifier, f_index) in can_bind_vars_qualified
                             .into_iter()
-                            .sorted_by(|(c_1, _, _), (c_2, _, _)| {
+                            .sorted_by(|(c_1, _, _), (_c_2, _, _)| {
                                 if matches!(c_1, Variable::Event(_)) {
                                     Ordering::Less
                                 } else {

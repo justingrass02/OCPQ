@@ -1,3 +1,5 @@
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
+
 use crate::preprocessing::preprocess::{get_events_of_type_associated_with_objects, LinkedOCEL};
 
 use super::structs::{Binding, BindingBox, BindingStep, FilterConstraint};
@@ -32,8 +34,8 @@ impl BindingBox {
                 BindingStep::BindEv(ev_var, time_constr) => {
                     let ev_types = self.new_event_vars.get(ev_var).unwrap();
                     ret = ret
-                        .into_iter()
-                        .flat_map(|b| {
+                        .into_par_iter()
+                        .flat_map_iter(|b| {
                             ev_types
                                 .iter()
                                 .flat_map(|ev_type| ocel.events_of_type_index.get(ev_type).unwrap())
@@ -67,8 +69,8 @@ impl BindingBox {
                 BindingStep::BindOb(ob_var) => {
                     let ob_types = self.new_object_vars.get(ob_var).unwrap();
                     ret = ret
-                        .into_iter()
-                        .flat_map(|b| {
+                        .into_par_iter()
+                        .flat_map_iter(|b| {
                             ob_types
                                 .iter()
                                 .flat_map(|ob_type| {
@@ -80,8 +82,8 @@ impl BindingBox {
                 }
                 BindingStep::BindObFromEv(ob_var, from_ev_var, qualifier) => {
                     ret = ret
-                        .into_iter()
-                        .flat_map(|b| {
+                        .into_par_iter()
+                        .flat_map_iter(|b| {
                             let e = b.get_ev(from_ev_var, ocel).unwrap();
                             let obj_types = self.new_object_vars.get(ob_var).unwrap();
                             e.relationships
@@ -104,8 +106,8 @@ impl BindingBox {
                 }
                 BindingStep::BindObFromOb(ob_var_name, from_ob_var_name, qualifier) => {
                     ret = ret
-                        .into_iter()
-                        .flat_map(|b| {
+                        .into_par_iter()
+                        .flat_map_iter(|b| {
                             let ob = b.get_ob(from_ob_var_name, ocel).unwrap();
                             ob.relationships
                                 .as_ref()
@@ -126,8 +128,8 @@ impl BindingBox {
                 }
                 BindingStep::BindEvFromOb(ev_var_name, from_ob_var_name, qualifier) => {
                     ret = ret
-                        .into_iter()
-                        .flat_map(|b| {
+                        .into_par_iter()
+                        .flat_map_iter(|b| {
                             let ob = b.get_ob(from_ob_var_name, ocel).unwrap().clone();
                             let ev_types = self.new_event_vars.get(ev_var_name).unwrap();
                             get_events_of_type_associated_with_objects(
@@ -160,7 +162,7 @@ impl BindingBox {
                 }
                 BindingStep::Filter(f) => {
                     ret = ret
-                        .into_iter()
+                        .into_par_iter()
                         .filter(|b| match f {
                             FilterConstraint::ObjectAssociatedWithEvent(
                                 obj_var,

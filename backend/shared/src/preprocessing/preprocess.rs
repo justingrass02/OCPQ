@@ -8,6 +8,8 @@ use process_mining::{
     event_log::ocel::ocel_struct::{OCELEvent, OCELObject, OCELRelationship},
     OCEL,
 };
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::{constraints::EventType, ocel_qualifiers::qualifiers::QualifierAndObjectType};
 
@@ -148,7 +150,9 @@ pub fn get_object_rels_per_type(
     object_to_object_rels_per_type
 }
 
-#[derive(Debug, Clone, Copy, Hash)]
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
+#[derive(Debug, Clone, Copy, Hash, Serialize, Deserialize)]
 pub struct EventIndex(usize);
 
 impl Display for EventIndex {
@@ -157,7 +161,9 @@ impl Display for EventIndex {
     }
 }
 
-#[derive(Debug, Clone, Copy, Hash)]
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
+#[derive(Debug, Clone, Copy, Hash, Serialize, Deserialize)]
 pub struct ObjectIndex(usize);
 impl Display for ObjectIndex {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
