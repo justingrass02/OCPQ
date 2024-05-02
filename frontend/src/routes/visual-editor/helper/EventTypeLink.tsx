@@ -16,37 +16,11 @@ import { useContext, useState } from "react";
 import { LuClock } from "react-icons/lu";
 
 import { MdRemoveCircleOutline } from "react-icons/md";
-import {
-  BaseEdge,
-  EdgeLabelRenderer,
-  getBezierPath,
-  type EdgeProps,
-  MarkerType,
-  type EdgeMarkerType,
-} from "reactflow";
-import type { EventTypeLinkData, TimeConstraint } from "./types";
-import { VisualEditorContext } from "./VisualEditorContext";
+import { EdgeLabelRenderer, getBezierPath, type EdgeProps } from "reactflow";
 import QuantifiedObjectEdge from "./QuantifiedObjectEdge";
+import { VisualEditorContext } from "./VisualEditorContext";
+import type { EventTypeLinkData, TimeConstraint } from "./types";
 
-// const markerEndStyle: EdgeMarkerType = {
-//   type: MarkerType.ArrowClosed,
-//   width: 15,
-//   height: 12,
-//   color: "blue",
-// };
-const STROKE_WIDTH = 2.5;
-const pathStyle = {
-  stroke: "#44444410",
-  strokeWidth: STROKE_WIDTH,
-};
-const pathStyle2 = {
-  stroke: "#6b9cef",
-  strokeWidth: STROKE_WIDTH,
-};
-const pathStyle3 = {
-  stroke: "#6befab",
-  strokeWidth: STROKE_WIDTH,
-};
 export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
   const {
     id,
@@ -56,12 +30,10 @@ export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
     targetY,
     sourcePosition,
     targetPosition,
-    markerEnd,
     data,
-    style = {},
   } = props;
   // TODO: Fix, currently needs to be calculated twice
-  const [edgePath, labelX, labelY] = getBezierPath({
+  const [_edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
     sourcePosition,
@@ -72,17 +44,6 @@ export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
 
   const { onEdgeDataChange } = useContext(VisualEditorContext);
 
-  // markerEnd: {
-  //   type: MarkerType.ArrowClosed,
-  //   width: 15,
-  //   height: 12,
-  //   color,
-  // },
-  // style: {
-  //   strokeWidth: 2,
-  //   stroke: color,
-  // },
-  // gerMarkerId()
   return (
     <>
       <QuantifiedObjectEdge {...props} />

@@ -59,7 +59,7 @@ export function Combobox({
               <CommandItem
                 key={o.value}
                 value={o.value.toLowerCase()}
-                onSelect={(currentValue) => {
+                onSelect={() => {
                   onChange(o.value === value ? "" : o.value);
                   setOpen(false);
                 }}

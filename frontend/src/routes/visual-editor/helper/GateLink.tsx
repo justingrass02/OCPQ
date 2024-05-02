@@ -1,34 +1,16 @@
-import TimeDurationInput, {
-  formatSeconds,
-} from "@/components/TimeDurationInput";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogPortal,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { useContext, useState } from "react";
-import { LuClock } from "react-icons/lu";
+import { useContext } from "react";
 
 import { MdRemoveCircleOutline } from "react-icons/md";
 import {
-  BaseEdge,
   EdgeLabelRenderer,
   getBezierPath,
-  type EdgeProps,
-  getStraightPath,
-  getSimpleBezierPath,
   useReactFlow,
+  type EdgeProps,
 } from "reactflow";
-import type { EventTypeLinkData, GateLinkData, TimeConstraint } from "./types";
+import QuantifiedObjectEdge from "./QuantifiedObjectEdge";
 import { VisualEditorContext } from "./VisualEditorContext";
 import { GATE_NODE_TYPE } from "./const";
-import QuantifiedObjectEdge from "./QuantifiedObjectEdge";
+import type { GateLinkData } from "./types";
 
 export default function GateLink(props: EdgeProps<GateLinkData>) {
   const {
@@ -36,18 +18,14 @@ export default function GateLink(props: EdgeProps<GateLinkData>) {
     sourceX,
     sourceY,
     source,
-    target,
     targetX,
     targetY,
     sourcePosition,
     targetPosition,
-    markerEnd,
-    data,
-    style = {},
   } = props;
   const { getNode } = useReactFlow();
   const isSourceNodeGate = getNode(source)?.type === GATE_NODE_TYPE;
-  const [edgePath, labelX, labelY] = getBezierPath({
+  const [_edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY: sourceY + (isSourceNodeGate ? 0 : 0),
     sourcePosition,

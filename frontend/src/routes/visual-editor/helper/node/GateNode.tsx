@@ -10,7 +10,7 @@ import AlertHelper from "@/components/AlertHelper";
 import { TbTrash } from "react-icons/tb";
 
 export default function EventTypeNode({ data, id }: NodeProps<GateNodeData>) {
-  const { violationsPerNode, showViolationsFor, onNodeDataChange, ocelInfo } =
+  const { violationsPerNode, showViolationsFor, onNodeDataChange } =
     useContext(VisualEditorContext);
 
   const hideViolations: boolean | undefined = false;

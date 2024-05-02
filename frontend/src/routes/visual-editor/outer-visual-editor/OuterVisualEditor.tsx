@@ -291,8 +291,8 @@ export default function VisualEditorOuter() {
                               <Accordion
                                 type="multiple"
                                 defaultValue={Object.entries(data)
-                                  .filter(([k, v]) => v.enabled)
-                                  .map(([k, v]) => k)}
+                                  .filter(([_k, v]) => v.enabled)
+                                  .map(([k, _v]) => k)}
                               >
                                 <AccordionItem value="countConstraints">
                                   <AccordionTrigger>

@@ -13,7 +13,6 @@ import { COLORS } from "./colors";
 const STROKE_WIDTH = 4;
 
 export default function QuantifiedObjectEdge({
-  id,
   sourceX,
   sourceY,
   targetX,
@@ -21,10 +20,8 @@ export default function QuantifiedObjectEdge({
   sourcePosition,
   targetPosition,
   markerEnd,
-  data,
   source,
   target,
-  style = {},
 }: EdgeProps<unknown>) {
   const flow = useReactFlow();
   const sourceNode: Node<EventTypeNodeData | GateNodeData> | undefined =
@@ -80,7 +77,7 @@ export default function QuantifiedObjectEdge({
     marginLeft: "1rem",
   };
 
-  const [edgePath, labelX, labelY] = getBezierPath({
+  const [edgePath] = getBezierPath({
     sourceX,
     sourceY: sourceY - (targetNode?.type === "gate" ? 0 : 5),
     sourcePosition,

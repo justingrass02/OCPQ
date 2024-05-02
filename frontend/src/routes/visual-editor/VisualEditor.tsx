@@ -192,7 +192,7 @@ export default function VisualEditor(props: VisualEditorProps) {
 
   useEffect(() => {
     registerOtherDataGetter(() => ({
-      violations: violationInfo.violationsPerNode,
+      violations: undefined, // TODO: For now do not save violation info, because it can become huge; violationInfo.violationsPerNode,
       objectVariables,
     }));
   }, [violationInfo, objectVariables]);
@@ -351,7 +351,7 @@ export default function VisualEditor(props: VisualEditorProps) {
             }
             title={"Add Gate"}
             submitAction={"Submit"}
-            onSubmit={(data, ev) => {
+            onSubmit={(data) => {
               setNodes((nodes) => {
                 const center =
                   instance != null
@@ -486,29 +486,29 @@ export default function VisualEditor(props: VisualEditorProps) {
             title={mode !== "view-tree" ? "Evaluate" : "Edit"}
             className="bg-fuchsia-100 border-fuchsia-300 hover:bg-fuchsia-200 hover:border-fuchsia-300"
             onClick={async () => {
-              const { variables, inputNodes } = evaluateConstraints(
+              const tree = evaluateConstraints(
                 objectVariables,
                 nodes,
                 edges,
               );
-              console.log({ variables, inputNodes });
-              const [sizes, violations] = await toast.promise(
-                backend["ocel/check-constraints"](variables, inputNodes),
+              console.log({ tree });
+              const res = await toast.promise(
+                backend["ocel/new-check-constraints"](tree),
                 {
                   loading: "Evaluating...",
-                  success: ([sizes, violations]) => (
+                  success: (res) => (
                     <span>
                       <b>Evaluation finished</b>
                       <br />
                       <span>
                         Bindings per step:
                         <br />
-                        <span className="font-mono">{sizes.join(", ")}</span>
+                        {/* <span className="font-mono">{sizes.join(", ")}</span> */}
                         <br />
                         Violations per step:
                         <br />
                         <span className="font-mono">
-                          {violations.map((vs) => vs.length).join(", ")}
+                          {/* {violations.map((vs) => ).join(", ")} */}
                         </span>
                       </span>
                     </span>
@@ -517,22 +517,22 @@ export default function VisualEditor(props: VisualEditorProps) {
                 },
               );
 
-              const res = violations.map((vs, i) => ({
-                nodeID: inputNodes[i].id,
-                // Remove violations for "hideViolations" (not only visually)
-                // They can be very large and e.g., cause issues with the "save" feature
-                violations:
-                  (
-                    instance.getNode(inputNodes[i].id)
-                      ?.data as EventTypeNodeData
-                  ).hideViolations ?? false
-                    ? []
-                    : vs,
-                numBindings: sizes[i],
-              }));
-              console.log("Evaluation res:", res);
-              setViolationInfo((vi) => ({ ...vi, violationsPerNode: res }));
-              flushData({ violations: res, objectVariables });
+              // const res = violations.map((vs, i) => ({
+              //   nodeID: inputNodes[i].id,
+              //   // Remove violations for "hideViolations" (not only visually)
+              //   // They can be very large and e.g., cause issues with the "save" feature
+              //   violations:
+              //     (
+              //       instance.getNode(inputNodes[i].id)
+              //         ?.data as EventTypeNodeData
+              //     ).hideViolations ?? false
+              //       ? []
+              //       : vs,
+              //   numBindings: sizes[i],
+              // }));
+              // console.log("Evaluation res:", res);
+              // setViolationInfo((vi) => ({ ...vi, violationsPerNode: res }));
+              // // flushData({ violations: res, objectVariables });
             }}
           >
             {mode !== "view-tree" && (

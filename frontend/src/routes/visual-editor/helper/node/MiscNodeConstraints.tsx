@@ -187,7 +187,7 @@ export default function MiscNodeConstraints({
         }
         title={"Edit Related Qualified Object Constraints"}
         submitAction={"Submit"}
-        onSubmit={(qualifiedObjConstraintData, ev) => {
+        onSubmit={(qualifiedObjConstraintData) => {
           const newDataFields =
             Object.keys(
               qualifiedObjConstraintData.numQualifiedObjectsConstraint,
