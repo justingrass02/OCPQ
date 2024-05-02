@@ -493,7 +493,7 @@ export default function VisualEditor(props: VisualEditorProps) {
               );
               console.log({ tree });
               const res = await toast.promise(
-                backend["ocel/new-check-constraints"](tree),
+                backend["ocel/check-constraints-box"](tree),
                 {
                   loading: "Evaluating...",
                   success: (res) => (

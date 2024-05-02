@@ -13,20 +13,25 @@ use ts_rs::TS;
 
 use crate::{constraints::EventType, ocel_qualifiers::qualifiers::QualifierAndObjectType};
 
-use super::linked_ocel::{EventIndex, ObjectIndex};
-
-pub fn get_object_events_map(ocel: &OCEL) -> HashMap<String, Vec<String>> {
-    let mut object_events_map: HashMap<String, Vec<String>> = ocel
+pub fn get_object_events_map(
+    ocel: &OCEL,
+    object_map: &HashMap<String, ObjectIndex>,
+) -> HashMap<ObjectIndex, Vec<EventIndex>> {
+    let mut object_events_map: HashMap<ObjectIndex, Vec<EventIndex>> = ocel
         .objects
         .iter()
-        .map(|o| (o.id.clone(), Vec::new()))
+        .enumerate()
+        .map(|(index, _)| (ObjectIndex(index), Vec::new()))
         .collect();
 
-    for e in &ocel.events {
+    for (e_index, e) in ocel.events.iter().enumerate() {
         let rels = get_event_relationships(e);
         for r in rels {
-            match object_events_map.get_mut(&r.object_id) {
-                Some(o_evs) => o_evs.push(e.id.clone()),
+            match object_map
+                .get(&r.object_id)
+                .and_then(|ob_index| object_events_map.get_mut(ob_index))
+            {
+                Some(o_evs) => o_evs.push(EventIndex(e_index)),
                 None => {
                     eprintln!("Malformed OCEL: Event {} relates to object ID {}, which does not belong to any object.",e.id,r.object_id)
                 }
@@ -37,30 +42,33 @@ pub fn get_object_events_map(ocel: &OCEL) -> HashMap<String, Vec<String>> {
 }
 
 pub fn get_events_of_type_associated_with_objects<'a>(
-    linked_ocel: &'a LinkedOCEL,
+    linked_ocel: &'a IndexLinkedOCEL,
     event_type: &EventType,
-    object_ids: Vec<String>,
-) -> Vec<&'a OCELEvent> {
-    if object_ids.is_empty() {
+    object_indices: Vec<ObjectIndex>,
+) -> Vec<EventIndex> {
+    if object_indices.is_empty() {
         return match event_type {
-            EventType::Any => linked_ocel.event_map.values().copied().collect(),
+            EventType::Any => linked_ocel.event_index_map.values().copied().collect(),
             EventType::Exactly { value } => linked_ocel.events_of_type.get(value).unwrap().clone(),
             EventType::AnyOf { values } => linked_ocel
-                .event_map
-                .values()
-                .filter(|e| values.contains(&e.event_type))
-                .copied()
+                .ocel
+                .events
+                .iter()
+                .enumerate()
+                .filter(|(_e_index, e)| values.contains(&e.event_type))
+                .map(|(e_index, _)| EventIndex(e_index))
                 .collect(),
             EventType::AnyExcept { values } => linked_ocel
-                .event_map
-                .values()
-                .filter(|e| !values.contains(&e.event_type))
-                .copied()
+                .ocel
+                .events
+                .iter()
+                .enumerate()
+                .filter(|(_e_index, e)| !values.contains(&e.event_type))
+                .map(|(e_index, _)| EventIndex(e_index))
                 .collect(),
         };
     }
-    // let mut sorted_object_ids = object_ids.clone();
-    let mut sorted_object_ids_iter = object_ids.iter().sorted_by(|a, b| {
+    let mut sorted_object_ids_iter = object_indices.iter().sorted_by(|a, b| {
         linked_ocel
             .object_events_map
             .get(*a)
@@ -68,45 +76,37 @@ pub fn get_events_of_type_associated_with_objects<'a>(
             .len()
             .cmp(&linked_ocel.object_events_map.get(*b).unwrap().len())
     });
-    // sorted_object_ids.sort_by(|a, b| {
-    //     linked_ocel
-    //         .object_events_map
-    //         .get(a)
-    //         .unwrap()
-    //         .len()
-    //         .cmp(&linked_ocel.object_events_map.get(b).unwrap().len())
-    // });
-    let mut intersection: HashSet<&String> = linked_ocel
+
+    let mut intersection: HashSet<EventIndex> = linked_ocel
         .object_events_map
         .get(sorted_object_ids_iter.next().unwrap())
         .unwrap()
         .iter()
-        .filter(|ev_id| match event_type {
+        .filter(|e_index| match event_type {
             EventType::Any => true,
             EventType::Exactly { value } => {
-                &linked_ocel.event_map.get(*ev_id).unwrap().event_type == value
+                &linked_ocel.ev_by_index(&e_index).unwrap().event_type == value
             }
             EventType::AnyOf { values } => {
-                values.contains(&linked_ocel.event_map.get(*ev_id).unwrap().event_type)
+                values.contains(&linked_ocel.ev_by_index(&e_index).unwrap().event_type)
             }
             EventType::AnyExcept { values } => {
-                !values.contains(&linked_ocel.event_map.get(*ev_id).unwrap().event_type)
+                !values.contains(&linked_ocel.ev_by_index(&e_index).unwrap().event_type)
             }
         })
+        .copied()
         .collect();
     for other in sorted_object_ids_iter {
-        let other_map: HashSet<&String> = linked_ocel
+        let other_map: HashSet<EventIndex> = linked_ocel
             .object_events_map
             .get(other)
             .unwrap()
             .iter()
+            .copied()
             .collect();
         intersection.retain(|ev| other_map.contains(ev))
     }
-    return intersection
-        .iter()
-        .map(|ev_id| *linked_ocel.event_map.get(*ev_id).unwrap())
-        .collect();
+    return intersection.into_iter().collect();
 }
 
 pub fn get_event_relationships(ev: &OCELEvent) -> Vec<OCELRelationship> {
@@ -152,71 +152,72 @@ pub fn get_object_rels_per_type(
     object_to_object_rels_per_type
 }
 
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
+#[derive(Debug, Clone, Copy, Hash, Serialize, Deserialize, PartialEq, Eq)]
+pub struct EventIndex(pub usize);
+
+impl Display for EventIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Ev:{}", self.0)
+    }
+}
+
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
+#[derive(Debug, Clone, Copy, Hash, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ObjectIndex(pub usize);
+impl Display for ObjectIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Ob:{}", self.0)
+    }
+}
+
 #[derive(Debug, Clone)]
-pub struct LinkedOCEL<'a> {
-    pub event_map: HashMap<String, &'a OCELEvent>,
-    pub object_map: HashMap<String, &'a OCELObject>,
-    pub events_of_type: HashMap<String, Vec<&'a OCELEvent>>,
-    pub objects_of_type: HashMap<String, Vec<&'a OCELObject>>,
-    pub object_events_map: HashMap<String, Vec<String>>,
+pub struct IndexLinkedOCEL {
+    pub object_events_map: HashMap<ObjectIndex, Vec<EventIndex>>,
     pub object_rels_per_type: HashMap<String, HashSet<QualifierAndObjectType>>,
 
-    pub events_of_type_index: HashMap<String, Vec<EventIndex>>,
-    pub objects_of_type_index: HashMap<String, Vec<ObjectIndex>>,
-
-    pub events_index: Vec<&'a OCELEvent>,
-    pub object_index: Vec<&'a OCELObject>,
-    pub event_index_map: HashMap<&'a String, EventIndex>,
-    pub object_index_map: HashMap<&'a String, ObjectIndex>,
+    pub events_of_type: HashMap<String, Vec<EventIndex>>,
+    pub objects_of_type: HashMap<String, Vec<ObjectIndex>>,
+    pub ocel: OCEL,
+    pub event_index_map: HashMap<String, EventIndex>,
+    pub object_index_map: HashMap<String, ObjectIndex>,
 }
 
-impl<'a> LinkedOCEL<'a> {
-    pub fn ev_by_index(&self, index: &EventIndex) -> Option<&'a OCELEvent> {
-        self.events_index.get(index.0).copied()
+impl IndexLinkedOCEL {
+    pub fn new(ocel: OCEL) -> Self {
+        link_ocel_info(ocel)
     }
-    pub fn ob_by_index(&self, index: &ObjectIndex) -> Option<&'a OCELObject> {
-        self.object_index.get(index.0).copied()
+    pub fn ev_by_index<'a>(&'a self, index: &EventIndex) -> Option<&'a OCELEvent> {
+        self.ocel.events.get(index.0)
+    }
+    pub fn ob_by_index<'a>(&'a self, index: &ObjectIndex) -> Option<&'a OCELObject> {
+        self.ocel.objects.get(index.0)
+    }
+
+    pub fn index_of_ob<'a>(&'a self, ob_id: &String) -> Option<&'a ObjectIndex> {
+        self.object_index_map.get(ob_id)
+    }
+
+    pub fn ob_by_id<'a>(&'a self, ob_id: &String) -> Option<&'a OCELObject> {
+        self.index_of_ob(ob_id)
+            .and_then(|ob_index| self.ob_by_index(ob_index))
+    }
+
+    pub fn index_of_ev<'a>(&'a self, ev_id: &String) -> Option<&'a EventIndex> {
+        self.event_index_map.get(ev_id)
     }
 }
 
-pub fn link_ocel_info<'a>(ocel: &'a OCEL) -> LinkedOCEL {
-    let event_map: HashMap<String, &OCELEvent> =
-        ocel.events.iter().map(|ev| (ev.id.clone(), ev)).collect();
+pub fn link_ocel_info(ocel: OCEL) -> IndexLinkedOCEL {
     let object_map: HashMap<String, &OCELObject> = ocel
         .objects
         .iter()
         .map(|obj| (obj.id.clone(), obj))
         .collect();
 
-    let events_of_type: HashMap<String, Vec<&OCELEvent>> = ocel
-        .event_types
-        .iter()
-        .map(|ev_type| {
-            (
-                ev_type.name.clone(),
-                ocel.events
-                    .iter()
-                    .filter(|ev| ev.event_type == ev_type.name)
-                    .collect(),
-            )
-        })
-        .collect();
-
-    let objects_of_type: HashMap<String, Vec<&OCELObject>> = ocel
-        .object_types
-        .iter()
-        .map(|obj_type| {
-            (
-                obj_type.name.clone(),
-                ocel.objects
-                    .iter()
-                    .filter(|ev| ev.object_type == obj_type.name)
-                    .collect(),
-            )
-        })
-        .collect();
-
-    let events_of_type_index = ocel
+    let events_of_type = ocel
         .event_types
         .iter()
         .map(|ev_type| {
@@ -232,7 +233,7 @@ pub fn link_ocel_info<'a>(ocel: &'a OCEL) -> LinkedOCEL {
         })
         .collect();
 
-    let objects_of_type_index = ocel
+    let objects_of_type = ocel
         .object_types
         .iter()
         .map(|obj_type| {
@@ -248,30 +249,27 @@ pub fn link_ocel_info<'a>(ocel: &'a OCEL) -> LinkedOCEL {
         })
         .collect();
 
-    let object_events_map = get_object_events_map(ocel);
-    let object_rels_per_type = get_object_rels_per_type(ocel, &object_map);
-    LinkedOCEL {
-        event_map,
-        object_map,
+    let event_index_map = ocel
+        .events
+        .iter()
+        .enumerate()
+        .map(|(i, e)| (e.id.clone(), EventIndex(i)))
+        .collect();
+    let object_index_map = ocel
+        .objects
+        .iter()
+        .enumerate()
+        .map(|(i, o)| (o.id.clone(), ObjectIndex(i)))
+        .collect();
+    let object_events_map = get_object_events_map(&ocel, &object_index_map);
+    let object_rels_per_type = get_object_rels_per_type(&ocel, &object_map);
+    IndexLinkedOCEL {
         events_of_type,
         objects_of_type,
         object_events_map,
         object_rels_per_type,
-        events_index: ocel.events.iter().collect_vec(),
-        object_index: ocel.objects.iter().collect_vec(),
-        event_index_map: ocel
-            .events
-            .iter()
-            .enumerate()
-            .map(|(i, e)| (&e.id, EventIndex(i)))
-            .collect(),
-        object_index_map: ocel
-            .objects
-            .iter()
-            .enumerate()
-            .map(|(i, o)| (&o.id, ObjectIndex(i)))
-            .collect(),
-        events_of_type_index,
-        objects_of_type_index,
+        ocel,
+        event_index_map,
+        object_index_map,
     }
 }

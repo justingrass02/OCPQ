@@ -4,8 +4,7 @@ use itertools::Itertools;
 use process_mining::import_ocel_json_from_path;
 
 use crate::{
-    binding_box::structs::{BindingBoxTree, BindingBoxTreeNode, FilterConstraint, ViolationReason},
-    preprocessing::preprocess::link_ocel_info,
+    binding_box::structs::{BindingBoxTree, BindingBoxTreeNode, FilterConstraint, ViolationReason}, preprocessing::linked_ocel::link_ocel_info,
 };
 
 use super::{BindingBox, BindingStep};
@@ -53,7 +52,7 @@ fn basic_binding_box() {
     };
 
     let ocel = import_ocel_json_from_path("../data/order-management.json").unwrap();
-    let linked_ocel = link_ocel_info(&ocel);
+    let linked_ocel = link_ocel_info(ocel);
     let steps = BindingStep::get_binding_order(&binding_box);
     println!("Steps: {:?}", steps);
     let now = Instant::now();
@@ -90,7 +89,7 @@ fn connected_binding_box() {
     };
 
     let ocel = import_ocel_json_from_path("../data/order-management.json").unwrap();
-    let linked_ocel = link_ocel_info(&ocel);
+    let linked_ocel = link_ocel_info(ocel);
     let now = Instant::now();
     println!("Steps: {:?}", BindingStep::get_binding_order(&binding_box));
     let res = binding_box.expand_empty(&linked_ocel);
@@ -188,7 +187,7 @@ fn simple_binding_box_tree() {
     };
 
     let ocel = import_ocel_json_from_path("../data/order-management.json").unwrap();
-    let linked_ocel = link_ocel_info(&ocel);
+    let linked_ocel = link_ocel_info(ocel);
     let now = Instant::now();
     let res = tree
         .evaluate(&linked_ocel)
@@ -284,7 +283,7 @@ fn complex_binding_box_tree() {
     println!("\n{}\n", serde_json::to_string_pretty(&tree).unwrap());
 
     let ocel = import_ocel_json_from_path("../data/order-management.json").unwrap();
-    let linked_ocel = link_ocel_info(&ocel);
+    let linked_ocel = link_ocel_info(ocel);
     let now = Instant::now();
     let res = tree
         .evaluate(&linked_ocel)

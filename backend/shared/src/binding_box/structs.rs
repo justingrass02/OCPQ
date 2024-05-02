@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use ts_rs::TS;
 
-use crate::preprocessing::preprocess::{EventIndex, LinkedOCEL, ObjectIndex};
+use crate::preprocessing::linked_ocel::{IndexLinkedOCEL, EventIndex, ObjectIndex};
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
@@ -60,7 +60,7 @@ impl Binding {
     pub fn get_ev<'a>(
         &self,
         ev_var: &EventVariable,
-        ocel: &'a LinkedOCEL,
+        ocel: &'a IndexLinkedOCEL,
     ) -> Option<&'a OCELEvent> {
         match self.event_map.get(ev_var) {
             Some(ev_index) => ocel.ev_by_index(ev_index),
@@ -70,12 +70,25 @@ impl Binding {
     pub fn get_ob<'a>(
         &self,
         ob_var: &ObjectVariable,
-        ocel: &'a LinkedOCEL,
+        ocel: &'a IndexLinkedOCEL,
     ) -> Option<&'a OCELObject> {
         match self.object_map.get(ob_var) {
             Some(ob_index) => ocel.ob_by_index(ob_index),
             None => None,
         }
+    }
+
+    pub fn get_ev_index(
+        &self,
+        ev_var: &EventVariable,
+    ) -> Option<&EventIndex> {
+        self.event_map.get(ev_var)
+    }
+    pub fn get_ob_index(
+        &self,
+        ob_var: &ObjectVariable
+    ) -> Option<&ObjectIndex> {
+        self.object_map.get(ob_var)
     }
 }
 
@@ -109,7 +122,7 @@ pub struct BindingBoxTree {
 }
 
 impl BindingBoxTree {
-    pub fn evaluate(&self, ocel: &LinkedOCEL) -> EvaluationResults {
+    pub fn evaluate(&self, ocel: &IndexLinkedOCEL) -> EvaluationResults {
         if let Some(root) = self.nodes.first() {
             let (mut ret, violation) = root.evaluate(0, 0, Binding::default(), self, ocel);
             ret.push((0, Binding::default(), violation));
@@ -131,7 +144,7 @@ pub enum BindingBoxTreeNode {
 
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum ViolationReason {
     TooFewMatchingEvents,
     TooManyMatchingEvents,
@@ -154,7 +167,7 @@ impl BindingBoxTreeNode {
         parent_index: usize,
         parent_binding: Binding,
         tree: &BindingBoxTree,
-        ocel: &LinkedOCEL,
+        ocel: &IndexLinkedOCEL,
     ) -> (EvaluationResults, Option<ViolationReason>) {
         match self {
             BindingBoxTreeNode::Box(bbox, children) => {

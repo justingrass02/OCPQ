@@ -1,30 +1,30 @@
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use crate::preprocessing::preprocess::{get_events_of_type_associated_with_objects, LinkedOCEL};
+use crate::preprocessing::linked_ocel::{get_events_of_type_associated_with_objects, IndexLinkedOCEL};
 
 use super::structs::{Binding, BindingBox, BindingStep, FilterConstraint};
 
 impl BindingBox {
-    pub fn expand_empty(&self, ocel: &LinkedOCEL) -> Vec<Binding> {
+    pub fn expand_empty(&self, ocel: &IndexLinkedOCEL) -> Vec<Binding> {
         self.expand(vec![Binding::default()], ocel)
     }
 
     pub fn expand_with_steps_empty(
         &self,
-        ocel: &LinkedOCEL,
+        ocel: &IndexLinkedOCEL,
         steps: &[BindingStep],
     ) -> Vec<Binding> {
         self.expand_with_steps(vec![Binding::default()], ocel, steps)
     }
 
-    pub fn expand(&self, parent_bindings: Vec<Binding>, ocel: &LinkedOCEL) -> Vec<Binding> {
+    pub fn expand(&self, parent_bindings: Vec<Binding>, ocel: &IndexLinkedOCEL) -> Vec<Binding> {
         self.expand_with_steps(parent_bindings, ocel, &BindingStep::get_binding_order(self))
     }
 
     pub fn expand_with_steps(
         &self,
         parent_bindings: Vec<Binding>,
-        ocel: &LinkedOCEL,
+        ocel: &IndexLinkedOCEL,
         steps: &[BindingStep],
     ) -> Vec<Binding> {
         let mut ret = parent_bindings;
@@ -38,7 +38,7 @@ impl BindingBox {
                         .flat_map_iter(|b| {
                             ev_types
                                 .iter()
-                                .flat_map(|ev_type| ocel.events_of_type_index.get(ev_type).unwrap())
+                                .flat_map(|ev_type| ocel.events_of_type.get(ev_type).unwrap())
                                 .filter_map(move |e_index| {
                                     let e = ocel.ev_by_index(e_index).unwrap();
                                     if time_constr.is_none()
@@ -74,7 +74,7 @@ impl BindingBox {
                             ob_types
                                 .iter()
                                 .flat_map(|ob_type| {
-                                    ocel.objects_of_type_index.get(ob_type).unwrap()
+                                    ocel.objects_of_type.get(ob_type).unwrap()
                                 })
                                 .map(move |o_index| b.clone().expand_with_ob(*ob_var, *o_index))
                         })
@@ -91,7 +91,7 @@ impl BindingBox {
                                 .flatten()
                                 .filter(|rel| {
                                     obj_types.contains(
-                                        &ocel.object_map.get(&rel.object_id).unwrap().object_type,
+                                        &ocel.ob_by_id(&rel.object_id).unwrap().object_type,
                                     ) && (qualifier.is_none()
                                         || qualifier.as_ref().unwrap() == &rel.qualifier)
                                 })
@@ -130,17 +130,20 @@ impl BindingBox {
                     ret = ret
                         .into_par_iter()
                         .flat_map_iter(|b| {
-                            let ob = b.get_ob(from_ob_var_name, ocel).unwrap().clone();
+                            let ob_index = b.get_ob_index(from_ob_var_name).unwrap();
+                            let ob = ocel.ob_by_index(&ob_index).unwrap();
                             let ev_types = self.new_event_vars.get(ev_var_name).unwrap();
                             get_events_of_type_associated_with_objects(
                                 ocel,
                                 &crate::constraints::EventType::AnyOf {
                                     values: ev_types.iter().cloned().collect(),
                                 },
-                                vec![ob.id.clone()],
+                                vec![*ob_index],
                             )
                             .into_iter()
-                            .filter_map(move |e| {
+                            .filter_map(move |e_index| {
+                                // TODO: Better to also have an relationship index in IndexLinkedOCEL
+                                let e = ocel.ev_by_index(&e_index).unwrap();
                                 if qualifier.is_none()
                                     || e.relationships.as_ref().is_some_and(|rels| {
                                         rels.iter().any(|rel| {

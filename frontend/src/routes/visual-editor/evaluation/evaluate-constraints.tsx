@@ -96,18 +96,23 @@ export function evaluateConstraints(
     return tree;
   }
 
-  tree.nodes.push({
-    Box: [
-      {
-        newEventVars: {},
-        newObjectVars: Object.fromEntries(
-          variables.map((v, i) => [i, [v.type]]),
-        ),
-        filterConstraint: [],
-      },
-      [],
-    ],
-  });
+  tree.nodes.push(
+    {
+      Box: [
+        {
+          newEventVars: {},
+          newObjectVars: Object.fromEntries(
+            variables.map((v, i) => [i, [v.type]]),
+          ),
+          filterConstraint: [],
+        },
+        [1],
+      ],
+    },
+    {
+      Box: [{ newEventVars: {}, newObjectVars: {}, filterConstraint: [] }, []],
+    },
+  );
 
   return tree;
 }

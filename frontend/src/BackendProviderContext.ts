@@ -25,7 +25,7 @@ export type BackendProvider = {
     variables: ObjectVariable[],
     nodesOrder: NewTreeNode[],
   ) => Promise<[number[], Violation[][]]>;
-  "ocel/new-check-constraints": (tree: BindingBoxTree) => Promise<EvaluationResults>;
+  "ocel/check-constraints-box": (tree: BindingBoxTree) => Promise<EvaluationResults>;
   "ocel/event-qualifiers": () => Promise<EventTypeQualifiers>;
   "ocel/object-qualifiers": () => Promise<ObjectTypeQualifiers>;
   "ocel/discover-constraints": (
@@ -43,7 +43,7 @@ export async function warnForNoBackendProvider<T>(): Promise<T> {
 export const BackendProviderContext = createContext<BackendProvider>({
   "ocel/info": warnForNoBackendProvider,
   "ocel/check-constraints": warnForNoBackendProvider,
-  "ocel/new-check-constraints": warnForNoBackendProvider,
+  "ocel/check-constraints-box": warnForNoBackendProvider,
   "ocel/event-qualifiers": warnForNoBackendProvider,
   "ocel/object-qualifiers": warnForNoBackendProvider,
   "ocel/discover-constraints": warnForNoBackendProvider,
@@ -88,9 +88,9 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
       })
     ).json();
   },
-  "ocel/new-check-constraints": async (tree) => {
+  "ocel/check-constraints-box": async (tree) => {
     return await (
-      await fetch("http://localhost:3000/ocel/new-check-constraints", {
+      await fetch("http://localhost:3000/ocel/check-constraints-box", {
         method: "post",
         body: JSON.stringify({ tree }),
         headers: { "Content-Type": "application/json" },

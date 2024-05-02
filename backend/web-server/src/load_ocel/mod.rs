@@ -4,7 +4,7 @@ use std::{
 };
 
 use axum::{extract::State, http::StatusCode, Json};
-use ocedeclare_shared::OCELInfo;
+use ocedeclare_shared::{preprocessing::linked_ocel::IndexLinkedOCEL, OCELInfo};
 use serde::{Deserialize, Serialize};
 
 use process_mining::event_log::ocel::ocel_struct::OCEL;
@@ -55,9 +55,8 @@ pub fn load_ocel_file_to_state(name: &str, state: &AppState) -> Option<OCELInfo>
     match load_ocel_file(name) {
         Ok(ocel) => {
             let ocel_info: OCELInfo = (&ocel).into();
-
             let mut x = state.ocel.write().unwrap();
-            *x = Some(ocel);
+            *x = Some(IndexLinkedOCEL::new(ocel));
             Some(ocel_info)
         }
         Err(e) => {

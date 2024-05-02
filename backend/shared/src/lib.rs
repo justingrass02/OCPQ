@@ -11,6 +11,7 @@ pub mod discovery;
 pub mod preprocessing {
     pub mod preprocess;
     pub mod tests;
+    pub mod linked_ocel;
 }
 
 #[derive(Debug, Serialize, Deserialize)]
