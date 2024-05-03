@@ -5,7 +5,6 @@ import type {
   EventTypeNodeData,
   GateLinkData,
   GateNodeData,
-  ObjectVariable,
   ViolationsPerNodes,
 } from "./types";
 
@@ -15,7 +14,6 @@ export const FlowContext = createContext<{
     getter: () =>
       | {
           violations?: ViolationsPerNodes;
-          objectVariables?: ObjectVariable[];
         }
       | undefined,
   ) => unknown;
@@ -23,7 +21,6 @@ export const FlowContext = createContext<{
   otherData:
     | {
         violations?: ViolationsPerNodes;
-        objectVariables?: ObjectVariable[];
         nodes?: Node<EventTypeNodeData | GateNodeData>[];
         edges?: Edge<EventTypeLinkData | GateLinkData>[];
       }
@@ -32,7 +29,6 @@ export const FlowContext = createContext<{
     data:
       | {
           violations?: ViolationsPerNodes;
-          objectVariables?: ObjectVariable[];
         }
       | undefined,
   ) => unknown;

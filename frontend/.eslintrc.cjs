@@ -31,6 +31,7 @@ module.exports = {
       "warn",
       { destructuredArrayIgnorePattern: "^_" },
     ],
+    "@typescript-eslint/no-confusing-void-expression": "off",
     "@typescript-eslint/explicit-function-return-type": "off",
     "space-before-function-paren": "off",
     "@typescript-eslint/space-before-function-paren": "off",

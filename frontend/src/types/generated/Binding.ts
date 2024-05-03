@@ -4,4 +4,7 @@ import type { EventVariable } from "./EventVariable";
 import type { ObjectIndex } from "./ObjectIndex";
 import type { ObjectVariable } from "./ObjectVariable";
 
-export type Binding = { eventMap: { [key: EventVariable]: EventIndex }, objectMap: { [key: ObjectVariable]: ObjectIndex }, };
+export type Binding = {
+  eventMap: { [key: EventVariable]: EventIndex };
+  objectMap: { [key: ObjectVariable]: ObjectIndex };
+};

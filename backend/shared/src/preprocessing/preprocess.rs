@@ -1,15 +1,10 @@
-use std::{
-    collections::{HashMap, HashSet},
-    fmt::Display,
-};
+use std::collections::{HashMap, HashSet};
 
 use itertools::Itertools;
 use process_mining::{
     event_log::ocel::ocel_struct::{OCELEvent, OCELObject, OCELRelationship},
     OCEL,
 };
-use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use crate::{constraints::EventType, ocel_qualifiers::qualifiers::QualifierAndObjectType};
 

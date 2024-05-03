@@ -15,11 +15,12 @@ import ReactFlow, {
   addEdge,
   useEdgesState,
   useNodesState,
+  useReactFlow,
   type Connection,
   type Edge,
-  useReactFlow,
 } from "reactflow";
 
+import { BackendProviderContext } from "@/BackendProviderContext";
 import AlertHelper from "@/components/AlertHelper";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
@@ -33,18 +34,13 @@ import {
 import { ImageIcon } from "@radix-ui/react-icons";
 import { toPng } from "html-to-image";
 import toast from "react-hot-toast";
-import { LuLayoutDashboard, LuX } from "react-icons/lu";
+import { LuLayoutDashboard } from "react-icons/lu";
+import { MdClear } from "react-icons/md";
 import { PiPlayFill } from "react-icons/pi";
-import {
-  TbLogicAnd,
-  TbRestore,
-  TbSquarePlus,
-  TbVariablePlus,
-} from "react-icons/tb";
+import { TbLogicAnd, TbRestore, TbSquarePlus } from "react-icons/tb";
 import "reactflow/dist/style.css";
 import type { EventTypeQualifiers, OCELInfo } from "../../types/ocel";
-import { evaluateConstraints } from "./evaluation/evaluate-constraints";
-import { ConstraintInfoContext } from "./helper/ConstraintInfoContext";
+import { evaluateConstraints } from "./helper/evaluation/evaluate-constraints";
 import { FlowContext } from "./helper/FlowContext";
 import { useLayoutedElements } from "./helper/LayoutFlow";
 import { VisualEditorContext } from "./helper/VisualEditorContext";
@@ -58,16 +54,13 @@ import {
 } from "./helper/const";
 import {
   ALL_GATE_TYPES,
-  type GateLinkData,
   type EventTypeLinkData,
   type EventTypeNodeData,
+  type GateLinkData,
   type GateNodeData,
   type ViolationsPerNode,
   type ViolationsPerNodes,
 } from "./helper/types";
-import { MdClear } from "react-icons/md";
-import { BackendProviderContext } from "@/BackendProviderContext";
-import clsx from "clsx";
 
 interface VisualEditorProps {
   ocelInfo: OCELInfo;
@@ -96,11 +89,7 @@ export default function VisualEditor(props: VisualEditorProps) {
     instance.setNodes(otherData?.nodes ?? nodes);
   }, [otherData?.nodes, otherData?.edges, instance]);
 
-  const { objectVariables } = useContext(ConstraintInfoContext);
-
   const backend = useContext(BackendProviderContext);
-
-  const [hideHints, setHideHints] = useState(false);
 
   const onConnect = useCallback(
     ({ source, sourceHandle, target, targetHandle }: Edge | Connection) => {
@@ -193,9 +182,8 @@ export default function VisualEditor(props: VisualEditorProps) {
   useEffect(() => {
     registerOtherDataGetter(() => ({
       violations: undefined, // TODO: For now do not save violation info, because it can become huge; violationInfo.violationsPerNode,
-      objectVariables,
     }));
-  }, [violationInfo, objectVariables]);
+  }, [violationInfo]);
   const initialized = useRef<boolean>(false);
   return (
     <VisualEditorContext.Provider
@@ -396,27 +384,12 @@ export default function VisualEditor(props: VisualEditorProps) {
               );
             }}
           />
-          <AlertHelper
-            initialData={{ eventType: "" }}
-            trigger={
-              <Button
-                disabled={mode !== "normal"}
-                variant="outline"
-                title="Add Event Node"
-                className="bg-white"
-                onClick={() => {}}
-              >
-                <TbSquarePlus size={20} />
-              </Button>
-            }
-            title={"Add Event Node"}
-            submitAction={"Submit"}
-            onSubmit={(data, ev) => {
-              if (data.eventType === "") {
-                toast("Please select an event type to add a node.");
-                ev.preventDefault();
-                return;
-              }
+          <Button
+            disabled={mode !== "normal"}
+            variant="outline"
+            title="Add Event Node"
+            className="bg-white"
+            onClick={() => {
               setNodes((nodes) => {
                 const center =
                   instance != null
@@ -428,44 +401,23 @@ export default function VisualEditor(props: VisualEditorProps) {
                 return [
                   ...nodes,
                   {
-                    id: data.eventType + Date.now(),
+                    id: Math.random() + "-" + Date.now(),
                     type: EVENT_TYPE_NODE_TYPE,
                     position: center,
                     data: {
-                      eventType: { type: "exactly", value: data.eventType },
-                      eventTypeQualifier:
-                        props.eventTypeQualifiers[data.eventType],
-                      selectedVariables: [],
-                      countConstraint: { min: 0, max: Infinity },
+                      box: {
+                        newEventVars: {},
+                        newObjectVars: {},
+                        filterConstraint: [],
+                      },
                     },
                   },
                 ];
               });
-              console.log({ data });
             }}
-            content={({ data, setData }) => {
-              const sortedOcelEventTypes = [...props.ocelInfo.event_types];
-              sortedOcelEventTypes.sort((a, b) => a.name.localeCompare(b.name));
-              return (
-                <>
-                  <p className="mb-2">
-                    Please select the node event type to add below.
-                  </p>
-                  <Combobox
-                    value={data.eventType}
-                    onChange={(v) => {
-                      setData({ ...data, eventType: v });
-                    }}
-                    name="Event Type"
-                    options={sortedOcelEventTypes.map((o) => ({
-                      value: o.name,
-                      label: o.name,
-                    }))}
-                  ></Combobox>
-                </>
-              );
-            }}
-          />
+          >
+            <TbSquarePlus size={20} />
+          </Button>
           <Button
             size="icon"
             variant="outline"
@@ -473,7 +425,7 @@ export default function VisualEditor(props: VisualEditorProps) {
             className=""
             onClick={async () => {
               setViolationInfo({});
-              flushData({ violations: undefined, objectVariables });
+              flushData({ violations: undefined });
             }}
           >
             {mode !== "view-tree" && (
@@ -486,17 +438,13 @@ export default function VisualEditor(props: VisualEditorProps) {
             title={mode !== "view-tree" ? "Evaluate" : "Edit"}
             className="bg-fuchsia-100 border-fuchsia-300 hover:bg-fuchsia-200 hover:border-fuchsia-300"
             onClick={async () => {
-              const tree = evaluateConstraints(
-                objectVariables,
-                nodes,
-                edges,
-              );
+              const tree = evaluateConstraints(nodes, edges);
               console.log({ tree });
               const res = await toast.promise(
                 backend["ocel/check-constraints-box"](tree),
                 {
                   loading: "Evaluating...",
-                  success: (res) => (
+                  success: () => (
                     <span>
                       <b>Evaluation finished</b>
                       <br />
@@ -516,7 +464,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                   error: "Evaluation failed",
                 },
               );
-
+              console.log({ res });
               // const res = violations.map((vs, i) => ({
               //   nodeID: inputNodes[i].id,
               //   // Remove violations for "hideViolations" (not only visually)
@@ -542,73 +490,6 @@ export default function VisualEditor(props: VisualEditorProps) {
           </Button>
         </Panel>
         <Background />
-        {!hideHints &&
-          (objectVariables.length === 0 ||
-            nodes.length === 0 ||
-            ("selectedVariables" in nodes[0].data &&
-              nodes[0].data.selectedVariables.length === 0)) && (
-            <div className="mt-16 text-base h-fit mx-auto p-4 bg-orange-200/50 rounded-md relative z-10 w-full max-w-lg">
-              <button
-                className="absolute right-2 top-2 bg-transparent hover:bg-red-400 rounded-full p-1"
-                title="Hide hints"
-                onClick={() => {
-                  setHideHints(true);
-                }}
-              >
-                <LuX />
-              </button>
-              {objectVariables.length === 0 && (
-                <>
-                  <h2 className="text-3xl font-bold">Welcome!</h2>
-                  <p
-                    className={clsx(
-                      "text-left mt-2",
-                      objectVariables.length === 0 && "font-semibold",
-                      objectVariables.length > 0 && "text-gray-600",
-                    )}
-                  >
-                    Start by adding an object variable using the{" "}
-                    <TbVariablePlus className="inline-block" /> button above.
-                    <br />
-                    <span className="text-gray-700">
-                      e.g., <code className="text-blue-600">or_0</code> of type{" "}
-                      <code className="text-blue-600">orders</code>
-                    </span>
-                  </p>
-                </>
-              )}
-              {objectVariables.length > 0 && nodes.length === 0 && (
-                <p
-                  className={clsx(
-                    "text-left mt-2",
-                    nodes.length === 0 && "font-semibold",
-                    nodes.length > 0 && "text-gray-600",
-                  )}
-                >
-                  Great! Next, add an event filter node using the{" "}
-                  <TbSquarePlus className="inline-block" /> button above.
-                  <br />
-                  <span className="text-gray-500">
-                    e.g., for the event type{" "}
-                    <code className="text-blue-600">pay order</code>
-                  </span>
-                </p>
-              )}
-              {nodes.length > 0 && (
-                <p className={clsx("text-left mt-2 font-semibold")}>
-                  Awesome! Next, link the node with the object variable.
-                  <br />
-                  For that, select the variable from the dropdown list on the
-                  bottom of the node.
-                  <br />
-                  <span className="font-normal text-xs">
-                    If the object variable does not appear in the dropdown list,
-                    select a different node event type or variable object type.
-                  </span>
-                </p>
-              )}
-            </div>
-          )}
       </ReactFlow>
       {violationDetails !== undefined && (
         <ViolationDetailsSheet
