@@ -7,7 +7,7 @@ import type {
   GateNodeData,
 } from "../types";
 
-function getParentNodeID(
+export function getParentNodeID(
   nodeID: string,
   edges: Edge<EventTypeLinkData | GateLinkData>[],
 ) {

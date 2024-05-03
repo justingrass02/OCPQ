@@ -84,10 +84,12 @@ export default function EventTypeNode({
           onNodeDataChange={onNodeDataChange}
         />
         <NewVariableChooser
+          id={id}
           box={data.box}
           updateBox={(box) => onNodeDataChange(id, { box })}
         />
         <FilterConstraintChooser
+          id={id}
           box={data.box}
           updateBox={(box) => onNodeDataChange(id, { box })}
         />

@@ -18,6 +18,7 @@ import ReactFlow, {
   useReactFlow,
   type Connection,
   type Edge,
+  type Node,
 } from "reactflow";
 
 import { BackendProviderContext } from "@/BackendProviderContext";
@@ -40,7 +41,10 @@ import { PiPlayFill } from "react-icons/pi";
 import { TbLogicAnd, TbRestore, TbSquarePlus } from "react-icons/tb";
 import "reactflow/dist/style.css";
 import type { EventTypeQualifiers, OCELInfo } from "../../types/ocel";
-import { evaluateConstraints } from "./helper/evaluation/evaluate-constraints";
+import {
+  evaluateConstraints,
+  getParentNodeID,
+} from "./helper/evaluation/evaluate-constraints";
 import { FlowContext } from "./helper/FlowContext";
 import { useLayoutedElements } from "./helper/LayoutFlow";
 import { VisualEditorContext } from "./helper/VisualEditorContext";
@@ -61,6 +65,8 @@ import {
   type ViolationsPerNode,
   type ViolationsPerNodes,
 } from "./helper/types";
+import type { EventVariable } from "@/types/generated/EventVariable";
+import type { ObjectVariable } from "@/types/generated/ObjectVariable";
 
 interface VisualEditorProps {
   ocelInfo: OCELInfo;
@@ -185,12 +191,47 @@ export default function VisualEditor(props: VisualEditorProps) {
     }));
   }, [violationInfo]);
   const initialized = useRef<boolean>(false);
+
+  function getAvailableVars(
+    nodeID: string | undefined,
+    type: "event" | "object",
+  ): (EventVariable | ObjectVariable)[] {
+    const node = instance.getNode(nodeID ?? "INVALID_ID") as Node<
+      EventTypeNodeData | GateNodeData
+    > | null;
+    let ret: (EventVariable | ObjectVariable)[] = [];
+    if (node == null) {
+      console.warn("getAvailableVars for unknown id: " + nodeID);
+      return ret;
+    }
+    if ("box" in node.data) {
+      ret = [
+        ...Object.keys(
+          type === "event"
+            ? node.data.box.newEventVars
+            : node.data.box.newObjectVars,
+        ).map((n) => parseInt(n)),
+        ...getAvailableVars(
+          getParentNodeID(nodeID ?? "INVALID_ID", edges),
+          type,
+        ),
+      ];
+    } else {
+      ret = getAvailableVars(
+        getParentNodeID(nodeID ?? "INVALID_ID", edges),
+        type,
+      );
+    }
+    ret.sort((a, b) => a - b);
+    return ret;
+  }
   return (
     <VisualEditorContext.Provider
       value={{
         ocelInfo: props.ocelInfo,
         violationsPerNode: violationInfo.violationsPerNode,
         showViolationsFor: violationInfo.showViolationsFor,
+        getAvailableVars,
         onNodeDataChange: (id, newData) => {
           setNodes((ns) => {
             const newNodes = [...ns];

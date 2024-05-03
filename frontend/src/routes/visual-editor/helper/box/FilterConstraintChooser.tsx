@@ -15,17 +15,23 @@ import type { BindingBox } from "@/types/generated/BindingBox";
 import type { EventVariable } from "@/types/generated/EventVariable";
 import type { FilterConstraint } from "@/types/generated/FilterConstraint";
 import type { ObjectVariable } from "@/types/generated/ObjectVariable";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { LuArrowRight, LuLink, LuPlus } from "react-icons/lu";
 import { getEvVarName, getObVarName } from "./variable-names";
+import { VisualEditorContext } from "../VisualEditorContext";
 
 export default function FilterConstraintChooser({
+  id,
   box,
   updateBox,
 }: {
+  id: string;
   box: BindingBox;
   updateBox: (box: BindingBox) => unknown;
 }) {
+  const { getAvailableVars } = useContext(VisualEditorContext);
+  const availableObjectVars = getAvailableVars(id, "object");
+  const availableEventVars = getAvailableVars(id, "event");
   const [alertState, setAlertState] = useState<
     {
       fc?: FilterConstraint;
@@ -133,9 +139,7 @@ export default function FilterConstraintChooser({
                     {"ObjectAssociatedWithEvent" in alertState.fc && (
                       <div className="flex gap-x-2">
                         <ObjectVarSelector
-                          objectVars={Object.keys(box.newObjectVars).map((v) =>
-                            parseInt(v),
-                          )}
+                          objectVars={availableObjectVars}
                           value={alertState.fc.ObjectAssociatedWithEvent[0]}
                           onChange={(newV) => {
                             if (
@@ -148,9 +152,7 @@ export default function FilterConstraintChooser({
                           }}
                         />
                         <EventVarSelector
-                          eventVars={Object.keys(box.newEventVars).map((v) =>
-                            parseInt(v),
-                          )}
+                          eventVars={availableEventVars}
                           value={alertState.fc.ObjectAssociatedWithEvent[1]}
                           onChange={(newV) => {
                             if (
@@ -189,9 +191,7 @@ export default function FilterConstraintChooser({
                     {"ObjectAssociatedWithObject" in alertState.fc && (
                       <div className="flex gap-x-2">
                         <ObjectVarSelector
-                          objectVars={Object.keys(box.newObjectVars).map((v) =>
-                            parseInt(v),
-                          )}
+                          objectVars={availableObjectVars}
                           value={alertState.fc.ObjectAssociatedWithObject[0]}
                           onChange={(newV) => {
                             if (
@@ -205,9 +205,7 @@ export default function FilterConstraintChooser({
                           }}
                         />
                         <ObjectVarSelector
-                          objectVars={Object.keys(box.newObjectVars).map((v) =>
-                            parseInt(v),
-                          )}
+                          objectVars={availableObjectVars}
                           value={alertState.fc.ObjectAssociatedWithObject[1]}
                           onChange={(newV) => {
                             if (
@@ -249,9 +247,7 @@ export default function FilterConstraintChooser({
                     {"TimeBetweenEvents" in alertState.fc && (
                       <div className="flex gap-x-2">
                         <EventVarSelector
-                          eventVars={Object.keys(box.newEventVars).map((v) =>
-                            parseInt(v),
-                          )}
+                          eventVars={availableEventVars}
                           value={alertState.fc.TimeBetweenEvents[0]}
                           onChange={(newV) => {
                             if (
@@ -264,9 +260,7 @@ export default function FilterConstraintChooser({
                           }}
                         />
                         <EventVarSelector
-                          eventVars={Object.keys(box.newEventVars).map((v) =>
-                            parseInt(v),
-                          )}
+                          eventVars={availableEventVars}
                           value={alertState.fc.TimeBetweenEvents[1]}
                           onChange={(newV) => {
                             if (

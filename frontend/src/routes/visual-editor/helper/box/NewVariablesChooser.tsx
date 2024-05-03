@@ -20,13 +20,17 @@ import { VisualEditorContext } from "../VisualEditorContext";
 import { getEvVarName, getObVarName } from "./variable-names";
 
 export default function NewVariableChooser({
+  id,
   box,
   updateBox,
 }: {
+  id: string;
   box: BindingBox;
   updateBox: (box: BindingBox) => unknown;
 }) {
-  const { ocelInfo } = useContext(VisualEditorContext);
+  const { ocelInfo, getAvailableVars } = useContext(VisualEditorContext);
+  const availableObjectVars = getAvailableVars(id, "object");
+  const availableEventVars = getAvailableVars(id, "event");
   const [alertState, setAlertState] = useState<
     {
       variant: "event" | "object";
@@ -42,7 +46,7 @@ export default function NewVariableChooser({
     return Array(100)
       .fill(0)
       .map((_, i) => i)
-      .filter((i) => i === allowObjectVar || !(i in box.newObjectVars))
+      .filter((i) => i === allowObjectVar || !availableObjectVars.includes(i))
       .filter((i, index) => index < 10);
   }
 
@@ -50,7 +54,7 @@ export default function NewVariableChooser({
     return Array(100)
       .fill(0)
       .map((_, i) => i)
-      .filter((i) => i === allowedEventVar || !(i in box.newEventVars))
+      .filter((i) => i === allowedEventVar || !availableEventVars.includes(i))
       .filter((i, index) => index < 10);
   }
 
