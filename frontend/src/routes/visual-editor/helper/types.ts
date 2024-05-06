@@ -1,18 +1,13 @@
 import type { BindingBox } from "@/types/generated/BindingBox";
-import { type CONSTRAINT_TYPES } from "./const";
+import type { EvaluationResultWithCount } from "@/types/generated/EvaluationResultWithCount";
 
-export type ViolationReason = "TooFewMatchingEvents" | "TooManyMatchingEvents";
-export type Binding = [
-  { past_events: { event_id: string; node_id: string }[] },
-  Record<string, { Single: string } | { Multiple: unknown }>,
-];
-export type Violation = [Binding, ViolationReason];
-export type ViolationsPerNode = {
-  violations: Violation[];
-  numBindings: number;
-  nodeID: string;
+export type EvaluationResPerNodes = {
+  evalRes: Map<string, EvaluationRes>;
+  objectIds: string[];
+  eventIds: string[];
 };
-export type ViolationsPerNodes = ViolationsPerNode[];
+export type EvaluationRes = EvaluationResultWithCount;
+
 export type CountConstraint = { min: number; max: number };
 
 export type EventTypeNodeData = {
@@ -26,54 +21,54 @@ export type GateNodeData = { type: "not" | "or" | "and" };
 export type TimeConstraint = { minSeconds: number; maxSeconds: number };
 export type EventTypeLinkData = {
   color: string;
-  constraintType: (typeof CONSTRAINT_TYPES)[number];
-  timeConstraint: TimeConstraint;
+  minCount: number | null;
+  maxCount: number | null;
 };
 // eslint-disable-next-line @typescript-eslint/ban-types
 export type GateLinkData = {};
 
-// export type DiscoverConstraintsRequest = {
-//   countConstraints?: {
-//     objectTypes: string[];
-//     coverFraction: number;
-//   };
-//   eventuallyFollowsConstraints?: {
-//     objectTypes: string[];
-//     coverFraction: number;
-//   };
-//   orConstraints?: {
-//     objectTypes: string[];
-//   };
-// };
+export type DiscoverConstraintsRequest = {
+  countConstraints?: {
+    objectTypes: string[];
+    coverFraction: number;
+  };
+  eventuallyFollowsConstraints?: {
+    objectTypes: string[];
+    coverFraction: number;
+  };
+  orConstraints?: {
+    objectTypes: string[];
+  };
+};
 
-// export type DiscoverConstraintsRequestWrapper = DiscoverConstraintsRequest & {
-//   countConstraints: { enabled: boolean };
-//   eventuallyFollowsConstraints: { enabled: boolean };
-//   orConstraints: { enabled: boolean };
-// };
+export type DiscoverConstraintsRequestWrapper = DiscoverConstraintsRequest & {
+  countConstraints: { enabled: boolean };
+  eventuallyFollowsConstraints: { enabled: boolean };
+  orConstraints: { enabled: boolean };
+};
 
-// export type DiscoveredCountConstraint = {
-//   countConstraint: { min: number; max: number };
-//   objectType: string;
-//   eventType: EventTypeNodeData["eventType"];
-// };
-// export type DiscoveredEFConstraint = {
-//   secondsRange: {
-//     minSeconds: number;
-//     maxSeconds: number;
-//   };
-//   objectTypes: string[];
-//   fromEventType: string;
-//   toEventType: string;
-// };
-// export type DiscoveredORConstraint =
-//   | {
-//       EfOrCount: [DiscoveredEFConstraint, DiscoveredCountConstraint];
-//     }
-//   | { CountOrEf: [DiscoveredCountConstraint, DiscoveredEFConstraint] };
+export type DiscoveredCountConstraint = {
+  countConstraint: { min: number; max: number };
+  objectType: string;
+  eventType: unknown; // EventTypeNodeData["eventType"];
+};
+export type DiscoveredEFConstraint = {
+  secondsRange: {
+    minSeconds: number;
+    maxSeconds: number;
+  };
+  objectTypes: string[];
+  fromEventType: string;
+  toEventType: string;
+};
+export type DiscoveredORConstraint =
+  | {
+      EfOrCount: [DiscoveredEFConstraint, DiscoveredCountConstraint];
+    }
+  | { CountOrEf: [DiscoveredCountConstraint, DiscoveredEFConstraint] };
 
-// export type DiscoverConstraintsResponse = {
-//   countConstraints: DiscoveredCountConstraint[];
-//   eventuallyFollowsConstraints: DiscoveredEFConstraint[];
-//   orConstraints: DiscoveredORConstraint[];
-// };
+export type DiscoverConstraintsResponse = {
+  countConstraints: DiscoveredCountConstraint[];
+  eventuallyFollowsConstraints: DiscoveredEFConstraint[];
+  orConstraints: DiscoveredORConstraint[];
+};

@@ -19,6 +19,9 @@ import { useContext, useState } from "react";
 import { LuArrowRight, LuLink, LuPlus } from "react-icons/lu";
 import { getEvVarName, getObVarName } from "./variable-names";
 import { VisualEditorContext } from "../VisualEditorContext";
+import TimeDurationInput, {
+  formatSeconds,
+} from "@/components/TimeDurationInput";
 
 export default function FilterConstraintChooser({
   id,
@@ -80,7 +83,7 @@ export default function FilterConstraintChooser({
         }}
       >
         {alertState !== undefined && (
-          <AlertDialogContent className="max-w-xl">
+          <AlertDialogContent className="max-w-3xl">
             <AlertDialogHeader>
               <AlertDialogTitle>
                 {alertState?.mode === "add" ? "Add " : "Edit "} Filter
@@ -272,15 +275,14 @@ export default function FilterConstraintChooser({
                             }
                           }}
                         />
-                        <Input
-                          type="number"
-                          className="w-full"
-                          placeholder="Min. Delay (s)"
-                          value={alertState.fc.TimeBetweenEvents[2][0] ?? ""}
-                          onChange={(ev) => {
-                            const newVal = ev.currentTarget.valueAsNumber;
+                        <div className="w-8"></div>
+                        <TimeDurationInput
+                          durationSeconds={
+                            alertState.fc.TimeBetweenEvents[2][0] ?? -Infinity
+                          }
+                          onChange={(newVal) => {
                             if ("TimeBetweenEvents" in alertState.fc!) {
-                              if (newVal !== null && !isNaN(newVal)) {
+                              if (isFinite(newVal)) {
                                 alertState.fc.TimeBetweenEvents[2][0] = newVal;
                                 setAlertState({ ...alertState });
                               } else {
@@ -291,15 +293,13 @@ export default function FilterConstraintChooser({
                           }}
                         />
 
-                        <Input
-                          type="number"
-                          className="w-full"
-                          placeholder="Max. Delay (s)"
-                          value={alertState.fc.TimeBetweenEvents[2][1] ?? ""}
-                          onChange={(ev) => {
-                            const newVal = ev.currentTarget.valueAsNumber;
+                        <TimeDurationInput
+                          durationSeconds={
+                            alertState.fc.TimeBetweenEvents[2][1] ?? Infinity
+                          }
+                          onChange={(newVal) => {
                             if ("TimeBetweenEvents" in alertState.fc!) {
-                              if (newVal !== null && !isNaN(newVal)) {
+                              if (isFinite(newVal)) {
                                 alertState.fc.TimeBetweenEvents[2][1] = newVal;
                                 setAlertState({ ...alertState });
                               } else {
@@ -384,7 +384,8 @@ function FilterConstraintDisplay({ fc }: { fc: FilterConstraint }) {
       <div className="flex items-center gap-x-1 font-normal text-sm">
         {getEvVarName(evVar1)} <LuArrowRight /> {getEvVarName(evVar2)}{" "}
         <span className="ml-2 inline-flex items-center gap-x-1 text-xs">
-          {minTime ?? "-∞"} <span className="mx-1">-</span> {maxTime ?? "∞"} (s)
+          {formatSeconds(minTime ?? -Infinity)} <span className="mx-1">-</span>{" "}
+          {formatSeconds(maxTime ?? Infinity)}
         </span>
       </div>
     );

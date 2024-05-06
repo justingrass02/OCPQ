@@ -3,13 +3,12 @@ import type { Edge, Node } from "reactflow";
 import type {
   EventTypeLinkData,
   EventTypeNodeData,
-  GateLinkData,
   GateNodeData,
 } from "../types";
 
 export function getParentNodeID(
   nodeID: string,
-  edges: Edge<EventTypeLinkData | GateLinkData>[],
+  edges: Edge<EventTypeLinkData>[],
 ) {
   for (const edge of edges) {
     if (edge.target === nodeID) {
@@ -19,10 +18,7 @@ export function getParentNodeID(
   return undefined;
 }
 
-function getChildrenNodeIDs(
-  nodeID: string,
-  edges: Edge<EventTypeLinkData | GateLinkData>[],
-) {
+function getChildrenNodeIDs(nodeID: string, edges: Edge<EventTypeLinkData>[]) {
   const children = [];
   for (const edge of edges) {
     if (edge.source === nodeID) {
@@ -34,7 +30,7 @@ function getChildrenNodeIDs(
 
 export function evaluateConstraints(
   nodes: Node<EventTypeNodeData | GateNodeData>[],
-  edges: Edge<EventTypeLinkData | GateLinkData>[],
+  edges: Edge<EventTypeLinkData>[],
 ): BindingBoxTree {
   const tree: BindingBoxTree = { nodes: [], sizeConstraints: [] };
   if (nodes.length === 0) {
@@ -60,9 +56,19 @@ export function evaluateConstraints(
   newNodes.splice(rootIndex, 1);
   newNodes.unshift(root);
   const nodesIndexMap = new Map(newNodes.map((node, i) => [node.id, i]));
+  const edgeMap = new Map(
+    edges.map((edge) => [edge.source + "---" + edge.target, edge]),
+  );
 
   tree.nodes = newNodes.map((node) => {
     const children = getChildrenNodeIDs(node.id, edges);
+    for (const c of children) {
+      const e = edgeMap.get(node.id + "---" + c)!;
+      tree.sizeConstraints.push([
+        [nodesIndexMap.get(node.id)!, nodesIndexMap.get(c)!],
+        [e.data?.minCount ?? null, e.data?.maxCount ?? null],
+      ]);
+    }
     if ("box" in node.data) {
       return {
         Box: [node.data.box, children.map((c) => nodesIndexMap.get(c)!)],

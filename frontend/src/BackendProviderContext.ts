@@ -1,7 +1,6 @@
 import type {
   DiscoverConstraintsRequest,
   DiscoverConstraintsResponse,
-  ViolationReason,
 } from "./routes/visual-editor/helper/types";
 import type {
   EventTypeQualifiers,
@@ -10,8 +9,7 @@ import type {
 } from "./types/ocel";
 import { createContext } from "react";
 import type { BindingBoxTree } from "./types/generated/BindingBoxTree";
-import type { Binding } from "./types/generated/Binding";
-export type EvaluationResults = [number, Binding, ViolationReason | null][];
+import type { EvaluateBoxTreeResult } from "./types/generated/EvaluateBoxTreeResult";
 export type BackendProvider = {
   "ocel/info": () => Promise<OCELInfo>;
   "ocel/upload"?: (file: File) => Promise<OCELInfo>;
@@ -20,7 +18,7 @@ export type BackendProvider = {
   "ocel/picker"?: () => Promise<OCELInfo>;
   "ocel/check-constraints-box": (
     tree: BindingBoxTree,
-  ) => Promise<EvaluationResults>;
+  ) => Promise<EvaluateBoxTreeResult>;
   "ocel/event-qualifiers": () => Promise<EventTypeQualifiers>;
   "ocel/object-qualifiers": () => Promise<ObjectTypeQualifiers>;
   "ocel/discover-constraints": (

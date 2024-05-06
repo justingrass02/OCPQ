@@ -32,6 +32,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import type { EventVariable } from "@/types/generated/EventVariable";
+import type { ObjectVariable } from "@/types/generated/ObjectVariable";
 import { ImageIcon } from "@radix-ui/react-icons";
 import { toPng } from "html-to-image";
 import toast from "react-hot-toast";
@@ -41,32 +43,29 @@ import { PiPlayFill } from "react-icons/pi";
 import { TbLogicAnd, TbRestore, TbSquarePlus } from "react-icons/tb";
 import "reactflow/dist/style.css";
 import type { EventTypeQualifiers, OCELInfo } from "../../types/ocel";
-import {
-  evaluateConstraints,
-  getParentNodeID,
-} from "./helper/evaluation/evaluate-constraints";
 import { FlowContext } from "./helper/FlowContext";
 import { useLayoutedElements } from "./helper/LayoutFlow";
 import { VisualEditorContext } from "./helper/VisualEditorContext";
 import {
   EVENT_TYPE_LINK_TYPE,
   EVENT_TYPE_NODE_TYPE,
-  GATE_LINK_TYPE,
   GATE_NODE_TYPE,
   edgeTypes,
   nodeTypes,
 } from "./helper/const";
 import {
+  evaluateConstraints,
+  getParentNodeID,
+} from "./helper/evaluation/evaluate-constraints";
+import {
   ALL_GATE_TYPES,
+  type EvaluationRes,
+  type EvaluationResPerNodes,
   type EventTypeLinkData,
   type EventTypeNodeData,
-  type GateLinkData,
   type GateNodeData,
-  type ViolationsPerNode,
-  type ViolationsPerNodes,
 } from "./helper/types";
-import type { EventVariable } from "@/types/generated/EventVariable";
-import type { ObjectVariable } from "@/types/generated/ObjectVariable";
+import { getEvVarName, getObVarName } from "./helper/box/variable-names";
 
 interface VisualEditorProps {
   ocelInfo: OCELInfo;
@@ -86,9 +85,9 @@ export default function VisualEditor(props: VisualEditorProps) {
     EventTypeNodeData | GateNodeData
   >(otherData?.nodes ?? []);
 
-  const [edges, setEdges, onEdgesChange] = useEdgesState<
-    EventTypeLinkData | GateLinkData
-  >(otherData?.edges ?? []);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<EventTypeLinkData>(
+    otherData?.edges ?? [],
+  );
   const instance = useReactFlow();
 
   useEffect(() => {
@@ -108,37 +107,6 @@ export default function VisualEditor(props: VisualEditorProps) {
         ) {
           return eds;
         } else {
-          const sourceNode = instance.getNode(source);
-          const targetNode = instance.getNode(target);
-          if (sourceNode?.type === "gate" || targetNode?.type === "gate") {
-            // TODO: Implement link between gates and event nodes
-            const color = "#969696";
-            const newEdge: Edge<GateLinkData> = {
-              id: sourceHandle + "|||" + targetHandle,
-              type: GATE_LINK_TYPE,
-              source,
-              sourceHandle,
-              target,
-              targetHandle,
-              markerEnd: {
-                type: MarkerType.ArrowClosed,
-                width: 15,
-                height: 12,
-                color: "#000000ff",
-              },
-              style: {
-                strokeWidth: 2,
-                stroke: color,
-              },
-              // data: {
-              //   color,
-              //   constraintType: "response",
-              //   timeConstraint: { minSeconds: 0, maxSeconds: Infinity },
-              // },
-            };
-            return addEdge(newEdge, eds);
-          }
-          console.log(sourceHandle, targetHandle);
           const color = "#969696";
           const newEdge: Edge<EventTypeLinkData> = {
             id: sourceHandle + "|||" + targetHandle,
@@ -159,8 +127,8 @@ export default function VisualEditor(props: VisualEditorProps) {
             },
             data: {
               color,
-              constraintType: "response",
-              timeConstraint: { minSeconds: 0, maxSeconds: Infinity },
+              minCount: null,
+              maxCount: null,
             },
           };
           return addEdge(newEdge, eds);
@@ -172,11 +140,11 @@ export default function VisualEditor(props: VisualEditorProps) {
 
   const { getLayoutedElements } = useLayoutedElements();
 
-  const [violationDetails, setViolationDetails] = useState<ViolationsPerNode>();
+  const [violationDetails, setViolationDetails] = useState<EvaluationRes>();
 
   const [violationInfo, setViolationInfo] = useState<{
-    violationsPerNode?: ViolationsPerNodes;
-    showViolationsFor?: (data: ViolationsPerNode) => unknown;
+    violationsPerNode?: EvaluationResPerNodes;
+    showViolationsFor?: (data: EvaluationRes) => unknown;
   }>({
     showViolationsFor: (d) => {
       console.log({ d });
@@ -196,6 +164,9 @@ export default function VisualEditor(props: VisualEditorProps) {
     nodeID: string | undefined,
     type: "event" | "object",
   ): (EventVariable | ObjectVariable)[] {
+    if (nodeID === undefined) {
+      return [];
+    }
     const node = instance.getNode(nodeID ?? "INVALID_ID") as Node<
       EventTypeNodeData | GateNodeData
     > | null;
@@ -479,7 +450,9 @@ export default function VisualEditor(props: VisualEditorProps) {
             title={mode !== "view-tree" ? "Evaluate" : "Edit"}
             className="bg-fuchsia-100 border-fuchsia-300 hover:bg-fuchsia-200 hover:border-fuchsia-300"
             onClick={async () => {
-              const tree = evaluateConstraints(nodes, edges);
+              const nodesCopy = [...nodes];
+              const edgesCopy = [...edges];
+              const tree = evaluateConstraints(nodesCopy, edgesCopy);
               console.log({ tree });
               const res = await toast.promise(
                 backend["ocel/check-constraints-box"](tree),
@@ -519,6 +492,18 @@ export default function VisualEditor(props: VisualEditorProps) {
               //       : vs,
               //   numBindings: sizes[i],
               // }));
+              const evalRes: Map<string, EvaluationRes> = new Map<
+                string,
+                EvaluationRes
+              >(res.evaluationResults.map((res, i) => [nodesCopy[i].id, res]));
+              setViolationInfo((vi) => ({
+                ...vi,
+                violationsPerNode: {
+                  evalRes,
+                  objectIds: res.objectIds,
+                  eventIds: res.eventIds,
+                },
+              }));
               // console.log("Evaluation res:", res);
               // setViolationInfo((vi) => ({ ...vi, violationsPerNode: res }));
               // // flushData({ violations: res, objectVariables });
@@ -532,26 +517,31 @@ export default function VisualEditor(props: VisualEditorProps) {
         </Panel>
         <Background />
       </ReactFlow>
-      {violationDetails !== undefined && (
-        <ViolationDetailsSheet
-          violationDetails={violationDetails}
-          setViolationDetails={setViolationDetails}
-        />
-      )}
+      {violationDetails !== undefined &&
+        violationInfo.violationsPerNode !== undefined && (
+          <ViolationDetailsSheet
+            violationDetails={violationDetails}
+            setViolationDetails={setViolationDetails}
+            violationResPerNodes={violationInfo.violationsPerNode}
+          />
+        )}
     </VisualEditorContext.Provider>
   );
 }
 
 const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
   violationDetails,
+  violationResPerNodes,
   setViolationDetails,
 }: {
-  violationDetails: ViolationsPerNode;
+  violationDetails: EvaluationRes;
+  violationResPerNodes: EvaluationResPerNodes;
   setViolationDetails: React.Dispatch<
-    React.SetStateAction<ViolationsPerNode | undefined>
+    React.SetStateAction<EvaluationRes | undefined>
   >;
 }) {
   const VIOLATIONS_TO_SHOW = 100;
+  console.log({ violationDetails, violationResPerNodes });
   return (
     <Sheet
       modal={false}
@@ -570,13 +560,10 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
           }}
         >
           <SheetHeader>
-            <SheetTitle>
-              Violations for{" "}
-              <span className="text-blue-900">{violationDetails?.nodeID}</span>
-            </SheetTitle>
+            <SheetTitle>Violations</SheetTitle>
             <SheetDescription>
-              {violationDetails?.violations.length} Violations
-              {violationDetails?.violations.length > VIOLATIONS_TO_SHOW && (
+              {violationDetails.situationViolatedCount} Violations
+              {violationDetails.situationViolatedCount > VIOLATIONS_TO_SHOW && (
                 <>
                   <br />
                   {
@@ -589,9 +576,10 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
             </SheetDescription>
           </SheetHeader>
           <ul className="overflow-auto h-[80vh] bg-slate-50 border rounded-sm mt-2 px-2 py-0.5 text-xs">
-            {violationDetails.violations
+            {violationDetails.situations
+              .filter(([_binding, reason]) => reason !== null)
               .slice(0, VIOLATIONS_TO_SHOW)
-              .map(([[info, binding], reason], i) => (
+              .map(([binding, reason], i) => (
                 <li
                   key={i}
                   className="border mx-1 my-2 px-1 py-1 rounded-sm bg-blue-50"
@@ -599,17 +587,26 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                   <div>
                     <p className="text-orange-600">{reason}</p>
                     <span className="text-emerald-700">Past events:</span>{" "}
-                    <span className="font-mono">
-                      {info.past_events.map((e) => e.event_id).join(",")}
-                    </span>
+                    <ul className="flex flex-col ml-6 list-disc">
+                      {Object.entries(binding.eventMap).map(
+                        ([evVarName, evIndex]) => (
+                          <li key={evVarName}>
+                            {getEvVarName(parseInt(evVarName))}:
+                            {violationResPerNodes.eventIds[evIndex]}
+                          </li>
+                        ),
+                      )}
+                    </ul>
                     <h3 className="text-blue-700">Objects:</h3>
                     <ul className="flex flex-col ml-6 list-disc">
-                      {Object.entries(binding).map(([variable, value]) => (
-                        <li key={variable}>
-                          <span className="text-cyan-700">{variable}:</span>{" "}
-                          {"Single" in value ? value.Single : "?"}
-                        </li>
-                      ))}
+                      {Object.entries(binding.objectMap).map(
+                        ([obVarName, obIndex]) => (
+                          <li key={obVarName}>
+                            {getObVarName(parseInt(obVarName))}:
+                            {violationResPerNodes.objectIds[obIndex]}
+                          </li>
+                        ),
+                      )}
                     </ul>
                   </div>
                 </li>

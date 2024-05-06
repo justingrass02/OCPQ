@@ -6,8 +6,6 @@ import {
   type Node,
 } from "reactflow";
 import type { EventTypeNodeData, GateNodeData } from "./types";
-import { useContext } from "react";
-import { COLORS } from "./colors";
 
 const STROKE_WIDTH = 4;
 
@@ -19,12 +17,12 @@ export default function QuantifiedObjectEdge({
   sourcePosition,
   targetPosition,
   markerEnd,
-  source,
+  // source,
   target,
 }: EdgeProps<unknown>) {
   const flow = useReactFlow();
-  const sourceNode: Node<EventTypeNodeData | GateNodeData> | undefined =
-    flow.getNode(source);
+  // const sourceNode: Node<EventTypeNodeData | GateNodeData> | undefined =
+  //   flow.getNode(source);
   const targetNode: Node<EventTypeNodeData | GateNodeData> | undefined =
     flow.getNode(target);
 

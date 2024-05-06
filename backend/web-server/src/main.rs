@@ -16,7 +16,7 @@ use std::{
 use ocedeclare_shared::{
     binding_box::{
         evaluate_box_tree,
-        structs::{BindingBoxTree, EvaluationResults},
+        structs::BindingBoxTree, EvaluateBoxTreeResult,
     },
     constraints::{check_with_tree, CheckWithTreeRequest, ViolationsWithoutID},
     discovery::{
@@ -194,7 +194,7 @@ pub struct CheckWithBoxTreeRequest {
 pub async fn check_with_box_tree_req<'a>(
     state: State<AppState>,
     Json(req): Json<CheckWithBoxTreeRequest>,
-) -> (StatusCode, Json<Option<EvaluationResults>>) {
+) -> (StatusCode, Json<Option<EvaluateBoxTreeResult>>) {
     with_ocel_from_state(&state, |ocel| {
         (
             StatusCode::OK,

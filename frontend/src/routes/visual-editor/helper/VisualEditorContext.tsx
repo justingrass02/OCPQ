@@ -1,17 +1,17 @@
 import { createContext } from "react";
 import type {
+  EvaluationRes,
+  EvaluationResPerNodes,
   EventTypeLinkData,
   EventTypeNodeData,
-  ViolationsPerNode,
-  ViolationsPerNodes,
 } from "./types";
 import type { OCELInfo } from "@/types/ocel";
 import type { EventVariable } from "@/types/generated/EventVariable";
 import type { ObjectVariable } from "@/types/generated/ObjectVariable";
 
 export type VisualEditorContextValue = {
-  violationsPerNode?: ViolationsPerNodes;
-  showViolationsFor?: (data: ViolationsPerNode) => unknown;
+  violationsPerNode?: EvaluationResPerNodes;
+  showViolationsFor?: (data: EvaluationRes) => unknown;
   onNodeDataChange: (
     id: string,
     newData: Partial<EventTypeNodeData> | undefined,

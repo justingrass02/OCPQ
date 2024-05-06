@@ -44,7 +44,7 @@ export function Combobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full min-w-fit justify-between"
+          className="w-fit min-w-fit justify-between"
         >
           {value ? options.find((o) => o.value === value)?.label : name}
           <RxChevronUp className="ml-2 h-4 w-4 shrink-0 opacity-50" />
