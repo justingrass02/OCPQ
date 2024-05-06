@@ -37,7 +37,7 @@ export default function EventTypeNode({
       }`}
     >
       <Toggle
-        className="flex w-6 h-6 p-0 absolute left-1"
+        className="flex w-6 h-6 p-0 absolute right-11"
         variant="outline"
         title={
           data.hideViolations === true

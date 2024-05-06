@@ -24,8 +24,6 @@ export type EventTypeLinkData = {
   minCount: number | null;
   maxCount: number | null;
 };
-// eslint-disable-next-line @typescript-eslint/ban-types
-export type GateLinkData = {};
 
 export type DiscoverConstraintsRequest = {
   countConstraints?: {
