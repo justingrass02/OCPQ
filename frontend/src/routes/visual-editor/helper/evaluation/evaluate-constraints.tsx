@@ -64,14 +64,14 @@ export function evaluateConstraints(
   }
 
   console.log("Found root: " + root?.id + " of " + numRootsFound);
-  const rootIndex = nodes.indexOf(root);
+  const rootIndex = nodes.indexOf(root!);
   if (numRootsFound > 1 || rootIndex < 0) {
     console.warn("Found multiple roots or no valid root! Invalid tree.");
     toast.error("Invalid Tree! Found multiple root nodes.");
     return { tree, nodesOrder: newNodes };
   }
   newNodes.splice(rootIndex, 1);
-  newNodes.unshift(root);
+  newNodes.unshift(root!);
   const nodesIndexMap = new Map(newNodes.map((node, i) => [node.id, i]));
   const edgeMap = new Map(
     edges.map((edge) => [edge.source + "---" + edge.target, edge]),

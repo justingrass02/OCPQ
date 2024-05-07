@@ -19,7 +19,7 @@ import ConstraintContainer from "../constraint-container/ConstraintContainer";
 import { FlowContext } from "../helper/FlowContext";
 
 import type { FlowAndViolationData } from "@/types/misc";
-import type { ViolationsPerNodes } from "../helper/types";
+import type { EvaluationResPerNodes } from "../helper/types";
 // import AutoDiscoveryButton from "./AutoDiscovery";
 const LOCALSTORAGE_SAVE_KEY_DATA = "oced-declare-data";
 const LOCALSTORAGE_SAVE_KEY_CONSTRAINTS_META = "oced-declare-meta";
@@ -40,7 +40,7 @@ export default function VisualEditorOuter() {
     instance?: ReactFlowInstance | undefined;
     getter?: () =>
       | {
-          violations?: ViolationsPerNodes;
+          violations?: EvaluationResPerNodes;
         }
       | undefined;
   }>({});
@@ -271,9 +271,14 @@ export default function VisualEditorOuter() {
                               prevDataRef.current[i]?.violations == null && "",
                               prevDataRef.current[i]?.violations != null &&
                                 "bg-green-200/30 data-[state=on]:bg-green-300/80",
-                              prevDataRef.current[i]?.violations?.find(
-                                (vs) => vs.violations.length > 0,
-                              ) != null &&
+                              prevDataRef.current[i]?.violations != null &&
+                                [
+                                  ...(prevDataRef.current[
+                                    i
+                                  ].violations?.evalRes?.values() ?? []),
+                                ]?.find(
+                                  (vs) => vs.situationViolatedCount > 0,
+                                ) != null &&
                                 "bg-red-200/30 data-[state=on]:bg-red-300/80",
                             )}
                             title={c.name}
