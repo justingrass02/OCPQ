@@ -266,8 +266,9 @@ impl BindingBoxTreeNode {
                 let mut ret = vec![];
                 let node = &tree.nodes[*i];
 
-                let (res_c, violation_c) = node.evaluate(*i, own_index, parent_binding, tree, ocel);
+                let (res_c, violation_c) = node.evaluate(*i, own_index, parent_binding.clone(), tree, ocel);
                 ret.extend(res_c);
+                ret.push((*i, parent_binding.clone(), violation_c));
                 if violation_c.is_some() {
                     // NOT satisfied
                     return (ret, None);
