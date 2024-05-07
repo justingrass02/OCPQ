@@ -11,7 +11,10 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    constraints::{CountConstraint, EventType, SecondsRange},
+    binding_box::{
+        structs::{BindingBoxTreeNode, EventVariable, FilterConstraint, ObjectVariable},
+        BindingBox, BindingBoxTree,
+    },
     preprocessing::preprocess::{link_ocel_info, LinkedOCEL},
 };
 
@@ -22,7 +25,8 @@ pub mod evaluation;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct EventuallyFollowsConstraints {
-    pub seconds_range: SecondsRange,
+    pub min_seconds: f64,
+    pub max_seconds: f64,
     pub object_types: Vec<String>,
     pub from_event_type: String,
     pub to_event_type: String,
@@ -33,6 +37,61 @@ pub struct EFConstraintInfo {
     pub constraint: EventuallyFollowsConstraints,
     pub supporting_object_ids: HashSet<String>,
     pub cover_fraction: f32,
+}
+
+impl Into<BindingBoxTree> for &EventuallyFollowsConstraints {
+    fn into(self) -> BindingBoxTree {
+        let bbox0 = BindingBoxTreeNode::Box(
+            BindingBox {
+                new_event_vars: vec![(
+                    EventVariable(0),
+                    vec![self.from_event_type.clone()].into_iter().collect(),
+                )]
+                .into_iter()
+                .collect(),
+                new_object_vars: vec![(
+                    ObjectVariable(0),
+                    self.object_types.iter().cloned().collect(),
+                )]
+                .into_iter()
+                .collect(),
+                filter_constraint: vec![FilterConstraint::ObjectAssociatedWithEvent(
+                    ObjectVariable(0),
+                    EventVariable(0),
+                    None,
+                )],
+            },
+            vec![1],
+        );
+        let bbox1 = BindingBoxTreeNode::Box(
+            BindingBox {
+                new_event_vars: vec![(
+                    EventVariable(1),
+                    vec![self.to_event_type.clone()].into_iter().collect(),
+                )]
+                .into_iter()
+                .collect(),
+                new_object_vars: HashMap::new(),
+                filter_constraint: vec![
+                    FilterConstraint::ObjectAssociatedWithEvent(
+                        ObjectVariable(0),
+                        EventVariable(1),
+                        None,
+                    ),
+                    FilterConstraint::TimeBetweenEvents(
+                        EventVariable(0),
+                        EventVariable(1),
+                        (Some(self.min_seconds), Some(self.max_seconds)),
+                    ),
+                ],
+            },
+            vec![],
+        );
+        BindingBoxTree {
+            nodes: vec![bbox0, bbox1],
+            size_constraints: vec![((0, 1), (Some(1), None))].into_iter().collect(),
+        }
+    }
 }
 
 pub fn auto_discover_eventually_follows(
@@ -164,10 +223,8 @@ pub fn auto_discover_eventually_follows(
                                 .sqrt();
                             let mut std_dev_factor: f64 = 0.003;
                             let mut constraint = EventuallyFollowsConstraints {
-                                seconds_range: SecondsRange {
-                                    min_seconds: 0.0,
-                                    max_seconds: MAX,
-                                },
+                                min_seconds: 0.0,
+                                max_seconds: MAX,
                                 object_types: obj_types.into_iter().cloned().collect_vec(),
                                 from_event_type: prev_et.clone(),
                                 to_event_type: next_et.clone(),
@@ -201,10 +258,8 @@ pub fn auto_discover_eventually_follows(
                                 continue;
                             }
 
-                            constraint.seconds_range = SecondsRange {
-                                min_seconds: mean_delay_seconds, //TODO: Re-eanble mean_delay_seconds,
-                                max_seconds: mean_delay_seconds, // mean_delay_seconds,
-                            };
+                            constraint.min_seconds = mean_delay_seconds;
+                            constraint.max_seconds = mean_delay_seconds;
 
                             while get_ef_constraint_fraction(
                                 linked_ocel,
@@ -216,14 +271,13 @@ pub fn auto_discover_eventually_follows(
                             {
                                 std_dev_factor += 0.01;
                                 // TODO: Re-enable
-                                constraint.seconds_range.min_seconds = mean_delay_seconds
+                                constraint.min_seconds = mean_delay_seconds
                                     - std_dev_factor * delay_seconds_std_deviation;
-                                constraint.seconds_range.max_seconds = mean_delay_seconds
+                                constraint.max_seconds = mean_delay_seconds
                                     + std_dev_factor * delay_seconds_std_deviation;
                             }
                             // Min should be >= 0.0
-                            constraint.seconds_range.min_seconds =
-                                constraint.seconds_range.min_seconds.max(0.0);
+                            constraint.min_seconds = constraint.min_seconds.max(0.0);
 
                             let (cover_fraction, supporting_object_ids) =
                                 get_ef_constraint_fraction(
@@ -260,9 +314,10 @@ pub fn auto_discover_eventually_follows(
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SimpleDiscoveredCountConstraints {
-    pub count_constraint: CountConstraint,
+    pub min_count: usize,
+    pub max_count: usize,
     pub object_type: String,
-    pub event_type: EventType,
+    pub event_types: Vec<String>,
 }
 // We might want to also return a set of "supporting objects" for each discovered constraints
 // These are the objects for which the count constraint is satisfied
@@ -276,6 +331,49 @@ pub struct CountConstraintInfo {
     pub constraint: SimpleDiscoveredCountConstraints,
     pub supporting_object_ids: HashSet<String>,
     pub cover_fraction: f32,
+}
+
+impl Into<BindingBoxTree> for &SimpleDiscoveredCountConstraints {
+    fn into(self) -> BindingBoxTree {
+        let bbox0 = BindingBoxTreeNode::Box(
+            BindingBox {
+                new_event_vars: HashMap::new(),
+                new_object_vars: vec![(
+                    ObjectVariable(0),
+                    vec![self.object_type.clone()].into_iter().collect(),
+                )]
+                .into_iter()
+                .collect(),
+                filter_constraint: vec![],
+            },
+            vec![1],
+        );
+        let bbox1 = BindingBoxTreeNode::Box(
+            BindingBox {
+                new_event_vars: vec![(
+                    EventVariable(0),
+                    vec![self.event_types.iter().cloned().collect()]
+                        .into_iter()
+                        .collect(),
+                )]
+                .into_iter()
+                .collect(),
+                new_object_vars: HashMap::new(),
+                filter_constraint: vec![FilterConstraint::ObjectAssociatedWithEvent(
+                    ObjectVariable(0),
+                    EventVariable(0),
+                    None,
+                )],
+            },
+            vec![],
+        );
+        BindingBoxTree {
+            nodes: vec![bbox0, bbox1],
+            size_constraints: vec![((0, 1), (Some(self.min_count), Some(self.max_count)))]
+                .into_iter()
+                .collect(),
+        }
+    }
 }
 
 pub fn get_obj_types_per_ev_type<'a>(
@@ -416,28 +514,22 @@ pub fn auto_discover_count_constraints(
             .sqrt();
         let mut std_dev_factor = 0.003;
         let mut constraint = SimpleDiscoveredCountConstraints {
-            count_constraint: CountConstraint {
-                min: mean.round() as usize,
-                max: mean.round() as usize,
-            },
+            min_count: mean.round() as usize,
+            max_count: mean.round() as usize,
             object_type,
-            event_type: EventType::Exactly { value: event_type },
+            event_types: vec![event_type],
         };
 
         while get_count_constraint_fraction(linked_ocel, &constraint, &rel_object_ids, false).0
             < options.cover_fraction
         {
             std_dev_factor += 0.003;
-            constraint.count_constraint = CountConstraint {
-                min: (mean - std_dev_factor * std_deviation).round() as usize,
-                max: (mean + std_dev_factor * std_deviation).round() as usize,
-            }
+            constraint.min_count = (mean - std_dev_factor * std_deviation).round() as usize;
+            constraint.max_count = (mean + std_dev_factor * std_deviation).round() as usize;
         }
 
         // For now, do not discover constraints with huge range; Those are most of the time not desired
-        if constraint.count_constraint.max - constraint.count_constraint.min > 25
-            || constraint.count_constraint.max > 100
-        {
+        if constraint.max_count - constraint.min_count > 25 || constraint.max_count > 100 {
             continue;
         } else {
             let (cover_fraction, supporting_object_ids) =
@@ -462,6 +554,103 @@ pub enum AutoDiscoveredORConstraint {
         EventuallyFollowsConstraints,
         SimpleDiscoveredCountConstraints,
     ),
+}
+
+impl Into<BindingBoxTree> for &AutoDiscoveredORConstraint {
+    fn into(self) -> BindingBoxTree {
+        let (mut tree1, mut tree2): (BindingBoxTree, BindingBoxTree) = match self {
+            AutoDiscoveredORConstraint::EfOrCount(ef, cc) => (ef.into(), cc.into()),
+            AutoDiscoveredORConstraint::CountOrEf(cc, ef) => (cc.into(), ef.into()),
+        };
+        let root_objs = match tree1.nodes.first_mut().unwrap() {
+            BindingBoxTreeNode::Box(bbox, _) => bbox.new_object_vars.clone(),
+            BindingBoxTreeNode::OR(_, _) => todo!(),
+            BindingBoxTreeNode::AND(_, _) => todo!(),
+            BindingBoxTreeNode::NOT(_) => todo!(),
+        };
+
+        let mut tree = BindingBoxTree {
+            nodes: vec![
+                BindingBoxTreeNode::Box(
+                    BindingBox {
+                        new_event_vars: vec![].into_iter().collect(),
+                        new_object_vars: root_objs,
+                        filter_constraint: vec![],
+                    },
+                    vec![1],
+                ),
+                BindingBoxTreeNode::OR(2, 2 + tree1.nodes.len()),
+            ],
+            size_constraints: vec![].into_iter().collect(),
+        };
+        let mut prev_nodes = 2;
+        let mut prev_ob_vars = 0;
+        let mut prev_ev_vars = 0;
+
+        for tr in &[tree1, tree2] {
+            for node in &tr.nodes {
+                tree.nodes.push(match node {
+                    BindingBoxTreeNode::Box(bbox, cs) => BindingBoxTreeNode::Box(
+                        BindingBox {
+                            new_event_vars: bbox
+                                .new_event_vars
+                                .iter()
+                                .map(|(a, b)| (EventVariable(a.0 + prev_ev_vars), b.clone()))
+                                .collect(),
+                                new_object_vars: HashMap::new(),
+                            // new_object_vars: bbox
+                            //     .new_object_vars
+                            //     .iter()
+                            //     .map(|(a, b)| (ObjectVariable(a.0 + prev_ob_vars), b.clone()))
+                            //     .collect(),
+                            filter_constraint: bbox
+                                .filter_constraint
+                                .iter()
+                                .map(|fc| match fc {
+                                    FilterConstraint::ObjectAssociatedWithEvent(ov, ev, q) => {
+                                        FilterConstraint::ObjectAssociatedWithEvent(
+                                            ObjectVariable(ov.0 + prev_ob_vars),
+                                            EventVariable(ev.0 + prev_ev_vars),
+                                            q.clone(),
+                                        )
+                                    }
+                                    FilterConstraint::ObjectAssociatedWithObject(ov1, ov2, q) => {
+                                        FilterConstraint::ObjectAssociatedWithObject(
+                                            ObjectVariable(ov1.0 + prev_ob_vars),
+                                            ObjectVariable(ov2.0 + prev_ob_vars),
+                                            q.clone(),
+                                        )
+                                    }
+                                    FilterConstraint::TimeBetweenEvents(ev1, ev2, t) => {
+                                        FilterConstraint::TimeBetweenEvents(
+                                            EventVariable(ev1.0 + prev_ev_vars),
+                                            EventVariable(ev2.0 + prev_ev_vars),
+                                            t.clone(),
+                                        )
+                                    }
+                                })
+                                .collect(),
+                        },
+                        cs.iter().map(|i| i + prev_nodes).collect_vec(),
+                    ),
+                    BindingBoxTreeNode::OR(c1, c2) => todo!(),
+                    BindingBoxTreeNode::AND(c1, c2) => todo!(),
+                    BindingBoxTreeNode::NOT(c) => todo!(),
+                })
+            }
+            for ((n_index1, n_index2), size_constr) in &tr.size_constraints {
+                tree.size_constraints.insert(
+                    (n_index1 + prev_nodes, n_index2 + prev_nodes),
+                    size_constr.clone(),
+                );
+            }
+            prev_nodes += tr.nodes.len();
+            prev_ev_vars += tr.get_ev_vars().len();
+            // prev_ob_vars += tr.get_ob_vars().len();
+        }
+
+        tree
+    }
 }
 
 pub fn auto_discover_or_constraints(
@@ -567,9 +756,7 @@ pub struct AutoDiscoverConstraintsRequest {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct AutoDiscoverConstraintsResponse {
-    pub count_constraints: Vec<SimpleDiscoveredCountConstraints>,
-    pub eventually_follows_constraints: Vec<EventuallyFollowsConstraints>,
-    pub or_constraints: Vec<AutoDiscoveredORConstraint>,
+    pub constraints: Vec<(String, BindingBoxTree)>,
 }
 
 pub fn auto_discover_constraints_with_options(
@@ -603,15 +790,36 @@ pub fn auto_discover_constraints_with_options(
         ),
         None => Vec::new(),
     };
-    AutoDiscoverConstraintsResponse {
-        count_constraints: count_constraints
-            .into_iter()
-            .map(|c| c.constraint)
-            .collect(),
-        eventually_follows_constraints: eventually_follows_constraints
-            .into_iter()
-            .map(|efc| efc.constraint)
-            .collect(),
-        or_constraints,
+    let mut ret = AutoDiscoverConstraintsResponse {
+        constraints: Vec::new(),
+    };
+    for cc in &count_constraints {
+        ret.constraints.push((
+            format!(
+                "{} - {} {} per {}",
+                cc.constraint.min_count,
+                cc.constraint.max_count,
+                cc.constraint.event_types.join(", "),
+                cc.constraint.object_type
+            ),
+            (&cc.constraint).into(),
+        ))
     }
+    for ef in &eventually_follows_constraints {
+        ret.constraints.push((
+            format!(
+                "{} -> {} for {}",
+                ef.constraint.from_event_type,
+                ef.constraint.to_event_type,
+                ef.constraint.object_types.join(", "),
+            ),
+            (&ef.constraint).into(),
+        ))
+    }
+
+    for or in &or_constraints {
+        ret.constraints.push((format!("OR {:?}", or), or.into()))
+    }
+
+    ret
 }

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use ts_rs::TS;
 
-use crate::preprocessing::linked_ocel::{IndexLinkedOCEL, EventIndex, ObjectIndex};
+use crate::preprocessing::linked_ocel::{EventIndex, IndexLinkedOCEL, ObjectIndex};
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
@@ -17,11 +17,10 @@ pub enum Variable {
     Object(ObjectVariable),
 }
 
-
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct EventVariable(usize);
+pub struct EventVariable(pub usize);
 impl From<usize> for EventVariable {
     fn from(value: usize) -> Self {
         Self(value)
@@ -30,7 +29,7 @@ impl From<usize> for EventVariable {
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ObjectVariable(usize);
+pub struct ObjectVariable(pub usize);
 impl From<usize> for ObjectVariable {
     fn from(value: usize) -> Self {
         Self(value)
@@ -78,16 +77,10 @@ impl Binding {
         }
     }
 
-    pub fn get_ev_index(
-        &self,
-        ev_var: &EventVariable,
-    ) -> Option<&EventIndex> {
+    pub fn get_ev_index(&self, ev_var: &EventVariable) -> Option<&EventIndex> {
         self.event_map.get(ev_var)
     }
-    pub fn get_ob_index(
-        &self,
-        ob_var: &ObjectVariable
-    ) -> Option<&ObjectIndex> {
+    pub fn get_ob_index(&self, ob_var: &ObjectVariable) -> Option<&ObjectIndex> {
         self.object_map.get(ob_var)
     }
 }
@@ -97,7 +90,6 @@ impl Binding {
 /// The value set indicates the types of the value the object/event variable should be bound to
 pub type NewObjectVariables = HashMap<ObjectVariable, HashSet<String>>;
 pub type NewEventVariables = HashMap<EventVariable, HashSet<String>>;
-
 
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
@@ -131,10 +123,34 @@ impl BindingBoxTree {
             return vec![];
         }
     }
+
+    pub fn get_ev_vars(&self) -> HashSet<EventVariable> {
+        self.nodes
+            .iter()
+            .filter_map(|n| match n {
+                BindingBoxTreeNode::Box(b, _) => Some(b.new_event_vars.keys()),
+                _ => None,
+            })
+            .flatten()
+            .copied()
+            .collect()
+    }
+
+    pub fn get_ob_vars(&self) -> HashSet<ObjectVariable> {
+        self.nodes
+            .iter()
+            .filter_map(|n| match n {
+                BindingBoxTreeNode::Box(b, _) => Some(b.new_object_vars.keys()),
+                _ => None,
+            })
+            .flatten()
+            .copied()
+            .collect()
+    }
 }
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
-#[derive( Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum BindingBoxTreeNode {
     Box(BindingBox, Vec<usize>),
     OR(usize, usize),
@@ -266,7 +282,8 @@ impl BindingBoxTreeNode {
                 let mut ret = vec![];
                 let node = &tree.nodes[*i];
 
-                let (res_c, violation_c) = node.evaluate(*i, own_index, parent_binding.clone(), tree, ocel);
+                let (res_c, violation_c) =
+                    node.evaluate(*i, own_index, parent_binding.clone(), tree, ocel);
                 ret.extend(res_c);
                 ret.push((*i, parent_binding.clone(), violation_c));
                 if violation_c.is_some() {
@@ -279,7 +296,6 @@ impl BindingBoxTreeNode {
         }
     }
 }
-
 
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]

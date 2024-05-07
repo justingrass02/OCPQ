@@ -1,4 +1,5 @@
 import type { BindingBox } from "@/types/generated/BindingBox";
+import type { BindingBoxTree } from "@/types/generated/BindingBoxTree";
 import type { EvaluationResultWithCount } from "@/types/generated/EvaluationResultWithCount";
 
 export type EvaluationResPerNodes = {
@@ -45,28 +46,6 @@ export type DiscoverConstraintsRequestWrapper = DiscoverConstraintsRequest & {
   orConstraints: { enabled: boolean };
 };
 
-export type DiscoveredCountConstraint = {
-  countConstraint: { min: number; max: number };
-  objectType: string;
-  eventType: unknown; // EventTypeNodeData["eventType"];
-};
-export type DiscoveredEFConstraint = {
-  secondsRange: {
-    minSeconds: number;
-    maxSeconds: number;
-  };
-  objectTypes: string[];
-  fromEventType: string;
-  toEventType: string;
-};
-export type DiscoveredORConstraint =
-  | {
-      EfOrCount: [DiscoveredEFConstraint, DiscoveredCountConstraint];
-    }
-  | { CountOrEf: [DiscoveredCountConstraint, DiscoveredEFConstraint] };
-
 export type DiscoverConstraintsResponse = {
-  countConstraints: DiscoveredCountConstraint[];
-  eventuallyFollowsConstraints: DiscoveredEFConstraint[];
-  orConstraints: DiscoveredORConstraint[];
+  constraints: [string,BindingBoxTree][];
 };

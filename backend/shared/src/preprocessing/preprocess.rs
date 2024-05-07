@@ -6,7 +6,7 @@ use process_mining::{
     OCEL,
 };
 
-use crate::{constraints::EventType, ocel_qualifiers::qualifiers::QualifierAndObjectType};
+use crate::ocel_qualifiers::qualifiers::QualifierAndObjectType;
 
 use super::linked_ocel::{EventIndex, ObjectIndex};
 
@@ -33,35 +33,25 @@ pub fn get_object_events_map(ocel: &OCEL) -> HashMap<String, Vec<String>> {
 
 pub fn get_events_of_type_associated_with_objects<'a>(
     linked_ocel: &'a LinkedOCEL,
-    event_type: &EventType,
-    object_ids: Vec<String>,
+    event_types: &[&String],
+    object_ids: &[&String],
 ) -> Vec<&'a OCELEvent> {
     if object_ids.is_empty() {
-        return match event_type {
-            EventType::Any => linked_ocel.event_map.values().copied().collect(),
-            EventType::Exactly { value } => linked_ocel.events_of_type.get(value).unwrap().clone(),
-            EventType::AnyOf { values } => linked_ocel
-                .event_map
-                .values()
-                .filter(|e| values.contains(&e.event_type))
-                .copied()
-                .collect(),
-            EventType::AnyExcept { values } => linked_ocel
-                .event_map
-                .values()
-                .filter(|e| !values.contains(&e.event_type))
-                .copied()
-                .collect(),
-        };
+        return linked_ocel
+            .event_map
+            .values()
+            .filter(|e| event_types.contains(&&e.event_type))
+            .copied()
+            .collect();
     }
     // let mut sorted_object_ids = object_ids.clone();
     let mut sorted_object_ids_iter = object_ids.iter().sorted_by(|a, b| {
         linked_ocel
             .object_events_map
-            .get(*a)
+            .get(**a)
             .unwrap()
             .len()
-            .cmp(&linked_ocel.object_events_map.get(*b).unwrap().len())
+            .cmp(&linked_ocel.object_events_map.get(**b).unwrap().len())
     });
     // sorted_object_ids.sort_by(|a, b| {
     //     linked_ocel
@@ -73,26 +63,17 @@ pub fn get_events_of_type_associated_with_objects<'a>(
     // });
     let mut intersection: HashSet<&String> = linked_ocel
         .object_events_map
-        .get(sorted_object_ids_iter.next().unwrap())
+        .get(*sorted_object_ids_iter.next().unwrap())
         .unwrap()
         .iter()
-        .filter(|ev_id| match event_type {
-            EventType::Any => true,
-            EventType::Exactly { value } => {
-                &linked_ocel.event_map.get(*ev_id).unwrap().event_type == value
-            }
-            EventType::AnyOf { values } => {
-                values.contains(&linked_ocel.event_map.get(*ev_id).unwrap().event_type)
-            }
-            EventType::AnyExcept { values } => {
-                !values.contains(&linked_ocel.event_map.get(*ev_id).unwrap().event_type)
-            }
+        .filter(|ev_id| {
+            event_types.contains(&&linked_ocel.event_map.get(*ev_id).unwrap().event_type)
         })
         .collect();
     for other in sorted_object_ids_iter {
         let other_map: HashSet<&String> = linked_ocel
             .object_events_map
-            .get(other)
+            .get(*other)
             .unwrap()
             .iter()
             .collect();

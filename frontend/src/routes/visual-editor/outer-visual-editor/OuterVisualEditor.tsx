@@ -20,7 +20,7 @@ import { FlowContext } from "../helper/FlowContext";
 
 import type { FlowAndViolationData } from "@/types/misc";
 import type { EvaluationResPerNodes } from "../helper/types";
-// import AutoDiscoveryButton from "./AutoDiscovery";
+import AutoDiscoveryButton from "./AutoDiscovery";
 const LOCALSTORAGE_SAVE_KEY_DATA = "oced-declare-data";
 const LOCALSTORAGE_SAVE_KEY_CONSTRAINTS_META = "oced-declare-meta";
 
@@ -231,13 +231,13 @@ export default function VisualEditorOuter() {
                         <RxPlusCircled className="mr-2" />
                         Add Constraint
                       </Button>
-                      {/* <AutoDiscoveryButton
+                      <AutoDiscoveryButton
                         ocelInfo={ocelInfo}
                         qualifiers={qualifiers}
                         constraints={constraints}
                         setConstraints={setConstraints}
                         prevDataRef={prevDataRef}
-                      /> */}
+                      />
                     </div>
                     <Button
                       variant="outline"

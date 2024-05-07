@@ -13,10 +13,7 @@ use std::{
 };
 
 use ocedeclare_shared::{
-    binding_box::{
-        evaluate_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult
-    },
-    constraints::{check_with_tree, CheckWithTreeRequest, ViolationsWithoutID},
+    binding_box::{evaluate_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult},
     discovery::{
         auto_discover_constraints_with_options, AutoDiscoverConstraintsRequest,
         AutoDiscoverConstraintsResponse,
@@ -76,7 +73,6 @@ async fn main() {
             get(get_qualifers_for_object_types),
         )
         .route("/ocel/check-constraints-box", post(check_with_box_tree_req))
-        .route("/ocel/check-constraints", post(check_with_tree_req))
         .route(
             "/ocel/discover-constraints",
             post(auto_discover_constraints_handler),
@@ -163,27 +159,6 @@ pub async fn get_qualifers_for_object_types<'a>(
         None => (StatusCode::BAD_REQUEST, Json(None)),
     }
 }
-
-pub async fn check_with_tree_req<'a>(
-    state: State<AppState>,
-    Json(req): Json<CheckWithTreeRequest>,
-) -> (
-    StatusCode,
-    Json<Option<(Vec<usize>, Vec<ViolationsWithoutID>)>>,
-) {
-    with_ocel_from_state(&state, |ocel| {
-        (
-            StatusCode::OK,
-            Json(Some(check_with_tree(
-                req.variables,
-                req.nodes_order,
-                &ocel.ocel,
-            ))),
-        )
-    })
-    .unwrap_or((StatusCode::INTERNAL_SERVER_ERROR, Json(None)))
-}
-
 
 pub async fn check_with_box_tree_req<'a>(
     state: State<AppState>,

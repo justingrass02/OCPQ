@@ -11,7 +11,7 @@ use process_mining::{
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::{constraints::EventType, ocel_qualifiers::qualifiers::QualifierAndObjectType};
+use crate::ocel_qualifiers::qualifiers::QualifierAndObjectType;
 
 pub fn get_object_events_map(
     ocel: &OCEL,
@@ -43,30 +43,18 @@ pub fn get_object_events_map(
 
 pub fn get_events_of_type_associated_with_objects<'a>(
     linked_ocel: &'a IndexLinkedOCEL,
-    event_type: &EventType,
-    object_indices: Vec<ObjectIndex>,
+    event_types: &HashSet<std::string::String>,
+    object_indices: &[ObjectIndex],
 ) -> Vec<EventIndex> {
     if object_indices.is_empty() {
-        return match event_type {
-            EventType::Any => linked_ocel.event_index_map.values().copied().collect(),
-            EventType::Exactly { value } => linked_ocel.events_of_type.get(value).unwrap().clone(),
-            EventType::AnyOf { values } => linked_ocel
-                .ocel
-                .events
-                .iter()
-                .enumerate()
-                .filter(|(_e_index, e)| values.contains(&e.event_type))
-                .map(|(e_index, _)| EventIndex(e_index))
-                .collect(),
-            EventType::AnyExcept { values } => linked_ocel
-                .ocel
-                .events
-                .iter()
-                .enumerate()
-                .filter(|(_e_index, e)| !values.contains(&e.event_type))
-                .map(|(e_index, _)| EventIndex(e_index))
-                .collect(),
-        };
+        return linked_ocel
+            .ocel
+            .events
+            .iter()
+            .enumerate()
+            .filter(|(_e_index, e)| event_types.contains(&e.event_type))
+            .map(|(e_index, _)| EventIndex(e_index))
+            .collect();
     }
     let mut sorted_object_ids_iter = object_indices.iter().sorted_by(|a, b| {
         linked_ocel
@@ -82,17 +70,9 @@ pub fn get_events_of_type_associated_with_objects<'a>(
         .get(sorted_object_ids_iter.next().unwrap())
         .unwrap()
         .iter()
-        .filter(|e_index| match event_type {
-            EventType::Any => true,
-            EventType::Exactly { value } => {
-                &linked_ocel.ev_by_index(&e_index).unwrap().event_type == value
-            }
-            EventType::AnyOf { values } => {
-                values.contains(&linked_ocel.ev_by_index(&e_index).unwrap().event_type)
-            }
-            EventType::AnyExcept { values } => {
-                !values.contains(&linked_ocel.ev_by_index(&e_index).unwrap().event_type)
-            }
+        .filter(|e_index| {
+
+            event_types.contains(&linked_ocel.ev_by_index(&e_index).unwrap().event_type)
         })
         .copied()
         .collect();

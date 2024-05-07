@@ -1,6 +1,9 @@
+use itertools::Itertools;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use crate::preprocessing::linked_ocel::{get_events_of_type_associated_with_objects, IndexLinkedOCEL};
+use crate::preprocessing::linked_ocel::{
+    get_events_of_type_associated_with_objects, IndexLinkedOCEL,
+};
 
 use super::structs::{Binding, BindingBox, BindingStep, FilterConstraint};
 
@@ -28,7 +31,6 @@ impl BindingBox {
         steps: &[BindingStep],
     ) -> Vec<Binding> {
         let mut ret = parent_bindings;
-
         for step in steps {
             match &step {
                 BindingStep::BindEv(ev_var, time_constr) => {
@@ -73,9 +75,7 @@ impl BindingBox {
                         .flat_map_iter(|b| {
                             ob_types
                                 .iter()
-                                .flat_map(|ob_type| {
-                                    ocel.objects_of_type.get(ob_type).unwrap()
-                                })
+                                .flat_map(|ob_type| ocel.objects_of_type.get(ob_type).unwrap())
                                 .map(move |o_index| b.clone().expand_with_ob(*ob_var, *o_index))
                         })
                         .collect();
@@ -135,10 +135,8 @@ impl BindingBox {
                             let ev_types = self.new_event_vars.get(ev_var_name).unwrap();
                             get_events_of_type_associated_with_objects(
                                 ocel,
-                                &crate::constraints::EventType::AnyOf {
-                                    values: ev_types.iter().cloned().collect(),
-                                },
-                                vec![*ob_index],
+                                ev_types,
+                                &[*ob_index],
                             )
                             .into_iter()
                             .filter_map(move |e_index| {

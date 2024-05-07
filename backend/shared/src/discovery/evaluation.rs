@@ -1,11 +1,9 @@
 use std::{collections::HashSet, sync::Mutex};
 
+use itertools::Itertools;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-use crate::{
-    constraints::EventType,
-    preprocessing::preprocess::{get_events_of_type_associated_with_objects, LinkedOCEL},
-};
+use crate::preprocessing::preprocess::{get_events_of_type_associated_with_objects, LinkedOCEL};
 
 use super::{EventuallyFollowsConstraints, SimpleDiscoveredCountConstraints};
 
@@ -25,8 +23,8 @@ pub fn get_count_constraint_fraction(
         .map(|obj_id| {
             let count = get_events_of_type_associated_with_objects(
                 linked_ocel,
-                &c.event_type,
-                vec![obj_id.clone()],
+                &c.event_types.iter().collect_vec(),
+                &[obj_id],
             )
             .len();
             (count, obj_id)
@@ -36,7 +34,7 @@ pub fn get_count_constraint_fraction(
     let supporting_obj_ids_ref: Vec<_> = counts
         .into_iter()
         .filter(|(count, _obj_id)| {
-            c.count_constraint.max >= *count && c.count_constraint.min <= *count
+            c.max_count >= *count && c.min_count <= *count
         })
         .map(|(_c, obj_id)| obj_id)
         .collect();
@@ -68,12 +66,8 @@ pub fn get_ef_constraint_fraction(
     object_ids: &HashSet<String>,
     return_supporting_objs: bool,
 ) -> (f32, Option<HashSet<String>>) {
-    let from_ev_type = EventType::Exactly {
-        value: c.from_event_type.clone(),
-    };
-    let to_ev_type = EventType::Exactly {
-        value: c.to_event_type.clone(),
-    };
+    let from_ev_type = vec![&c.from_event_type];
+    let to_ev_type = vec![&c.to_event_type];
     let supporting_obj_ids: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
     let (total_from_ev_count, total_sat_from_ev_count) = object_ids
         .par_iter()
@@ -81,12 +75,12 @@ pub fn get_ef_constraint_fraction(
             let from_evs = get_events_of_type_associated_with_objects(
                 linked_ocel,
                 &from_ev_type,
-                vec![obj_id.clone()],
+                &[obj_id],
             );
             let to_evs = get_events_of_type_associated_with_objects(
                 linked_ocel,
                 &to_ev_type,
-                vec![obj_id.clone()],
+                &[obj_id],
             );
             let num_from_evs = from_evs.len();
             let num_sat_from_evs = from_evs
@@ -94,7 +88,7 @@ pub fn get_ef_constraint_fraction(
                 .filter(|from_ev| {
                     to_evs.iter().any(|e| {
                         let diff = (e.time - from_ev.time).num_seconds() as f64;
-                        diff >= c.seconds_range.min_seconds && diff <= c.seconds_range.max_seconds
+                        diff >= c.min_seconds && diff <= c.max_seconds
                     })
                 })
                 .count();
