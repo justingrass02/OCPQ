@@ -1,12 +1,10 @@
 import { createContext } from "react";
 import type { Edge, Node, ReactFlowInstance } from "reactflow";
 import type {
+  EvaluationResPerNodes,
   EventTypeLinkData,
   EventTypeNodeData,
-  GateLinkData,
   GateNodeData,
-  ObjectVariable,
-  ViolationsPerNodes,
 } from "./types";
 
 export const FlowContext = createContext<{
@@ -14,25 +12,22 @@ export const FlowContext = createContext<{
   registerOtherDataGetter: (
     getter: () =>
       | {
-          violations?: ViolationsPerNodes;
-          objectVariables?: ObjectVariable[];
+          violations?: EvaluationResPerNodes;
         }
       | undefined,
   ) => unknown;
   setInstance: (i: ReactFlowInstance | undefined) => unknown;
   otherData:
     | {
-        violations?: ViolationsPerNodes;
-        objectVariables?: ObjectVariable[];
+        violations?: EvaluationResPerNodes;
         nodes?: Node<EventTypeNodeData | GateNodeData>[];
-        edges?: Edge<EventTypeLinkData | GateLinkData>[];
+        edges?: Edge<EventTypeLinkData>[];
       }
     | undefined;
   flushData: (
     data:
       | {
-          violations?: ViolationsPerNodes;
-          objectVariables?: ObjectVariable[];
+          violations?: EvaluationResPerNodes;
         }
       | undefined,
   ) => unknown;

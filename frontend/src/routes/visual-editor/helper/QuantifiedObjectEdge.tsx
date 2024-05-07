@@ -6,14 +6,10 @@ import {
   type Node,
 } from "reactflow";
 import type { EventTypeNodeData, GateNodeData } from "./types";
-import { useContext } from "react";
-import { ConstraintInfoContext } from "./ConstraintInfoContext";
-import { COLORS } from "./colors";
 
 const STROKE_WIDTH = 4;
 
 export default function QuantifiedObjectEdge({
-  id,
   sourceX,
   sourceY,
   targetX,
@@ -21,39 +17,17 @@ export default function QuantifiedObjectEdge({
   sourcePosition,
   targetPosition,
   markerEnd,
-  data,
-  source,
+  // source,
   target,
-  style = {},
 }: EdgeProps<unknown>) {
   const flow = useReactFlow();
-  const sourceNode: Node<EventTypeNodeData | GateNodeData> | undefined =
-    flow.getNode(source);
+  // const sourceNode: Node<EventTypeNodeData | GateNodeData> | undefined =
+  //   flow.getNode(source);
   const targetNode: Node<EventTypeNodeData | GateNodeData> | undefined =
     flow.getNode(target);
 
-  const { objectVariables } = useContext(ConstraintInfoContext);
   const connectedObjects: { color: string }[] = [];
-  if (
-    sourceNode?.data !== undefined &&
-    targetNode?.data !== undefined &&
-    "selectedVariables" in sourceNode?.data &&
-    "selectedVariables" in targetNode?.data
-  ) {
-    const sourceVariables = sourceNode.data.selectedVariables;
-    const targetVariables = targetNode.data.selectedVariables;
-    for (const v of sourceVariables) {
-      if (
-        targetVariables.find((v2) => v2.variable.name === v.variable.name) !==
-        undefined
-      ) {
-        const index = objectVariables.findIndex(
-          (v3) => v3.name === v.variable.name,
-        );
-        connectedObjects.push({ color: COLORS[index % COLORS.length] });
-      }
-    }
-  }
+
   const edges: { path: string; style: React.CSSProperties }[] =
     connectedObjects.map((conObj, i) => ({
       path: getBezierPath({
@@ -80,7 +54,7 @@ export default function QuantifiedObjectEdge({
     marginLeft: "1rem",
   };
 
-  const [edgePath, labelX, labelY] = getBezierPath({
+  const [edgePath] = getBezierPath({
     sourceX,
     sourceY: sourceY - (targetNode?.type === "gate" ? 0 : 5),
     sourcePosition,

@@ -180,7 +180,7 @@ fn match_and_add_new_bindings<'a>(
                     // }
 
                     let mut bindings: Vec<Binding> =
-                        vec![((info_cc, binding.clone()))];
+                        vec![(info_cc, binding.clone())];
                     for v in &node.variables {
                         if v.bound {
                             // v should be bound!
@@ -351,66 +351,65 @@ pub fn check_with_tree(
     let mut violations_per_node: HashMap<String, ViolationsWithoutID> =
         nodes.iter().map(|n| (n.id.clone(), Vec::new())).collect();
     let now = Instant::now();
-    if !nodes.is_empty() {
-        let mut bindings: Bindings = vec![(
-            AdditionalBindingInfo {
-                past_events: Vec::new(),
-            },
-            HashMap::new(),
-        )];
-        let initially_bound_vars = variables.iter().filter(|v| v.initially_bound).collect_vec();
-        for v in initially_bound_vars {
-            bindings = bindings
-                .into_iter()
-                .flat_map(|(add_info, bound_val)| match &v.o2o {
-                    Some(o2o) => {
-                        // println!(bound_val)
-                        let bound_parent_object_val =
-                            bound_val.get(&o2o.parent_variable_name).unwrap();
-                        match bound_parent_object_val {
-                            BoundValue::Single(parent_object_id) => {
-                                let parent_object =
-                                    linked_ocel.object_map.get(parent_object_id).unwrap();
-                                match &parent_object.relationships {
-                                    Some(rels) => rels
-                                        .iter()
-                                        .filter(|r| r.qualifier == o2o.qualifier)
-                                        .map(|r| {
-                                            let mut new_bound_val = bound_val.clone();
-                                            new_bound_val.insert(
-                                                v.name.clone(),
-                                                BoundValue::Single(r.object_id.clone()),
-                                            );
-                                            (add_info.clone(), new_bound_val)
-                                        })
-                                        .collect_vec(),
-                                    None => todo!("No rels in parent {}", parent_object.id),
-                                }
+    let mut bindings: Bindings = vec![(
+        AdditionalBindingInfo {
+            past_events: Vec::new(),
+        },
+        HashMap::new(),
+    )];
+    let initially_bound_vars = variables.iter().filter(|v| v.initially_bound).collect_vec();
+    for v in initially_bound_vars {
+        bindings = bindings
+            .into_iter()
+            .flat_map(|(add_info, bound_val)| match &v.o2o {
+                Some(o2o) => {
+                    // println!(bound_val)
+                    let bound_parent_object_val = bound_val.get(&o2o.parent_variable_name).unwrap();
+                    match bound_parent_object_val {
+                        BoundValue::Single(parent_object_id) => {
+                            let parent_object =
+                                linked_ocel.object_map.get(parent_object_id).unwrap();
+                            match &parent_object.relationships {
+                                Some(rels) => rels
+                                    .iter()
+                                    .filter(|r| r.qualifier == o2o.qualifier)
+                                    .map(|r| {
+                                        let mut new_bound_val = bound_val.clone();
+                                        new_bound_val.insert(
+                                            v.name.clone(),
+                                            BoundValue::Single(r.object_id.clone()),
+                                        );
+                                        (add_info.clone(), new_bound_val)
+                                    })
+                                    .collect_vec(),
+                                None => todo!("No rels in parent {}", parent_object.id),
                             }
-                            BoundValue::Multiple(_) => todo!(),
                         }
+                        BoundValue::Multiple(_) => todo!(),
                     }
-                    None => match linked_ocel.objects_of_type.get(&v.object_type) {
-                        Some(objs) => objs
-                            .iter()
-                            .map(|obj| {
-                                let mut new_bound_val = bound_val.clone();
-                                new_bound_val
-                                    .insert(v.name.clone(), BoundValue::Single(obj.id.clone()));
-                                (add_info.clone(), new_bound_val)
-                            })
-                            .collect_vec(),
-                        None =>{
-                            eprintln!("Object type {} not found!",v.object_type);
-                            Vec::new()
-                        },
-                    },
-                })
-                .collect();
-        }
+                }
+                None => match linked_ocel.objects_of_type.get(&v.object_type) {
+                    Some(objs) => objs
+                        .iter()
+                        .map(|obj| {
+                            let mut new_bound_val = bound_val.clone();
+                            new_bound_val
+                                .insert(v.name.clone(), BoundValue::Single(obj.id.clone()));
+                            (add_info.clone(), new_bound_val)
+                        })
+                        .collect_vec(),
+                    None => {
+                        eprintln!("Object type {} not found!", v.object_type);
+                        Vec::new()
+                    }
+                },
+            })
+            .collect();
+    }
 
-        println!("#Bindings (initial): {}", bindings.len());
+    println!("#Bindings (initial): {}", bindings.len());
 
+    if !nodes.is_empty() {
         for node in nodes.iter() {
             if node.parents.is_empty() {
                 let (new_violations, bindings) =

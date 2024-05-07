@@ -110,6 +110,7 @@ export default function TimeDurationInput({
   return (
     <div className="flex gap-x-2 items-center">
       <Input
+        className="w-full"
         onBlur={(ev) => {
           handleValueChange(ev.currentTarget.value);
         }}

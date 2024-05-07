@@ -7,19 +7,15 @@ use std::{
 };
 
 use ocedeclare_shared::{
-    constraints::{check_with_tree, ObjectVariable, TreeNode, ViolationsWithoutID},
-    discovery::{
+    binding_box::{evaluate_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult}, discovery::{
         auto_discover_constraints_with_options, AutoDiscoverConstraintsRequest,
         AutoDiscoverConstraintsResponse,
-    },
-    ocel_qualifiers::qualifiers::{get_qualifiers_for_event_types, QualifiersForEventType},
-    preprocessing::preprocess::link_ocel_info,
-    OCELInfo,
+    }, ocel_qualifiers::qualifiers::{get_qualifiers_for_event_types, QualifiersForEventType}, preprocessing::linked_ocel::{link_ocel_info, IndexLinkedOCEL}, OCELInfo
 };
-use process_mining::{import_ocel_json_from_path, import_ocel_xml_file, OCEL};
+use process_mining::{import_ocel_json_from_path, import_ocel_xml_file};
 use tauri::State;
 
-type OCELStore = Mutex<Option<OCEL>>;
+type OCELStore = Mutex<Option<IndexLinkedOCEL>>;
 
 #[tauri::command(async)]
 fn import_ocel(path: &str, state: tauri::State<OCELStore>) -> Result<OCELInfo, String> {
@@ -29,14 +25,14 @@ fn import_ocel(path: &str, state: tauri::State<OCELStore>) -> Result<OCELInfo, S
     };
     let ocel_info: OCELInfo = (&ocel).into();
     let mut state_guard = state.lock().unwrap();
-    *state_guard = Some(ocel);
+    *state_guard = Some(link_ocel_info(ocel));
     Ok(ocel_info)
 }
 
 #[tauri::command(async)]
 fn get_current_ocel_info(state: tauri::State<OCELStore>) -> Result<OCELInfo, String> {
     let res: Result<OCELInfo, String> = match state.lock().unwrap().as_ref() {
-        Some(ocel) => Ok(ocel.into()),
+        Some(ocel) => Ok((&ocel.ocel).into()),
         None => Err("No OCEL loaded".to_string()),
     };
     res
@@ -47,7 +43,7 @@ fn get_event_qualifiers(
     state: State<OCELStore>,
 ) -> Result<HashMap<String, HashMap<String, QualifiersForEventType>>, String> {
     match state.lock().unwrap().as_ref() {
-        Some(ocel) => Ok(get_qualifiers_for_event_types(ocel)),
+        Some(ocel) => Ok(get_qualifiers_for_event_types(&ocel.ocel)),
         None => Err("No OCEL loaded".to_string()),
     }
 }
@@ -57,19 +53,18 @@ fn get_object_qualifiers(
     state: State<OCELStore>,
 ) -> Result<HashMap<String, HashSet<(String, String)>>, String> {
     match state.lock().unwrap().as_ref() {
-        Some(ocel) => Ok(link_ocel_info(ocel).object_rels_per_type),
+        Some(ocel) => Ok(ocel.object_rels_per_type.clone()),
         None => Err("No OCEL loaded".to_string()),
     }
 }
 
 #[tauri::command(async)]
-fn check_constraint_with_tree(
-    variables: Vec<ObjectVariable>,
-    nodes: Vec<TreeNode>,
+fn check_with_box_tree(
+    req: CheckWithBoxTreeRequest,
     state: State<OCELStore>,
-) -> Result<(Vec<usize>, Vec<ViolationsWithoutID>), String> {
+) -> Result<EvaluateBoxTreeResult,String> {
     match state.lock().unwrap().as_ref() {
-        Some(ocel) => Ok(check_with_tree(variables, nodes, ocel)),
+        Some(ocel) => Ok(evaluate_box_tree(req.tree, &ocel)),
         None => Err("No OCEL loaded".to_string()),
     }
 }
@@ -80,7 +75,7 @@ fn auto_discover_constraints(
     state: State<OCELStore>,
 ) -> Result<AutoDiscoverConstraintsResponse, String> {
     match state.lock().unwrap().as_ref() {
-        Some(ocel) => Ok(auto_discover_constraints_with_options(ocel, options)),
+        Some(ocel) => Ok(auto_discover_constraints_with_options(&ocel.ocel, options)),
         None => Err("No OCEL loaded".to_string()),
     }
 }
@@ -93,7 +88,7 @@ fn main() {
             get_current_ocel_info,
             get_event_qualifiers,
             get_object_qualifiers,
-            check_constraint_with_tree,
+            check_with_box_tree,
             auto_discover_constraints
         ])
         .run(tauri::generate_context!())

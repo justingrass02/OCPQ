@@ -1,6 +1,3 @@
-import TimeDurationInput, {
-  formatSeconds,
-} from "@/components/TimeDurationInput";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,40 +10,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useContext, useState } from "react";
-import { LuClock } from "react-icons/lu";
+import { LuHash } from "react-icons/lu";
 
+import { Input } from "@/components/ui/input";
 import { MdRemoveCircleOutline } from "react-icons/md";
-import {
-  BaseEdge,
-  EdgeLabelRenderer,
-  getBezierPath,
-  type EdgeProps,
-  MarkerType,
-  type EdgeMarkerType,
-} from "reactflow";
-import type { EventTypeLinkData, TimeConstraint } from "./types";
-import { VisualEditorContext } from "./VisualEditorContext";
+import { EdgeLabelRenderer, getBezierPath, type EdgeProps } from "reactflow";
 import QuantifiedObjectEdge from "./QuantifiedObjectEdge";
+import { VisualEditorContext } from "./VisualEditorContext";
+import type { EventTypeLinkData } from "./types";
 
-// const markerEndStyle: EdgeMarkerType = {
-//   type: MarkerType.ArrowClosed,
-//   width: 15,
-//   height: 12,
-//   color: "blue",
-// };
-const STROKE_WIDTH = 2.5;
-const pathStyle = {
-  stroke: "#44444410",
-  strokeWidth: STROKE_WIDTH,
-};
-const pathStyle2 = {
-  stroke: "#6b9cef",
-  strokeWidth: STROKE_WIDTH,
-};
-const pathStyle3 = {
-  stroke: "#6befab",
-  strokeWidth: STROKE_WIDTH,
-};
 export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
   const {
     id,
@@ -56,12 +28,10 @@ export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
     targetY,
     sourcePosition,
     targetPosition,
-    markerEnd,
     data,
-    style = {},
   } = props;
   // TODO: Fix, currently needs to be calculated twice
-  const [edgePath, labelX, labelY] = getBezierPath({
+  const [_edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
     sourcePosition,
@@ -72,17 +42,6 @@ export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
 
   const { onEdgeDataChange } = useContext(VisualEditorContext);
 
-  // markerEnd: {
-  //   type: MarkerType.ArrowClosed,
-  //   width: 15,
-  //   height: 12,
-  //   color,
-  // },
-  // style: {
-  //   strokeWidth: 2,
-  //   stroke: color,
-  // },
-  // gerMarkerId()
   return (
     <>
       <QuantifiedObjectEdge {...props} />
@@ -104,10 +63,10 @@ export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
             >
               <MdRemoveCircleOutline />
             </button>
-            <TimeDurationChangeDialog
+            <CountChangeDialog
               data={data}
-              onChange={(newTimeConstraint) => {
-                onEdgeDataChange(id, { timeConstraint: newTimeConstraint });
+              onChange={(newCountConstraint) => {
+                onEdgeDataChange(id, { ...newCountConstraint });
               }}
             />
           </div>
@@ -117,67 +76,77 @@ export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
   );
 }
 
-function TimeDurationChangeDialog({
+function CountChangeDialog({
   data,
   onChange,
 }: {
   data: EventTypeLinkData;
-  onChange: (newTimeConstraint: TimeConstraint) => unknown;
+  onChange: (newCountConstraint: {
+    minCount: number | null;
+    maxCount: number | null;
+  }) => unknown;
 }) {
-  const [timeConstraint, setTimeConstraint] = useState<TimeConstraint>(
-    data.timeConstraint,
-  );
+  const [countConstraint, setCountConstraint] = useState({
+    minCount: data.minCount,
+    maxCount: data.maxCount,
+  });
   return (
     <Dialog>
       <DialogTrigger asChild>
         <button
           className="flex flex-col items-center px-1 my-1 py-0.5 rounded-md bg-blue-50/60 hover:bg-blue-200/70"
-          title="Update time constraint..."
+          title="Update Count Constraint..."
         >
-          <LuClock />
+          <LuHash />
           <div className="grid gap-x-1 grid-cols-[1fr_auto_1fr]">
             <span className="text-right">
-              {formatSeconds(data.timeConstraint.minSeconds)}
+              {countConstraint.minCount ?? "0"}
             </span>
             <span className="mx-0.5 text-gray-500">-</span>
-            <span className="text-left">
-              {formatSeconds(data.timeConstraint.maxSeconds)}
-            </span>
+            <span className="text-left">{countConstraint.maxCount ?? "∞"}</span>
           </div>
         </button>
       </DialogTrigger>
       <DialogPortal>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Update time constraints</DialogTitle>
+            <DialogTitle>Update Count Constraint</DialogTitle>
             <DialogDescription>
-              Update the minimum and maximum time duration between the events
-              below.
+              Update the allowed minimum and maximum counts of bindings per
+              single input binding.
               <br />
-              Negative values are allowed, as well as ∞ (inf) and -∞ (-inf).
+              The minimum and maximum counts can also be left unset to not
+              enforce a lower or upper bound.
             </DialogDescription>
           </DialogHeader>
-          <h3>From</h3>
-          <TimeDurationInput
-            durationSeconds={timeConstraint.minSeconds}
-            onChange={(v) => {
-              setTimeConstraint({ ...timeConstraint, minSeconds: v });
+          <h3>Min. Count</h3>
+          <Input
+            type="number"
+            className="w-full"
+            placeholder="Min. Count"
+            value={countConstraint.minCount ?? ""}
+            onChange={(ev) => {
+              const newVal = ev.currentTarget.valueAsNumber;
+              setCountConstraint({ ...countConstraint, minCount: newVal });
             }}
           />
-          <h3>To</h3>
-          <TimeDurationInput
-            durationSeconds={data.timeConstraint.maxSeconds}
-            onChange={(v) => {
-              setTimeConstraint({ ...timeConstraint, maxSeconds: v });
+          <h3>Max. Count</h3>
+          <Input
+            type="number"
+            className="w-full"
+            placeholder="Max. Count"
+            value={countConstraint.maxCount ?? ""}
+            onChange={(ev) => {
+              const newVal = ev.currentTarget.valueAsNumber;
+              setCountConstraint({ ...countConstraint, maxCount: newVal });
             }}
           />
           <DialogClose asChild>
             <Button
-              disabled={timeConstraint.minSeconds > timeConstraint.maxSeconds}
               type="button"
               variant="secondary"
               onClick={() => {
-                onChange(timeConstraint);
+                onChange(countConstraint);
               }}
             >
               Save

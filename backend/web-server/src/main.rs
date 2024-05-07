@@ -13,6 +13,9 @@ use std::{
 };
 
 use ocedeclare_shared::{
+    binding_box::{
+        evaluate_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult
+    },
     constraints::{check_with_tree, CheckWithTreeRequest, ViolationsWithoutID},
     discovery::{
         auto_discover_constraints_with_options, AutoDiscoverConstraintsRequest,
@@ -21,12 +24,10 @@ use ocedeclare_shared::{
     ocel_qualifiers::qualifiers::{
         get_qualifiers_for_event_types, QualifierAndObjectType, QualifiersForEventType,
     },
-    preprocessing::preprocess::link_ocel_info,
+    preprocessing::{linked_ocel::IndexLinkedOCEL, preprocess::link_ocel_info},
     OCELInfo,
 };
-use process_mining::{
-    event_log::ocel::ocel_struct::OCEL, import_ocel_xml_slice,
-};
+use process_mining::{event_log::ocel::ocel_struct::OCEL, import_ocel_xml_slice};
 use tower_http::cors::CorsLayer;
 
 use crate::load_ocel::{
@@ -36,7 +37,7 @@ pub mod load_ocel;
 
 #[derive(Clone)]
 pub struct AppState {
-    ocel: Arc<RwLock<Option<OCEL>>>,
+    ocel: Arc<RwLock<Option<IndexLinkedOCEL>>>,
 }
 
 #[tokio::main]
@@ -74,6 +75,7 @@ async fn main() {
             "/ocel/object-qualifiers",
             get(get_qualifers_for_object_types),
         )
+        .route("/ocel/check-constraints-box", post(check_with_box_tree_req))
         .route("/ocel/check-constraints", post(check_with_tree_req))
         .route(
             "/ocel/discover-constraints",
@@ -92,45 +94,45 @@ async fn main() {
 pub async fn get_loaded_ocel_info(
     State(state): State<AppState>,
 ) -> (StatusCode, Json<Option<OCELInfo>>) {
-    match with_ocel_from_state(&State(state), |ocel| ocel.into()) {
+    match with_ocel_from_state(&State(state), |ocel| (&ocel.ocel).into()) {
         Some(ocel_info) => (StatusCode::OK, Json(Some(ocel_info))),
         None => (StatusCode::NOT_FOUND, Json(None)),
     }
 }
 
-async fn upload_ocel_xml(
+async fn upload_ocel_xml<'a>(
     State(state): State<AppState>,
     ocel_bytes: Bytes,
 ) -> (StatusCode, Json<OCELInfo>) {
     let ocel = import_ocel_xml_slice(&ocel_bytes);
     let mut x = state.ocel.write().unwrap();
     let ocel_info: OCELInfo = (&ocel).into();
-    *x = Some(ocel);
+    *x = Some(IndexLinkedOCEL::new(ocel));
 
     (StatusCode::OK, Json(ocel_info))
 }
 
-async fn upload_ocel_json(
+async fn upload_ocel_json<'a>(
     State(state): State<AppState>,
     ocel_bytes: Bytes,
 ) -> (StatusCode, Json<OCELInfo>) {
     let ocel: OCEL = serde_json::from_slice(&ocel_bytes).unwrap();
     let mut x = state.ocel.write().unwrap();
     let ocel_info: OCELInfo = (&ocel).into();
-    *x = Some(ocel);
+    *x = Some(IndexLinkedOCEL::new(ocel));
     (StatusCode::OK, Json(ocel_info))
 }
 
 pub fn with_ocel_from_state<T, F>(State(state): &State<AppState>, f: F) -> Option<T>
 where
-    F: FnOnce(&OCEL) -> T,
+    F: FnOnce(&IndexLinkedOCEL) -> T,
 {
     let read_guard = state.ocel.read().ok()?;
     let ocel_ref = read_guard.as_ref()?;
     Some(f(ocel_ref))
 }
 
-pub async fn get_qualifiers_for_event_types_handler(
+pub async fn get_qualifiers_for_event_types_handler<'a>(
     State(state): State<AppState>,
 ) -> (
     StatusCode,
@@ -139,7 +141,7 @@ pub async fn get_qualifiers_for_event_types_handler(
     match with_ocel_from_state(
         &State(state),
         |ocel| -> HashMap<String, HashMap<String, QualifiersForEventType>> {
-            get_qualifiers_for_event_types(ocel)
+            get_qualifiers_for_event_types(&ocel.ocel)
         },
     ) {
         Some(x) => (StatusCode::OK, Json(Some(x))),
@@ -147,15 +149,14 @@ pub async fn get_qualifiers_for_event_types_handler(
     }
 }
 
-pub async fn get_qualifers_for_object_types(
+pub async fn get_qualifers_for_object_types<'a>(
     State(state): State<AppState>,
 ) -> (
     StatusCode,
     Json<Option<HashMap<String, HashSet<QualifierAndObjectType>>>>,
 ) {
     let qualifier_and_type = with_ocel_from_state(&State(state), |ocel| {
-        let x = link_ocel_info(ocel);
-        x.object_rels_per_type
+        link_ocel_info(&ocel.ocel).object_rels_per_type.clone()
     });
     match qualifier_and_type {
         Some(x) => (StatusCode::OK, Json(Some(x))),
@@ -163,7 +164,7 @@ pub async fn get_qualifers_for_object_types(
     }
 }
 
-pub async fn check_with_tree_req(
+pub async fn check_with_tree_req<'a>(
     state: State<AppState>,
     Json(req): Json<CheckWithTreeRequest>,
 ) -> (
@@ -173,17 +174,35 @@ pub async fn check_with_tree_req(
     with_ocel_from_state(&state, |ocel| {
         (
             StatusCode::OK,
-            Json(Some(check_with_tree(req.variables, req.nodes_order, ocel))),
+            Json(Some(check_with_tree(
+                req.variables,
+                req.nodes_order,
+                &ocel.ocel,
+            ))),
         )
     })
     .unwrap_or((StatusCode::INTERNAL_SERVER_ERROR, Json(None)))
 }
 
-pub async fn auto_discover_constraints_handler(
+
+pub async fn check_with_box_tree_req<'a>(
+    state: State<AppState>,
+    Json(req): Json<CheckWithBoxTreeRequest>,
+) -> (StatusCode, Json<Option<EvaluateBoxTreeResult>>) {
+    with_ocel_from_state(&state, |ocel| {
+        (
+            StatusCode::OK,
+            Json(Some(evaluate_box_tree(req.tree, &ocel))),
+        )
+    })
+    .unwrap_or((StatusCode::INTERNAL_SERVER_ERROR, Json(None)))
+}
+
+pub async fn auto_discover_constraints_handler<'a>(
     state: State<AppState>,
     Json(req): Json<AutoDiscoverConstraintsRequest>,
 ) -> Json<Option<AutoDiscoverConstraintsResponse>> {
     Json(with_ocel_from_state(&state, |ocel| {
-        auto_discover_constraints_with_options(ocel, req)
+        auto_discover_constraints_with_options(&ocel.ocel, req)
     }))
 }

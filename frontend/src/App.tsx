@@ -35,14 +35,14 @@ function App() {
   const [selectedOcel, setSelectedOcel] = useState<string>();
   const backend = useContext(BackendProviderContext);
   useEffect(() => {
-    console.log({backend});
-        void backend["ocel/info"]().then((info) => {
-        if (info !== undefined) {
-          setOcelInfo(info);
-        } else {
-          setOcelInfo(undefined);
-        }
-      });
+    console.log({ backend });
+    void backend["ocel/info"]().then((info) => {
+      if (info !== undefined) {
+        setOcelInfo(info);
+      } else {
+        setOcelInfo(undefined);
+      }
+    });
     if (backend["ocel/available"] !== undefined) {
       void toast
         .promise(backend["ocel/available"](), {

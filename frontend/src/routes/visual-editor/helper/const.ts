@@ -1,5 +1,4 @@
 import EventTypeLink from "./EventTypeLink";
-import GateLink from "./GateLink";
 import EventTypeNode from "./node/EventTypeNode";
 import GateNode from "./node/GateNode";
 
@@ -20,5 +19,4 @@ export const nodeTypes = {
 };
 export const edgeTypes = {
   [EVENT_TYPE_LINK_TYPE]: EventTypeLink,
-  [GATE_LINK_TYPE]: GateLink,
 };

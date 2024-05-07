@@ -44,13 +44,13 @@ export function Combobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-[200px] justify-between"
+          className="w-fit min-w-fit justify-between"
         >
           {value ? options.find((o) => o.value === value)?.label : name}
           <RxChevronUp className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0">
+      <PopoverContent className="w-full min-w-fit p-0">
         <Command>
           <CommandInput placeholder="Search..." />
           <CommandEmpty>No option found.</CommandEmpty>
@@ -59,7 +59,7 @@ export function Combobox({
               <CommandItem
                 key={o.value}
                 value={o.value.toLowerCase()}
-                onSelect={(currentValue) => {
+                onSelect={() => {
                   onChange(o.value === value ? "" : o.value);
                   setOpen(false);
                 }}

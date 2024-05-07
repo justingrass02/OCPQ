@@ -15,11 +15,13 @@ import ReactFlow, {
   addEdge,
   useEdgesState,
   useNodesState,
+  useReactFlow,
   type Connection,
   type Edge,
-  useReactFlow,
+  type Node,
 } from "reactflow";
 
+import { BackendProviderContext } from "@/BackendProviderContext";
 import AlertHelper from "@/components/AlertHelper";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
@@ -30,44 +32,41 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import type { EventVariable } from "@/types/generated/EventVariable";
+import type { ObjectVariable } from "@/types/generated/ObjectVariable";
 import { ImageIcon } from "@radix-ui/react-icons";
 import { toPng } from "html-to-image";
 import toast from "react-hot-toast";
-import { LuLayoutDashboard, LuX } from "react-icons/lu";
+import { LuLayoutDashboard } from "react-icons/lu";
+import { MdClear } from "react-icons/md";
 import { PiPlayFill } from "react-icons/pi";
-import {
-  TbLogicAnd,
-  TbRestore,
-  TbSquarePlus,
-  TbVariablePlus,
-} from "react-icons/tb";
+import { TbLogicAnd, TbRestore, TbSquarePlus } from "react-icons/tb";
 import "reactflow/dist/style.css";
 import type { EventTypeQualifiers, OCELInfo } from "../../types/ocel";
-import { evaluateConstraints } from "./evaluation/evaluate-constraints";
-import { ConstraintInfoContext } from "./helper/ConstraintInfoContext";
 import { FlowContext } from "./helper/FlowContext";
 import { useLayoutedElements } from "./helper/LayoutFlow";
 import { VisualEditorContext } from "./helper/VisualEditorContext";
 import {
   EVENT_TYPE_LINK_TYPE,
   EVENT_TYPE_NODE_TYPE,
-  GATE_LINK_TYPE,
   GATE_NODE_TYPE,
   edgeTypes,
   nodeTypes,
 } from "./helper/const";
 import {
+  evaluateConstraints,
+  getParentNodeID,
+  getParentsNodeIDs,
+} from "./helper/evaluation/evaluate-constraints";
+import {
   ALL_GATE_TYPES,
-  type GateLinkData,
+  type EvaluationRes,
+  type EvaluationResPerNodes,
   type EventTypeLinkData,
   type EventTypeNodeData,
   type GateNodeData,
-  type ViolationsPerNode,
-  type ViolationsPerNodes,
 } from "./helper/types";
-import { MdClear } from "react-icons/md";
-import { BackendProviderContext } from "@/BackendProviderContext";
-import clsx from "clsx";
+import { getEvVarName, getObVarName } from "./helper/box/variable-names";
 
 interface VisualEditorProps {
   ocelInfo: OCELInfo;
@@ -87,20 +86,16 @@ export default function VisualEditor(props: VisualEditorProps) {
     EventTypeNodeData | GateNodeData
   >(otherData?.nodes ?? []);
 
-  const [edges, setEdges, onEdgesChange] = useEdgesState<
-    EventTypeLinkData | GateLinkData
-  >(otherData?.edges ?? []);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<EventTypeLinkData>(
+    otherData?.edges ?? [],
+  );
   const instance = useReactFlow();
 
   useEffect(() => {
     instance.setNodes(otherData?.nodes ?? nodes);
   }, [otherData?.nodes, otherData?.edges, instance]);
 
-  const { objectVariables } = useContext(ConstraintInfoContext);
-
   const backend = useContext(BackendProviderContext);
-
-  const [hideHints, setHideHints] = useState(false);
 
   const onConnect = useCallback(
     ({ source, sourceHandle, target, targetHandle }: Edge | Connection) => {
@@ -113,37 +108,15 @@ export default function VisualEditor(props: VisualEditorProps) {
         ) {
           return eds;
         } else {
-          const sourceNode = instance.getNode(source);
-          const targetNode = instance.getNode(target);
-          if (sourceNode?.type === "gate" || targetNode?.type === "gate") {
-            // TODO: Implement link between gates and event nodes
-            const color = "#969696";
-            const newEdge: Edge<GateLinkData> = {
-              id: sourceHandle + "|||" + targetHandle,
-              type: GATE_LINK_TYPE,
-              source,
-              sourceHandle,
-              target,
-              targetHandle,
-              markerEnd: {
-                type: MarkerType.ArrowClosed,
-                width: 15,
-                height: 12,
-                color: "#000000ff",
-              },
-              style: {
-                strokeWidth: 2,
-                stroke: color,
-              },
-              // data: {
-              //   color,
-              //   constraintType: "response",
-              //   timeConstraint: { minSeconds: 0, maxSeconds: Infinity },
-              // },
-            };
-            return addEdge(newEdge, eds);
+          const parents = getParentsNodeIDs(source, eds);
+          if (parents.includes(target)) {
+            toast("Invalid connection: Loops are forbidden!", {
+              position: "bottom-center",
+            });
+            console.warn("Loop connection attempted!");
+            return eds;
           }
-          console.log(sourceHandle, targetHandle);
+          console.log({ parents, source, target });
           const color = "#969696";
           const newEdge: Edge<EventTypeLinkData> = {
             id: sourceHandle + "|||" + targetHandle,
@@ -164,8 +137,8 @@ export default function VisualEditor(props: VisualEditorProps) {
             },
             data: {
               color,
-              constraintType: "response",
-              timeConstraint: { minSeconds: 0, maxSeconds: Infinity },
+              minCount: null,
+              maxCount: null,
             },
           };
           return addEdge(newEdge, eds);
@@ -177,11 +150,11 @@ export default function VisualEditor(props: VisualEditorProps) {
 
   const { getLayoutedElements } = useLayoutedElements();
 
-  const [violationDetails, setViolationDetails] = useState<ViolationsPerNode>();
+  const [violationDetails, setViolationDetails] = useState<EvaluationRes>();
 
   const [violationInfo, setViolationInfo] = useState<{
-    violationsPerNode?: ViolationsPerNodes;
-    showViolationsFor?: (data: ViolationsPerNode) => unknown;
+    violationsPerNode?: EvaluationResPerNodes;
+    showViolationsFor?: (data: EvaluationRes) => unknown;
   }>({
     showViolationsFor: (d) => {
       console.log({ d });
@@ -192,23 +165,57 @@ export default function VisualEditor(props: VisualEditorProps) {
 
   useEffect(() => {
     registerOtherDataGetter(() => ({
-      violations: violationInfo.violationsPerNode,
-      objectVariables,
+      violations: undefined, // TODO: For now do not save violation info, because it can become huge; violationInfo.violationsPerNode,
     }));
-  }, [violationInfo, objectVariables]);
+  }, [violationInfo]);
   const initialized = useRef<boolean>(false);
+
+  function getAvailableVars(
+    nodeID: string | undefined,
+    type: "event" | "object",
+  ): (EventVariable | ObjectVariable)[] {
+    if (nodeID === undefined) {
+      return [];
+    }
+    const node = instance.getNode(nodeID) as Node<
+      EventTypeNodeData | GateNodeData
+    > | null;
+    let ret: (EventVariable | ObjectVariable)[] = [];
+    if (node == null) {
+      console.warn("getAvailableVars for unknown id: " + nodeID, instance);
+      return ret;
+    }
+    if ("box" in node.data) {
+      ret = [
+        ...Object.keys(
+          type === "event"
+            ? node.data.box.newEventVars
+            : node.data.box.newObjectVars,
+        ).map((n) => parseInt(n)),
+        ...getAvailableVars(getParentNodeID(nodeID, edges), type),
+      ];
+    } else {
+      ret = getAvailableVars(getParentNodeID(nodeID, edges), type);
+    }
+    ret.sort((a, b) => a - b);
+    return ret;
+  }
   return (
     <VisualEditorContext.Provider
       value={{
         ocelInfo: props.ocelInfo,
         violationsPerNode: violationInfo.violationsPerNode,
         showViolationsFor: violationInfo.showViolationsFor,
+        getAvailableVars,
         onNodeDataChange: (id, newData) => {
           setNodes((ns) => {
             const newNodes = [...ns];
             const changedNodeIndex = newNodes.findIndex((n) => n.id === id);
             if (newData === undefined) {
               newNodes.splice(changedNodeIndex, 1);
+              setEdges((edges) =>
+                [...edges].filter((e) => e.source !== id && e.target !== id),
+              );
               return newNodes;
             }
             const changedNode = newNodes[changedNodeIndex];
@@ -351,7 +358,7 @@ export default function VisualEditor(props: VisualEditorProps) {
             }
             title={"Add Gate"}
             submitAction={"Submit"}
-            onSubmit={(data, ev) => {
+            onSubmit={(data) => {
               setNodes((nodes) => {
                 const center =
                   instance != null
@@ -396,27 +403,12 @@ export default function VisualEditor(props: VisualEditorProps) {
               );
             }}
           />
-          <AlertHelper
-            initialData={{ eventType: "" }}
-            trigger={
-              <Button
-                disabled={mode !== "normal"}
-                variant="outline"
-                title="Add Event Node"
-                className="bg-white"
-                onClick={() => {}}
-              >
-                <TbSquarePlus size={20} />
-              </Button>
-            }
-            title={"Add Event Node"}
-            submitAction={"Submit"}
-            onSubmit={(data, ev) => {
-              if (data.eventType === "") {
-                toast("Please select an event type to add a node.");
-                ev.preventDefault();
-                return;
-              }
+          <Button
+            disabled={mode !== "normal"}
+            variant="outline"
+            title="Add Event Node"
+            className="bg-white"
+            onClick={() => {
               setNodes((nodes) => {
                 const center =
                   instance != null
@@ -428,44 +420,23 @@ export default function VisualEditor(props: VisualEditorProps) {
                 return [
                   ...nodes,
                   {
-                    id: data.eventType + Date.now(),
+                    id: Math.random() + "-" + Date.now(),
                     type: EVENT_TYPE_NODE_TYPE,
                     position: center,
                     data: {
-                      eventType: { type: "exactly", value: data.eventType },
-                      eventTypeQualifier:
-                        props.eventTypeQualifiers[data.eventType],
-                      selectedVariables: [],
-                      countConstraint: { min: 0, max: Infinity },
+                      box: {
+                        newEventVars: {},
+                        newObjectVars: {},
+                        filterConstraint: [],
+                      },
                     },
                   },
                 ];
               });
-              console.log({ data });
             }}
-            content={({ data, setData }) => {
-              const sortedOcelEventTypes = [...props.ocelInfo.event_types];
-              sortedOcelEventTypes.sort((a, b) => a.name.localeCompare(b.name));
-              return (
-                <>
-                  <p className="mb-2">
-                    Please select the node event type to add below.
-                  </p>
-                  <Combobox
-                    value={data.eventType}
-                    onChange={(v) => {
-                      setData({ ...data, eventType: v });
-                    }}
-                    name="Event Type"
-                    options={sortedOcelEventTypes.map((o) => ({
-                      value: o.name,
-                      label: o.name,
-                    }))}
-                  ></Combobox>
-                </>
-              );
-            }}
-          />
+          >
+            <TbSquarePlus size={20} />
+          </Button>
           <Button
             size="icon"
             variant="outline"
@@ -473,7 +444,7 @@ export default function VisualEditor(props: VisualEditorProps) {
             className=""
             onClick={async () => {
               setViolationInfo({});
-              flushData({ violations: undefined, objectVariables });
+              flushData({ violations: undefined });
             }}
           >
             {mode !== "view-tree" && (
@@ -486,29 +457,25 @@ export default function VisualEditor(props: VisualEditorProps) {
             title={mode !== "view-tree" ? "Evaluate" : "Edit"}
             className="bg-fuchsia-100 border-fuchsia-300 hover:bg-fuchsia-200 hover:border-fuchsia-300"
             onClick={async () => {
-              const { variables, inputNodes } = evaluateConstraints(
-                objectVariables,
-                nodes,
-                edges,
-              );
-              console.log({ variables, inputNodes });
-              const [sizes, violations] = await toast.promise(
-                backend["ocel/check-constraints"](variables, inputNodes),
+              const { tree, nodesOrder } = evaluateConstraints(nodes, edges);
+              console.log({ tree });
+              const res = await toast.promise(
+                backend["ocel/check-constraints-box"](tree),
                 {
                   loading: "Evaluating...",
-                  success: ([sizes, violations]) => (
+                  success: () => (
                     <span>
                       <b>Evaluation finished</b>
                       <br />
                       <span>
                         Bindings per step:
                         <br />
-                        <span className="font-mono">{sizes.join(", ")}</span>
+                        {/* <span className="font-mono">{sizes.join(", ")}</span> */}
                         <br />
                         Violations per step:
                         <br />
                         <span className="font-mono">
-                          {violations.map((vs) => vs.length).join(", ")}
+                          {/* {violations.map((vs) => ).join(", ")} */}
                         </span>
                       </span>
                     </span>
@@ -516,23 +483,35 @@ export default function VisualEditor(props: VisualEditorProps) {
                   error: "Evaluation failed",
                 },
               );
-
-              const res = violations.map((vs, i) => ({
-                nodeID: inputNodes[i].id,
-                // Remove violations for "hideViolations" (not only visually)
-                // They can be very large and e.g., cause issues with the "save" feature
-                violations:
-                  (
-                    instance.getNode(inputNodes[i].id)
-                      ?.data as EventTypeNodeData
-                  ).hideViolations ?? false
-                    ? []
-                    : vs,
-                numBindings: sizes[i],
+              console.log({ res });
+              // const res = violations.map((vs, i) => ({
+              //   nodeID: inputNodes[i].id,
+              //   // Remove violations for "hideViolations" (not only visually)
+              //   // They can be very large and e.g., cause issues with the "save" feature
+              //   violations:
+              //     (
+              //       instance.getNode(inputNodes[i].id)
+              //         ?.data as EventTypeNodeData
+              //     ).hideViolations ?? false
+              //       ? []
+              //       : vs,
+              //   numBindings: sizes[i],
+              // }));
+              const evalRes: Map<string, EvaluationRes> = new Map<
+                string,
+                EvaluationRes
+              >(res.evaluationResults.map((res, i) => [nodesOrder[i].id, res]));
+              setViolationInfo((vi) => ({
+                ...vi,
+                violationsPerNode: {
+                  evalRes,
+                  objectIds: res.objectIds,
+                  eventIds: res.eventIds,
+                },
               }));
-              console.log("Evaluation res:", res);
-              setViolationInfo((vi) => ({ ...vi, violationsPerNode: res }));
-              flushData({ violations: res, objectVariables });
+              // console.log("Evaluation res:", res);
+              // setViolationInfo((vi) => ({ ...vi, violationsPerNode: res }));
+              // // flushData({ violations: res, objectVariables });
             }}
           >
             {mode !== "view-tree" && (
@@ -542,94 +521,34 @@ export default function VisualEditor(props: VisualEditorProps) {
           </Button>
         </Panel>
         <Background />
-        {!hideHints &&
-          (objectVariables.length === 0 ||
-            nodes.length === 0 ||
-            ("selectedVariables" in nodes[0].data &&
-              nodes[0].data.selectedVariables.length === 0)) && (
-            <div className="mt-16 text-base h-fit mx-auto p-4 bg-orange-200/50 rounded-md relative z-10 w-full max-w-lg">
-              <button
-                className="absolute right-2 top-2 bg-transparent hover:bg-red-400 rounded-full p-1"
-                title="Hide hints"
-                onClick={() => {
-                  setHideHints(true);
-                }}
-              >
-                <LuX />
-              </button>
-              {objectVariables.length === 0 && (
-                <>
-                  <h2 className="text-3xl font-bold">Welcome!</h2>
-                  <p
-                    className={clsx(
-                      "text-left mt-2",
-                      objectVariables.length === 0 && "font-semibold",
-                      objectVariables.length > 0 && "text-gray-600",
-                    )}
-                  >
-                    Start by adding an object variable using the{" "}
-                    <TbVariablePlus className="inline-block" /> button above.
-                    <br />
-                    <span className="text-gray-700">
-                      e.g., <code className="text-blue-600">or_0</code> of type{" "}
-                      <code className="text-blue-600">orders</code>
-                    </span>
-                  </p>
-                </>
-              )}
-              {objectVariables.length > 0 && nodes.length === 0 && (
-                <p
-                  className={clsx(
-                    "text-left mt-2",
-                    nodes.length === 0 && "font-semibold",
-                    nodes.length > 0 && "text-gray-600",
-                  )}
-                >
-                  Great! Next, add an event filter node using the{" "}
-                  <TbSquarePlus className="inline-block" /> button above.
-                  <br />
-                  <span className="text-gray-500">
-                    e.g., for the event type{" "}
-                    <code className="text-blue-600">pay order</code>
-                  </span>
-                </p>
-              )}
-              {nodes.length > 0 && (
-                <p className={clsx("text-left mt-2 font-semibold")}>
-                  Awesome! Next, link the node with the object variable.
-                  <br />
-                  For that, select the variable from the dropdown list on the
-                  bottom of the node.
-                  <br />
-                  <span className="font-normal text-xs">
-                    If the object variable does not appear in the dropdown list,
-                    select a different node event type or variable object type.
-                  </span>
-                </p>
-              )}
-            </div>
-          )}
       </ReactFlow>
-      {violationDetails !== undefined && (
-        <ViolationDetailsSheet
-          violationDetails={violationDetails}
-          setViolationDetails={setViolationDetails}
-        />
-      )}
+      {violationDetails !== undefined &&
+        violationInfo.violationsPerNode !== undefined && (
+          <ViolationDetailsSheet
+            violationDetails={violationDetails}
+            setViolationDetails={setViolationDetails}
+            violationResPerNodes={violationInfo.violationsPerNode}
+          />
+        )}
     </VisualEditorContext.Provider>
   );
 }
 
 const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
   violationDetails,
+  violationResPerNodes,
   setViolationDetails,
 }: {
-  violationDetails: ViolationsPerNode;
+  violationDetails: EvaluationRes;
+  violationResPerNodes: EvaluationResPerNodes;
   setViolationDetails: React.Dispatch<
-    React.SetStateAction<ViolationsPerNode | undefined>
+    React.SetStateAction<EvaluationRes | undefined>
   >;
 }) {
-  const VIOLATIONS_TO_SHOW = 100;
+  const SITUATIONS_TO_SHOW = 100;
+  const [mode, setMode] = useState<"violations" | "situations">("violations");
+
+  console.log({ violationDetails, violationResPerNodes });
   return (
     <Sheet
       modal={false}
@@ -648,18 +567,32 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
           }}
         >
           <SheetHeader>
-            <SheetTitle>
-              Violations for{" "}
-              <span className="text-blue-900">{violationDetails?.nodeID}</span>
+            <SheetTitle className="flex items-center justify-between pr-4">
+              {mode === "situations" ? "Situations" : "Violations"}{" "}
+              <Button
+                variant="outline"
+                onClick={() =>
+                  setMode(mode === "violations" ? "situations" : "violations")
+                }
+              >
+                Show{" "}
+                {mode !== "situations" ? "All Situations" : "Only Violations"}
+              </Button>
             </SheetTitle>
             <SheetDescription>
-              {violationDetails?.violations.length} Violations
-              {violationDetails?.violations.length > VIOLATIONS_TO_SHOW && (
+              {mode === "violations"
+                ? violationDetails.situationViolatedCount
+                : violationDetails.situationCount}{" "}
+              {mode === "situations" ? "Situations" : "Violations"}
+              {(mode === "violations"
+                ? violationDetails.situationViolatedCount
+                : violationDetails.situationCount) > SITUATIONS_TO_SHOW && (
                 <>
                   <br />
                   {
                     <span className="text-xs">
-                      Showing only the first {VIOLATIONS_TO_SHOW} Violations
+                      Showing only the first {SITUATIONS_TO_SHOW}{" "}
+                      {mode === "situations" ? "Situations" : "Violations"}
                     </span>
                   }
                 </>
@@ -667,27 +600,41 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
             </SheetDescription>
           </SheetHeader>
           <ul className="overflow-auto h-[80vh] bg-slate-50 border rounded-sm mt-2 px-2 py-0.5 text-xs">
-            {violationDetails.violations
-              .slice(0, VIOLATIONS_TO_SHOW)
-              .map(([[info, binding], reason], i) => (
+            {(mode === "violations"
+              ? violationDetails.situations.filter(
+                  ([_binding, reason]) => reason !== null,
+                )
+              : violationDetails.situations
+            )
+              .slice(0, SITUATIONS_TO_SHOW)
+              .map(([binding, reason], i) => (
                 <li
                   key={i}
                   className="border mx-1 my-2 px-1 py-1 rounded-sm bg-blue-50"
                 >
                   <div>
                     <p className="text-orange-600">{reason}</p>
-                    <span className="text-emerald-700">Past events:</span>{" "}
-                    <span className="font-mono">
-                      {info.past_events.map((e) => e.event_id).join(",")}
-                    </span>
+                    <span className="text-emerald-700">Events:</span>{" "}
+                    <ul className="flex flex-col ml-6 list-disc">
+                      {Object.entries(binding.eventMap).map(
+                        ([evVarName, evIndex]) => (
+                          <li key={evVarName}>
+                            {getEvVarName(parseInt(evVarName))}:{" "}
+                            {violationResPerNodes.eventIds[evIndex]}
+                          </li>
+                        ),
+                      )}
+                    </ul>
                     <h3 className="text-blue-700">Objects:</h3>
                     <ul className="flex flex-col ml-6 list-disc">
-                      {Object.entries(binding).map(([variable, value]) => (
-                        <li key={variable}>
-                          <span className="text-cyan-700">{variable}:</span>{" "}
-                          {"Single" in value ? value.Single : "?"}
-                        </li>
-                      ))}
+                      {Object.entries(binding.objectMap).map(
+                        ([obVarName, obIndex]) => (
+                          <li key={obVarName}>
+                            {getObVarName(parseInt(obVarName))}:{" "}
+                            {violationResPerNodes.objectIds[obIndex]}
+                          </li>
+                        ),
+                      )}
                     </ul>
                   </div>
                 </li>

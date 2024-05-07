@@ -1,27 +1,24 @@
 import type {
   DiscoverConstraintsRequest,
   DiscoverConstraintsResponse,
-  ObjectVariable,
-  Violation,
 } from "./routes/visual-editor/helper/types";
 import type {
   EventTypeQualifiers,
   OCELInfo,
   ObjectTypeQualifiers,
 } from "./types/ocel";
-import type { NewTreeNode } from "./routes/visual-editor/evaluation/evaluate-constraints";
 import { createContext } from "react";
-
+import type { BindingBoxTree } from "./types/generated/BindingBoxTree";
+import type { EvaluateBoxTreeResult } from "./types/generated/EvaluateBoxTreeResult";
 export type BackendProvider = {
   "ocel/info": () => Promise<OCELInfo>;
   "ocel/upload"?: (file: File) => Promise<OCELInfo>;
   "ocel/available"?: () => Promise<string[]>;
   "ocel/load"?: (name: string) => Promise<OCELInfo>;
   "ocel/picker"?: () => Promise<OCELInfo>;
-  "ocel/check-constraints": (
-    variables: ObjectVariable[],
-    nodesOrder: NewTreeNode[],
-  ) => Promise<[number[], Violation[][]]>;
+  "ocel/check-constraints-box": (
+    tree: BindingBoxTree,
+  ) => Promise<EvaluateBoxTreeResult>;
   "ocel/event-qualifiers": () => Promise<EventTypeQualifiers>;
   "ocel/object-qualifiers": () => Promise<ObjectTypeQualifiers>;
   "ocel/discover-constraints": (
@@ -38,7 +35,7 @@ export async function warnForNoBackendProvider<T>(): Promise<T> {
 
 export const BackendProviderContext = createContext<BackendProvider>({
   "ocel/info": warnForNoBackendProvider,
-  "ocel/check-constraints": warnForNoBackendProvider,
+  "ocel/check-constraints-box": warnForNoBackendProvider,
   "ocel/event-qualifiers": warnForNoBackendProvider,
   "ocel/object-qualifiers": warnForNoBackendProvider,
   "ocel/discover-constraints": warnForNoBackendProvider,
@@ -46,9 +43,9 @@ export const BackendProviderContext = createContext<BackendProvider>({
 
 export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
   "ocel/info": async () => {
-    const res = (
-      await fetch("http://localhost:3000/ocel/info", { method: "get" })
-    );
+    const res = await fetch("http://localhost:3000/ocel/info", {
+      method: "get",
+    });
     return await res.json();
   },
   "ocel/available": async () => {
@@ -74,11 +71,11 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
       })
     ).json();
   },
-  "ocel/check-constraints": async (variables, nodesOrder) => {
+  "ocel/check-constraints-box": async (tree) => {
     return await (
-      await fetch("http://localhost:3000/ocel/check-constraints", {
+      await fetch("http://localhost:3000/ocel/check-constraints-box", {
         method: "post",
-        body: JSON.stringify({ variables, nodesOrder }),
+        body: JSON.stringify({ tree }),
         headers: { "Content-Type": "application/json" },
       })
     ).json();
