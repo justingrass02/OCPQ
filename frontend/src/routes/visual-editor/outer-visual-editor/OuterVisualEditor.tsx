@@ -97,6 +97,19 @@ export default function VisualEditorOuter() {
     setConstraints(meta);
   }, []);
   function saveData() {
+    if (
+      currentInstanceAndData.instance !== undefined &&
+      activeIndex !== undefined &&
+      currentInstanceAndData.getter !== undefined
+    ) {
+      // First, save current data
+      const prevOtherData = currentInstanceAndData.getter();
+      prevDataRef.current[activeIndex] = {
+        flowJson: currentInstanceAndData.instance.toObject(),
+        violations: prevOtherData?.violations,
+      };
+    }
+
     if (prevDataRef.current !== undefined) {
       console.log(json5.stringify(prevDataRef.current));
       localStorage.setItem(
