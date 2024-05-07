@@ -6,7 +6,6 @@ use axum::{
     Json, Router,
 };
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     env,
@@ -15,8 +14,7 @@ use std::{
 
 use ocedeclare_shared::{
     binding_box::{
-        evaluate_box_tree,
-        structs::BindingBoxTree, EvaluateBoxTreeResult,
+        evaluate_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult
     },
     constraints::{check_with_tree, CheckWithTreeRequest, ViolationsWithoutID},
     discovery::{
@@ -186,10 +184,6 @@ pub async fn check_with_tree_req<'a>(
     .unwrap_or((StatusCode::INTERNAL_SERVER_ERROR, Json(None)))
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct CheckWithBoxTreeRequest {
-    pub tree: BindingBoxTree,
-}
 
 pub async fn check_with_box_tree_req<'a>(
     state: State<AppState>,

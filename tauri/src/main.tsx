@@ -32,8 +32,8 @@ const tauriBackend: BackendProvider = {
     throw new Error("No file selected");
   },
 
-  "ocel/check-constraints": async (variables, nodes) => {
-    return await invoke("check_constraint_with_tree", { variables, nodes });
+  "ocel/check-constraints-box": async (tree) => {
+    return await invoke("check_with_box_tree", { req: { tree } });
   },
   "ocel/event-qualifiers": async () => {
     return await invoke<EventTypeQualifiers>("get_event_qualifiers");
