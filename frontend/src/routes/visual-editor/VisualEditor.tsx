@@ -56,6 +56,7 @@ import {
 import {
   evaluateConstraints,
   getParentNodeID,
+  getParentsNodeIDs,
 } from "./helper/evaluation/evaluate-constraints";
 import {
   ALL_GATE_TYPES,
@@ -107,6 +108,15 @@ export default function VisualEditor(props: VisualEditorProps) {
         ) {
           return eds;
         } else {
+          const parents = getParentsNodeIDs(source, eds);
+          if (parents.includes(target)) {
+            toast("Invalid connection: Loops are forbidden!", {
+              position: "bottom-center",
+            });
+            console.warn("Loop connection attempted!");
+            return eds;
+          }
+          console.log({ parents, source, target });
           const color = "#969696";
           const newEdge: Edge<EventTypeLinkData> = {
             id: sourceHandle + "|||" + targetHandle,
@@ -167,12 +177,12 @@ export default function VisualEditor(props: VisualEditorProps) {
     if (nodeID === undefined) {
       return [];
     }
-    const node = instance.getNode(nodeID ?? "INVALID_ID") as Node<
+    const node = instance.getNode(nodeID) as Node<
       EventTypeNodeData | GateNodeData
     > | null;
     let ret: (EventVariable | ObjectVariable)[] = [];
     if (node == null) {
-      console.warn("getAvailableVars for unknown id: " + nodeID);
+      console.warn("getAvailableVars for unknown id: " + nodeID, instance);
       return ret;
     }
     if ("box" in node.data) {
@@ -182,16 +192,10 @@ export default function VisualEditor(props: VisualEditorProps) {
             ? node.data.box.newEventVars
             : node.data.box.newObjectVars,
         ).map((n) => parseInt(n)),
-        ...getAvailableVars(
-          getParentNodeID(nodeID ?? "INVALID_ID", edges),
-          type,
-        ),
+        ...getAvailableVars(getParentNodeID(nodeID, edges), type),
       ];
     } else {
-      ret = getAvailableVars(
-        getParentNodeID(nodeID ?? "INVALID_ID", edges),
-        type,
-      );
+      ret = getAvailableVars(getParentNodeID(nodeID, edges), type);
     }
     ret.sort((a, b) => a - b);
     return ret;
@@ -209,6 +213,9 @@ export default function VisualEditor(props: VisualEditorProps) {
             const changedNodeIndex = newNodes.findIndex((n) => n.id === id);
             if (newData === undefined) {
               newNodes.splice(changedNodeIndex, 1);
+              setEdges((edges) =>
+                [...edges].filter((e) => e.source !== id && e.target !== id),
+              );
               return newNodes;
             }
             const changedNode = newNodes[changedNodeIndex];
@@ -450,9 +457,7 @@ export default function VisualEditor(props: VisualEditorProps) {
             title={mode !== "view-tree" ? "Evaluate" : "Edit"}
             className="bg-fuchsia-100 border-fuchsia-300 hover:bg-fuchsia-200 hover:border-fuchsia-300"
             onClick={async () => {
-              const nodesCopy = [...nodes];
-              const edgesCopy = [...edges];
-              const tree = evaluateConstraints(nodesCopy, edgesCopy);
+              const { tree, nodesOrder } = evaluateConstraints(nodes, edges);
               console.log({ tree });
               const res = await toast.promise(
                 backend["ocel/check-constraints-box"](tree),
@@ -495,7 +500,7 @@ export default function VisualEditor(props: VisualEditorProps) {
               const evalRes: Map<string, EvaluationRes> = new Map<
                 string,
                 EvaluationRes
-              >(res.evaluationResults.map((res, i) => [nodesCopy[i].id, res]));
+              >(res.evaluationResults.map((res, i) => [nodesOrder[i].id, res]));
               setViolationInfo((vi) => ({
                 ...vi,
                 violationsPerNode: {
@@ -540,7 +545,9 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
     React.SetStateAction<EvaluationRes | undefined>
   >;
 }) {
-  const VIOLATIONS_TO_SHOW = 100;
+  const SITUATIONS_TO_SHOW = 100;
+  const [mode, setMode] = useState<"violations" | "situations">("violations");
+
   console.log({ violationDetails, violationResPerNodes });
   return (
     <Sheet
@@ -560,15 +567,32 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
           }}
         >
           <SheetHeader>
-            <SheetTitle>Violations</SheetTitle>
+            <SheetTitle className="flex items-center justify-between pr-4">
+              {mode === "situations" ? "Situations" : "Violations"}{" "}
+              <Button
+                variant="outline"
+                onClick={() =>
+                  setMode(mode === "violations" ? "situations" : "violations")
+                }
+              >
+                Show{" "}
+                {mode !== "situations" ? "All Situations" : "Only Violations"}
+              </Button>
+            </SheetTitle>
             <SheetDescription>
-              {violationDetails.situationViolatedCount} Violations
-              {violationDetails.situationViolatedCount > VIOLATIONS_TO_SHOW && (
+              {mode === "violations"
+                ? violationDetails.situationViolatedCount
+                : violationDetails.situationCount}{" "}
+              {mode === "situations" ? "Situations" : "Violations"}
+              {(mode === "violations"
+                ? violationDetails.situationViolatedCount
+                : violationDetails.situationCount) > SITUATIONS_TO_SHOW && (
                 <>
                   <br />
                   {
                     <span className="text-xs">
-                      Showing only the first {VIOLATIONS_TO_SHOW} Violations
+                      Showing only the first {SITUATIONS_TO_SHOW}{" "}
+                      {mode === "situations" ? "Situations" : "Violations"}
                     </span>
                   }
                 </>
@@ -576,9 +600,13 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
             </SheetDescription>
           </SheetHeader>
           <ul className="overflow-auto h-[80vh] bg-slate-50 border rounded-sm mt-2 px-2 py-0.5 text-xs">
-            {violationDetails.situations
-              .filter(([_binding, reason]) => reason !== null)
-              .slice(0, VIOLATIONS_TO_SHOW)
+            {(mode === "violations"
+              ? violationDetails.situations.filter(
+                  ([_binding, reason]) => reason !== null,
+                )
+              : violationDetails.situations
+            )
+              .slice(0, SITUATIONS_TO_SHOW)
               .map(([binding, reason], i) => (
                 <li
                   key={i}
@@ -586,12 +614,12 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                 >
                   <div>
                     <p className="text-orange-600">{reason}</p>
-                    <span className="text-emerald-700">Past events:</span>{" "}
+                    <span className="text-emerald-700">Events:</span>{" "}
                     <ul className="flex flex-col ml-6 list-disc">
                       {Object.entries(binding.eventMap).map(
                         ([evVarName, evIndex]) => (
                           <li key={evVarName}>
-                            {getEvVarName(parseInt(evVarName))}:
+                            {getEvVarName(parseInt(evVarName))}:{" "}
                             {violationResPerNodes.eventIds[evIndex]}
                           </li>
                         ),
@@ -602,7 +630,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                       {Object.entries(binding.objectMap).map(
                         ([obVarName, obIndex]) => (
                           <li key={obVarName}>
-                            {getObVarName(parseInt(obVarName))}:
+                            {getObVarName(parseInt(obVarName))}:{" "}
                             {violationResPerNodes.objectIds[obIndex]}
                           </li>
                         ),

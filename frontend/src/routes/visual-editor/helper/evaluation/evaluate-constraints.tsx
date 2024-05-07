@@ -5,6 +5,7 @@ import type {
   EventTypeNodeData,
   GateNodeData,
 } from "../types";
+import toast from "react-hot-toast";
 
 export function getParentNodeID(
   nodeID: string,
@@ -16,6 +17,18 @@ export function getParentNodeID(
     }
   }
   return undefined;
+}
+
+export function getParentsNodeIDs(
+  nodeID: string,
+  edges: Edge<EventTypeLinkData>[],
+): string[] {
+  for (const edge of edges) {
+    if (edge.target === nodeID) {
+      return [...getParentsNodeIDs(edge.source, edges), edge.source];
+    }
+  }
+  return [];
 }
 
 function getChildrenNodeIDs(nodeID: string, edges: Edge<EventTypeLinkData>[]) {
@@ -31,12 +44,16 @@ function getChildrenNodeIDs(nodeID: string, edges: Edge<EventTypeLinkData>[]) {
 export function evaluateConstraints(
   nodes: Node<EventTypeNodeData | GateNodeData>[],
   edges: Edge<EventTypeLinkData>[],
-): BindingBoxTree {
+): {
+  tree: BindingBoxTree;
+  nodesOrder: Node<EventTypeNodeData | GateNodeData>[];
+} {
   const tree: BindingBoxTree = { nodes: [], sizeConstraints: [] };
+  const newNodes = [...nodes];
   if (nodes.length === 0) {
-    return tree;
+    return { tree, nodesOrder: newNodes };
   }
-  let root = nodes[0];
+  let root: Node<EventTypeNodeData | GateNodeData> | undefined;
   let numRootsFound = 0;
   for (const node of nodes) {
     const parentID = getParentNodeID(node.id, edges);
@@ -46,13 +63,13 @@ export function evaluateConstraints(
     }
   }
 
-  console.log("Found root: " + root.id);
+  console.log("Found root: " + root?.id + " of " + numRootsFound);
   const rootIndex = nodes.indexOf(root);
   if (numRootsFound > 1 || rootIndex < 0) {
     console.warn("Found multiple roots or no valid root! Invalid tree.");
-    return tree;
+    toast.error("Invalid Tree! Found multiple root nodes.");
+    return { tree, nodesOrder: newNodes };
   }
-  const newNodes = [...nodes];
   newNodes.splice(rootIndex, 1);
   newNodes.unshift(root);
   const nodesIndexMap = new Map(newNodes.map((node, i) => [node.id, i]));
@@ -92,5 +109,5 @@ export function evaluateConstraints(
     };
   });
 
-  return tree;
+  return { tree, nodesOrder: newNodes };
 }

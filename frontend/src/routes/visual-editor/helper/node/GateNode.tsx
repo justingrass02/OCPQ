@@ -1,63 +1,34 @@
-import { Position, type NodeProps, Handle } from "reactflow";
-import type { GateNodeData } from "../types";
-import { useContext } from "react";
-import { VisualEditorContext } from "../VisualEditorContext";
-import {
-  CheckCircledIcon,
-  ExclamationTriangleIcon,
-} from "@radix-ui/react-icons";
 import AlertHelper from "@/components/AlertHelper";
+import { useContext } from "react";
 import { TbTrash } from "react-icons/tb";
+import { Handle, Position, type NodeProps } from "reactflow";
+import { VisualEditorContext } from "../VisualEditorContext";
+import type { GateNodeData } from "../types";
+import ViolationIndicator from "./ViolationIndicator";
 
 export default function EventTypeNode({ data, id }: NodeProps<GateNodeData>) {
-  const { violationsPerNode, showViolationsFor, onNodeDataChange } =
+  const { violationsPerNode, onNodeDataChange } =
     useContext(VisualEditorContext);
 
   const hideViolations: boolean | undefined = false;
   const violations = hideViolations
     ? undefined
-    : violationsPerNode?.find((v) => v.nodeID === id);
+    : violationsPerNode?.evalRes.get(id);
 
   return (
     <div
       title={data.type}
       className={`border shadow z-10 backdrop-blur flex flex-col items-center justify-center pt-1.5 py-0.5 px-0.5 rounded-md relative min-w-[8rem] min-h-[5rem] font-mono text-4xl font-bold
       ${
-        violations?.violations !== undefined && violations.violations.length > 0
+        violations !== undefined && violations.situationViolatedCount > 0
           ? "bg-red-200 border-red-300"
-          : violations?.violations === undefined
+          : violations?.situationViolatedCount === undefined
           ? "bg-blue-50 border-blue-100"
           : "bg-green-200 border-green-300"
       }`}
     >
-      {violations?.violations !== undefined && (
-        <button
-          onClick={() => {
-            if (showViolationsFor !== undefined) {
-              showViolationsFor(violations);
-            }
-          }}
-          className={`absolute right-0 top-0 text-xs flex flex-col items-center gap-x-1 border border-transparent px-1 py-0.5 rounded-sm hover:bg-amber-100/70 hover:border-gray-400/50`}
-          title={`Found ${violations.violations.length} Violations of ${violations.numBindings} Bindings`}
-        >
-          {violations.violations.length > 0 && (
-            <ExclamationTriangleIcon className="text-red-400 h-3 mt-1" />
-          )}
-          {violations.violations.length === 0 && (
-            <CheckCircledIcon className="text-green-400 h-3" />
-          )}
-          <div className="flex flex-col items-center justify-center">
-            {violations.violations.length}
-            <div className="text-[0.6rem] leading-none text-muted-foreground">
-              {Math.round(
-                100 *
-                  100 *
-                  (violations.violations.length / violations.numBindings),
-              ) / 100.0}
-              %
-            </div>
-          </div>
-        </button>
+      {violations !== undefined && (
+        <ViolationIndicator violationsPerNode={violations} />
       )}
       <div className="">
         {data.type === "not" && "¬"}
