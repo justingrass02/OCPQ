@@ -126,7 +126,10 @@ function CountChangeDialog({
             placeholder="Min. Count"
             value={countConstraint.minCount ?? ""}
             onChange={(ev) => {
-              const newVal = ev.currentTarget.valueAsNumber;
+              let newVal: number | null = ev.currentTarget.valueAsNumber;
+              if (isNaN(newVal)) {
+                newVal = null;
+              }
               setCountConstraint({ ...countConstraint, minCount: newVal });
             }}
           />
@@ -137,7 +140,10 @@ function CountChangeDialog({
             placeholder="Max. Count"
             value={countConstraint.maxCount ?? ""}
             onChange={(ev) => {
-              const newVal = ev.currentTarget.valueAsNumber;
+              let newVal: number | null = ev.currentTarget.valueAsNumber;
+              if (isNaN(newVal)) {
+                newVal = null;
+              }
               setCountConstraint({ ...countConstraint, maxCount: newVal });
             }}
           />
