@@ -17,8 +17,8 @@ export default function ConstraintContainer({
   ocelInfo,
 }: ConstraintContainerProps) {
   return (
-    <div className="relative">
-      <div className="w-[50rem] xl:w-[70rem] h-[50rem] border p-2">
+    <div className="relative w-full h-full">
+      <div className="w-[50rem] xl:w-full min-h-[50rem] h-full border p-2">
         <ReactFlowProvider>
           {qualifiers !== undefined && ocelInfo !== undefined && (
             <>
