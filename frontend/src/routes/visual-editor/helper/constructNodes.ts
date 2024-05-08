@@ -312,7 +312,7 @@ import {
 //   //   initiallyBound: true,
 //   // };
 // }
-const POS_SCALE = 0.66;
+const POS_SCALE = 0.333;
 
 export function bindingBoxTreeToNodes(
   tree: BindingBoxTree,
@@ -356,7 +356,7 @@ export function bindingBoxTreeToNodes(
         tree,
         childIndex,
         childPositionX,
-        positionY + POS_SCALE * 500,
+        positionY + POS_SCALE * 600,
         idPrefix,
       );
       edges.push({
@@ -431,14 +431,14 @@ export function bindingBoxTreeToNodes(
     const [n1, e1] = bindingBoxTreeToNodes(
       tree,
       treeNode.OR[0],
-      positionX - POS_SCALE * 250,
+      positionX - POS_SCALE * 400,
       positionY + POS_SCALE * 500,
       idPrefix,
     );
     const [n2, e2] = bindingBoxTreeToNodes(
       tree,
       treeNode.OR[1],
-      positionX + POS_SCALE * 250,
+      positionX + POS_SCALE * 400,
       positionY + POS_SCALE * 500,
       idPrefix,
     );
@@ -493,14 +493,14 @@ export function bindingBoxTreeToNodes(
     const [n1, e1] = bindingBoxTreeToNodes(
       tree,
       treeNode.AND[0],
-      positionX - POS_SCALE * 250,
+      positionX - POS_SCALE * 400,
       positionY + POS_SCALE * 500,
       idPrefix,
     );
     const [n2, e2] = bindingBoxTreeToNodes(
       tree,
       treeNode.AND[1],
-      positionX + POS_SCALE * 250,
+      positionX + POS_SCALE * 400,
       positionY + POS_SCALE * 500,
       idPrefix,
     );
