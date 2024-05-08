@@ -30,6 +30,12 @@ Run `docker compose up --build` in the project root.
 
 
 ## Usage
+__Note: These instructions might not be up-to-date with the newest version.__
+
+In particular, in the new approach based on binding boxes, the need to manually add object variables globally is eliminated.
+To see examples of the new constraints, try out the Auto-Discovery feature and inspect the generated constraint.
+
+
 ### Loading OCELs & Viewing OCEL info
 When visiting the initial page of the tool, you can load an OCEL2 file by either choosing a custom OCEL2 file (XML/JSON) or selecting an OCEL2 file from the provided list (only available in the dev/docker setup and only if there are .json/.xml files in the `backend/data` folder).
 If the OCEL was loaded successfully, you will automatically be forwarded to the OCEL info view.
