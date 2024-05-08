@@ -114,7 +114,9 @@ export default function VisualEditorOuter() {
       console.log(json5.stringify(prevDataRef.current));
       localStorage.setItem(
         LOCALSTORAGE_SAVE_KEY_DATA,
-        json5.stringify(prevDataRef.current.map(x => ({...x, violations: undefined}))),
+        json5.stringify(
+          prevDataRef.current.map((x) => ({ ...x, violations: undefined })),
+        ),
       );
     }
     localStorage.setItem(
