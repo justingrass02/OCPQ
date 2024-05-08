@@ -10,6 +10,7 @@ import NewVariableChooser from "../box/NewVariablesChooser";
 import type { EventTypeNodeData } from "../types";
 import MiscNodeConstraints from "./MiscNodeConstraints";
 import ViolationIndicator from "./ViolationIndicator";
+import clsx from "clsx";
 
 export default function EventTypeNode({
   data,
@@ -21,19 +22,22 @@ export default function EventTypeNode({
   const violations =
     violationsPerNode === undefined || data.hideViolations === true
       ? undefined
-      : violationsPerNode.evalRes.get(id);
+      : violationsPerNode.evalRes[id];
 
   return (
     <div
-      className={`border shadow z-10 backdrop-blur flex flex-col py-1 pb-2 px-0.5 rounded-md relative min-h-[5rem] w-[15rem] ${
-        violations !== undefined
-          ? violations.situationViolatedCount > 0
-            ? "bg-red-50  border-red-200"
-            : "bg-emerald-50  border-emerald-200 "
-          : "bg-blue-50 border-blue-200"
-      }`}
+      className={clsx(
+        "outline outline-2 shadow-lg z-10 flex flex-col py-1 pb-2 px-0.5 rounded-md relative min-h-[5rem] w-[15rem]",
+        violations !== undefined &&
+          violations.situationViolatedCount > 0 &&
+          "bg-rose-50   outline-rose-300 shadow-rose-300",
+        violations !== undefined &&
+          violations.situationViolatedCount === 0 &&
+          "bg-emerald-50  outline-emerald-300 shadow-emerald-300",
+        violations === undefined && "bg-gray-50  outline-slate-500",
+      )}
     >
-      <Toggle
+      {/* <Toggle
         className="flex w-6 h-6 p-0 absolute right-11"
         variant="outline"
         title={
@@ -52,7 +56,7 @@ export default function EventTypeNode({
         {data.hideViolations === true && (
           <PiSirenThin className="text-gray-400" />
         )}
-      </Toggle>
+      </Toggle> */}
       {violations !== undefined && (
         <ViolationIndicator violationsPerNode={violations} />
       )}

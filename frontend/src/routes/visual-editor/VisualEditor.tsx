@@ -165,7 +165,7 @@ export default function VisualEditor(props: VisualEditorProps) {
 
   useEffect(() => {
     registerOtherDataGetter(() => ({
-      violations: undefined, // TODO: For now do not save violation info, because it can become huge; violationInfo.violationsPerNode,
+      violations: violationInfo.violationsPerNode,
     }));
   }, [violationInfo]);
   const initialized = useRef<boolean>(false);
@@ -200,6 +200,32 @@ export default function VisualEditor(props: VisualEditorProps) {
     ret.sort((a, b) => a - b);
     return ret;
   }
+
+  const COLORS = {
+    // https://colordesigner.io/color-scheme-builder?mode=lch#0067A6-FA9805-CE2727-00851D-A90A76-E0F20D-e9488f-0481cc-16cc9d-080999
+    object: [
+      "#0067A6",
+      "#FA9805",
+      "#CE2727",
+      "#00851D",
+      "#A90A76",
+      "#E0F20D",
+      "#e9488f",
+      "#0481cc",
+      "#16cc9d",
+      "#080999",
+    ],
+    event: [
+      "#01425e",
+      "#53077f",
+      "#db11c3",
+      "#b76b00",
+      "#506b01",
+      "#aa082b",
+      "#006289",
+      "#758406",
+    ],
+  } as const;
   return (
     <VisualEditorContext.Provider
       value={{
@@ -207,6 +233,12 @@ export default function VisualEditor(props: VisualEditorProps) {
         violationsPerNode: violationInfo.violationsPerNode,
         showViolationsFor: violationInfo.showViolationsFor,
         getAvailableVars,
+        getVarName: (variable, type) => {
+          return {
+            name: type.substring(0, 2) + "_" + variable,
+            color: COLORS[type][variable % COLORS[type].length],
+          };
+        },
         onNodeDataChange: (id, newData) => {
           setNodes((ns) => {
             const newNodes = [...ns];
@@ -263,6 +295,7 @@ export default function VisualEditor(props: VisualEditorProps) {
             setInstance(flow);
           }
         }}
+        defaultViewport={otherData?.viewport}
         maxZoom={10}
         edgeTypes={edgeTypes}
         nodeTypes={nodeTypes}
@@ -457,19 +490,25 @@ export default function VisualEditor(props: VisualEditorProps) {
                 backend["ocel/check-constraints-box"](tree),
                 {
                   loading: "Evaluating...",
-                  success: () => (
+                  success: (res) => (
                     <span>
                       <b>Evaluation finished</b>
                       <br />
                       <span>
                         Bindings per step:
                         <br />
-                        {/* <span className="font-mono">{sizes.join(", ")}</span> */}
+                        <span className="font-mono">
+                          {res.evaluationResults
+                            .map((r) => r.situationCount)
+                            .join(", ")}
+                        </span>
                         <br />
                         Violations per step:
                         <br />
                         <span className="font-mono">
-                          {/* {violations.map((vs) => ).join(", ")} */}
+                          {res.evaluationResults
+                            .map((r) => r.situationViolatedCount)
+                            .join(", ")}
                         </span>
                       </span>
                     </span>
@@ -477,24 +516,9 @@ export default function VisualEditor(props: VisualEditorProps) {
                   error: "Evaluation failed",
                 },
               );
-              console.log({ res });
-              // const res = violations.map((vs, i) => ({
-              //   nodeID: inputNodes[i].id,
-              //   // Remove violations for "hideViolations" (not only visually)
-              //   // They can be very large and e.g., cause issues with the "save" feature
-              //   violations:
-              //     (
-              //       instance.getNode(inputNodes[i].id)
-              //         ?.data as EventTypeNodeData
-              //     ).hideViolations ?? false
-              //       ? []
-              //       : vs,
-              //   numBindings: sizes[i],
-              // }));
-              const evalRes: Map<string, EvaluationRes> = new Map<
-                string,
-                EvaluationRes
-              >(res.evaluationResults.map((res, i) => [nodesOrder[i].id, res]));
+              const evalRes: Record<string, EvaluationRes> = Object.fromEntries(
+                res.evaluationResults.map((res, i) => [nodesOrder[i].id, res]),
+              );
               setViolationInfo((vi) => ({
                 ...vi,
                 violationsPerNode: {
@@ -503,9 +527,13 @@ export default function VisualEditor(props: VisualEditorProps) {
                   eventIds: res.eventIds,
                 },
               }));
-              // console.log("Evaluation res:", res);
-              // setViolationInfo((vi) => ({ ...vi, violationsPerNode: res }));
-              // // flushData({ violations: res, objectVariables });
+              flushData({
+                violations: {
+                  evalRes,
+                  objectIds: res.objectIds,
+                  eventIds: res.eventIds,
+                },
+              });
             }}
           >
             {mode !== "view-tree" && (
@@ -604,11 +632,13 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
               .map(([binding, reason], i) => (
                 <li
                   key={i}
-                  className="border mx-1 my-2 px-1 py-1 rounded-sm bg-blue-50"
+                  className="border mx-1 my-2 px-1 py-1 rounded-sm bg-blue-50 text-lg"
                 >
                   <div>
                     <p className="text-orange-600">{reason}</p>
-                    <span className="text-emerald-700">Events:</span>{" "}
+                    <span className="text-emerald-700 font-bold">
+                      Events:
+                    </span>{" "}
                     <ul className="flex flex-col ml-6 list-disc">
                       {Object.entries(binding.eventMap).map(
                         ([evVarName, evIndex]) => (
@@ -619,7 +649,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                         ),
                       )}
                     </ul>
-                    <h3 className="text-blue-700">Objects:</h3>
+                    <h3 className="text-blue-700 font-bold">Objects:</h3>
                     <ul className="flex flex-col ml-6 list-disc">
                       {Object.entries(binding.objectMap).map(
                         ([obVarName, obIndex]) => (

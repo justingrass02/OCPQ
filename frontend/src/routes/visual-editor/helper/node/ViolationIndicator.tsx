@@ -26,14 +26,13 @@ export default function ViolationIndicator({
       title={`Found ${violationsPerNode.situationViolatedCount} Violations of ${violationsPerNode.situationCount} Bindings`}
     >
       {violationsPerNode.situationViolatedCount > 0 && (
-        <ExclamationTriangleIcon className="text-red-400 h-3 mt-1" />
+        <ExclamationTriangleIcon className="text-red-400 h-4 mt-1" />
       )}
       {violationsPerNode.situationViolatedCount === 0 && (
-        <CheckCircledIcon className="text-green-400 h-3" />
+        <CheckCircledIcon className="text-green-400 h-4" />
       )}
       <div className="flex flex-col items-center justify-center">
-        {violationsPerNode.situationViolatedCount}
-        <div className="text-[0.6rem] leading-none text-muted-foreground">
+        <div className="leading-none font-semibold">
           {Math.round(
             100 *
               100 *
@@ -42,6 +41,9 @@ export default function ViolationIndicator({
           ) / 100.0}
           %
         </div>
+        <span className="text-muted-foreground font-semibold text-xs">
+          {violationsPerNode.situationViolatedCount}
+        </span>
       </div>
     </button>
   );

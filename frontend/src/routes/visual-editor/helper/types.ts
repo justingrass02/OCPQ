@@ -3,7 +3,7 @@ import type { BindingBoxTree } from "@/types/generated/BindingBoxTree";
 import type { EvaluationResultWithCount } from "@/types/generated/EvaluationResultWithCount";
 
 export type EvaluationResPerNodes = {
-  evalRes: Map<string, EvaluationRes>;
+  evalRes: Record<string, EvaluationRes>;
   objectIds: string[];
   eventIds: string[];
 };

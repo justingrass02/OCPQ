@@ -114,7 +114,7 @@ export default function VisualEditorOuter() {
       console.log(json5.stringify(prevDataRef.current));
       localStorage.setItem(
         LOCALSTORAGE_SAVE_KEY_DATA,
-        json5.stringify(prevDataRef.current),
+        json5.stringify(prevDataRef.current.map(x => ({...x, violations: undefined}))),
       );
     }
     localStorage.setItem(
@@ -173,6 +173,7 @@ export default function VisualEditorOuter() {
                   violations: prevDataRef.current[activeIndex]?.violations,
                   nodes: prevDataRef.current[activeIndex]?.flowJson.nodes,
                   edges: prevDataRef.current[activeIndex]?.flowJson.edges,
+                  viewport: prevDataRef.current[activeIndex]?.flowJson.viewport,
                 }
               : undefined,
         }}
@@ -271,11 +272,14 @@ export default function VisualEditorOuter() {
                               prevDataRef.current[i]?.violations == null && "",
                               prevDataRef.current[i]?.violations != null &&
                                 "bg-green-200/30 data-[state=on]:bg-green-300/80",
-                              prevDataRef.current[i]?.violations != null &&
+                              prevDataRef.current[i] !== undefined &&
+                                prevDataRef.current[i]?.violations?.evalRes !==
+                                  null &&
                                 [
-                                  ...(prevDataRef.current[
-                                    i
-                                  ].violations?.evalRes?.values() ?? []),
+                                  ...Object.values(
+                                    prevDataRef.current[i].violations
+                                      ?.evalRes ?? {},
+                                  ),
                                 ]?.find(
                                   (vs) => vs.situationViolatedCount > 0,
                                 ) != null &&

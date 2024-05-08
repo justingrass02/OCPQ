@@ -6,6 +6,7 @@ import { VisualEditorContext } from "../VisualEditorContext";
 import type { GateNodeData } from "../types";
 import ViolationIndicator from "./ViolationIndicator";
 import { Combobox } from "@/components/ui/combobox";
+import clsx from "clsx";
 
 export default function EventTypeNode({ data, id }: NodeProps<GateNodeData>) {
   const { violationsPerNode, onNodeDataChange } =
@@ -14,19 +15,21 @@ export default function EventTypeNode({ data, id }: NodeProps<GateNodeData>) {
   const hideViolations: boolean | undefined = false;
   const violations = hideViolations
     ? undefined
-    : violationsPerNode?.evalRes.get(id);
+    : violationsPerNode?.evalRes[id];
 
   return (
     <div
       title={data.type}
-      className={`border shadow z-10 backdrop-blur flex flex-col items-center justify-center pt-1.5 py-0.5 px-0.5 rounded-md relative min-w-[8rem] min-h-[5rem] font-mono text-4xl font-bold
-      ${
-        violations !== undefined && violations.situationViolatedCount > 0
-          ? "bg-red-200 border-red-300"
-          : violations?.situationViolatedCount === undefined
-          ? "bg-blue-50 border-blue-100"
-          : "bg-green-200 border-green-300"
-      }`}
+      className={clsx(
+        "outline outline-2 shadow-lg z-10 flex flex-col items-center justify-center pt-1.5 py-0.5 px-0.5 rounded-md relative min-w-[8rem] min-h-[5rem] font-mono text-4xl font-bold",
+        violations !== undefined &&
+          violations.situationViolatedCount > 0 &&
+          "bg-rose-50   outline-rose-300 shadow-rose-300",
+        violations !== undefined &&
+          violations.situationViolatedCount === 0 &&
+          "bg-emerald-50  outline-emerald-300 shadow-emerald-300",
+        violations === undefined && "bg-gray-50  outline-slate-500",
+      )}
     >
       {violations !== undefined && (
         <ViolationIndicator violationsPerNode={violations} />

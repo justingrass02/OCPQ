@@ -15,7 +15,7 @@ export type VisualEditorContextValue = {
   showViolationsFor?: (data: EvaluationRes) => unknown;
   onNodeDataChange: (
     id: string,
-    newData: Partial<EventTypeNodeData|GateNodeData> | undefined,
+    newData: Partial<EventTypeNodeData | GateNodeData> | undefined,
   ) => unknown;
   onEdgeDataChange: (
     id: string,
@@ -26,10 +26,18 @@ export type VisualEditorContextValue = {
     nodeID: string,
     type: "object" | "event",
   ) => (ObjectVariable | EventVariable)[];
+  getVarName: (
+    variable: EventVariable | ObjectVariable,
+    type: "object" | "event",
+  ) => { name: string; color: string };
 };
 
 export const VisualEditorContext = createContext<VisualEditorContextValue>({
   onNodeDataChange: () => {},
   onEdgeDataChange: () => {},
   getAvailableVars: () => [],
+  getVarName: (variable, type) => ({
+    name: type.substring(0, 2) + "_" + variable,
+    color: "black",
+  }),
 });

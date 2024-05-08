@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { Edge, Node, ReactFlowInstance } from "reactflow";
+import type { Edge, Node, ReactFlowInstance, Viewport } from "reactflow";
 import type {
   EvaluationResPerNodes,
   EventTypeLinkData,
@@ -22,6 +22,7 @@ export const FlowContext = createContext<{
         violations?: EvaluationResPerNodes;
         nodes?: Node<EventTypeNodeData | GateNodeData>[];
         edges?: Edge<EventTypeLinkData>[];
+        viewport?: Viewport;
       }
     | undefined;
   flushData: (

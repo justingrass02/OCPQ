@@ -18,7 +18,7 @@ import {
 import { RxCheck, RxChevronUp } from "react-icons/rx";
 
 interface ComboboxProps {
-  options: { value: string; label: string }[];
+  options: { value: string; label: string | React.ReactNode }[];
   onChange: (value: string) => unknown;
   name: string;
   value: string;

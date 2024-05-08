@@ -81,7 +81,7 @@ export default function NewVariableChooser({
           <LuPlus size={10} />
         </Button>
       </div>
-      <ul className="w-full text-left text-sm min-h-[1rem]">
+      <ul className="w-full text-left text-sm min-h-[0.5rem]">
         {Object.entries(box.newObjectVars).map(([obVar, obTypes]) => (
           <li key={obVar} className="flex items-center gap-x-0.5">
             <button
@@ -101,7 +101,7 @@ export default function NewVariableChooser({
           </li>
         ))}
       </ul>
-      <div className="flex items-center gap-x-1 mt-2">
+      <div className="flex items-center gap-x-1 mt-1">
         <Label>Event Variables</Label>
         <Button
           size="icon"
@@ -119,7 +119,7 @@ export default function NewVariableChooser({
           <LuPlus size={10} />
         </Button>
       </div>
-      <ul className="w-full text-left text-sm min-h-[1rem]">
+      <ul className="w-full text-left text-sm min-h-[0.5rem]">
         {Object.entries(box.newEventVars).map(([evVar, evTypes]) => (
           <li key={evVar}>
             <button

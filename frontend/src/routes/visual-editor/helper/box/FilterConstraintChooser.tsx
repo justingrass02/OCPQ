@@ -381,7 +381,7 @@ function FilterConstraintDisplay({ fc }: { fc: FilterConstraint }) {
   if ("TimeBetweenEvents" in fc) {
     const [evVar1, evVar2, [minTime, maxTime]] = fc.TimeBetweenEvents;
     return (
-      <div className="flex items-center gap-x-1 font-normal text-sm">
+      <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
         {getEvVarName(evVar1)} <LuArrowRight /> {getEvVarName(evVar2)}{" "}
         <span className="ml-2 inline-flex items-center gap-x-1 text-xs">
           {formatSeconds(minTime ?? -Infinity)} <span className="mx-1">-</span>{" "}
