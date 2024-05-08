@@ -558,11 +558,41 @@ pub enum AutoDiscoveredORConstraint {
 
 impl Into<BindingBoxTree> for &AutoDiscoveredORConstraint {
     fn into(self) -> BindingBoxTree {
-        let (mut tree1, mut tree2): (BindingBoxTree, BindingBoxTree) = match self {
-            AutoDiscoveredORConstraint::EfOrCount(ef, cc) => (ef.into(), cc.into()),
-            AutoDiscoveredORConstraint::CountOrEf(cc, ef) => (cc.into(), ef.into()),
+        let (tree1, tree2): (BindingBoxTree, BindingBoxTree) = match self {
+            AutoDiscoveredORConstraint::EfOrCount(ef, cc) => {
+                let tree1: BindingBoxTree = ef.into();
+                let mut tree2: BindingBoxTree = cc.into();
+                // Remove first node from tree2 & move size constraint to OR -> new first tree2 node
+                tree2.nodes = tree2.nodes.into_iter().skip(1).collect();
+                tree2.size_constraints = tree2
+                    .size_constraints
+                    .into_iter()
+                    .map(|orig_c| {
+                        let mut c = orig_c.clone();
+                        c.0 = (0 - tree1.nodes.len() - 1, c.0 .1 - 1);
+                        c
+                    })
+                    .collect();
+                (tree1, tree2)
+            }
+            AutoDiscoveredORConstraint::CountOrEf(cc, ef) => {
+                let mut tree1: BindingBoxTree = cc.into();
+                let tree2: BindingBoxTree = ef.into();
+                // Remove first node from tree1 & move size constraint to OR -> new first tree1 node
+                tree1.nodes = tree1.nodes.into_iter().skip(1).collect();
+                tree1.size_constraints = tree1
+                    .size_constraints
+                    .into_iter()
+                    .map(|orig_c| {
+                        let mut c = orig_c.clone();
+                        c.0 = (c.0 .0 - 1, c.0 .1 - 1);
+                        c
+                    })
+                    .collect();
+                (tree1, tree2)
+            }
         };
-        let root_objs = match tree1.nodes.first_mut().unwrap() {
+        let root_objs = match tree1.nodes.first().unwrap() {
             BindingBoxTreeNode::Box(bbox, _) => bbox.new_object_vars.clone(),
             BindingBoxTreeNode::OR(_, _) => todo!(),
             BindingBoxTreeNode::AND(_, _) => todo!(),
@@ -597,7 +627,7 @@ impl Into<BindingBoxTree> for &AutoDiscoveredORConstraint {
                                 .iter()
                                 .map(|(a, b)| (EventVariable(a.0 + prev_ev_vars), b.clone()))
                                 .collect(),
-                                new_object_vars: HashMap::new(),
+                            new_object_vars: HashMap::new(),
                             // new_object_vars: bbox
                             //     .new_object_vars
                             //     .iter()
