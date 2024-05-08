@@ -294,13 +294,7 @@ export default function VisualEditor(props: VisualEditorProps) {
             className="bg-white"
             onClick={() => {
               instance?.fitView();
-              getLayoutedElements(
-                {
-                  "elk.algorithm": "layered",
-                  "elk.direction": "DOWN",
-                },
-                true,
-              );
+              getLayoutedElements({}, true);
               setTimeout(() => {
                 instance?.fitView();
               }, 200);
