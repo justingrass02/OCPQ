@@ -199,7 +199,7 @@ export default function VisualEditorOuter() {
                           className="h-12 w-12"
                           disabled={constraints.length === 0}
                         >
-                          <CgTrash />
+                          <CgTrash size={"24"} />
                         </Button>
                       }
                       title={"Delete All Constraints"}
@@ -232,21 +232,22 @@ export default function VisualEditorOuter() {
                         Add Constraint
                       </Button>
                     </div>
-                      <AutoDiscoveryButton
-                        ocelInfo={ocelInfo}
-                        constraints={constraints}
-                        setConstraints={setConstraints}
-                        prevDataRef={prevDataRef}
-                      />
+                    <AutoDiscoveryButton
+                      ocelInfo={ocelInfo}
+                      constraints={constraints}
+                      setConstraints={setConstraints}
+                      prevDataRef={prevDataRef}
+                    />
                     <Button
                       variant="outline"
+                      size="icon"
                       className="h-12 w-12"
                       onClick={() => {
                         saveData();
                         toast.success("Saved Data");
                       }}
                     >
-                      <LuSave/>
+                      <LuSave size={"24"} />
                     </Button>
                   </div>
                   <p className="mt-2 mb-1">{constraints.length} Constraints</p>

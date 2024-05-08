@@ -38,7 +38,16 @@ pub struct EFConstraintInfo {
     pub supporting_object_ids: HashSet<String>,
     pub cover_fraction: f32,
 }
-
+impl EventuallyFollowsConstraints {
+    fn get_constraint_name(&self) -> String {
+        format!(
+            "{} -> {} for {}",
+            self.from_event_type,
+            self.to_event_type,
+            self.object_types.join(", "),
+        )
+    }
+}
 impl From<&EventuallyFollowsConstraints> for BindingBoxTree {
     fn from(val: &EventuallyFollowsConstraints) -> Self {
         let bbox0 = BindingBoxTreeNode::Box(
@@ -332,6 +341,17 @@ pub struct CountConstraintInfo {
     pub supporting_object_ids: HashSet<String>,
     pub cover_fraction: f32,
 }
+impl SimpleDiscoveredCountConstraints {
+    fn get_constraint_name(&self) -> String {
+        format!(
+            "{} - {} {} per {}",
+            self.min_count,
+            self.max_count,
+            self.event_types.join(", "),
+            self.object_type
+        )
+    }
+}
 
 impl From<&SimpleDiscoveredCountConstraints> for BindingBoxTree {
     fn from(val: &SimpleDiscoveredCountConstraints) -> Self {
@@ -555,7 +575,19 @@ pub enum AutoDiscoveredORConstraint {
         SimpleDiscoveredCountConstraints,
     ),
 }
-
+impl AutoDiscoveredORConstraint {
+    fn get_constraint_name(&self) -> String {
+        let (a, b) = match self {
+            AutoDiscoveredORConstraint::EfOrCount(a, b) => (a, b),
+            AutoDiscoveredORConstraint::CountOrEf(a, b) => (a, b),
+        };
+        format!(
+            "OR {} / {}",
+            a.get_constraint_name(),
+            b.get_constraint_name()
+        )
+    }
+}
 impl From<&AutoDiscoveredORConstraint> for BindingBoxTree {
     fn from(val: &AutoDiscoveredORConstraint) -> Self {
         let (tree1, tree2): (BindingBoxTree, BindingBoxTree) = match val {
@@ -667,10 +699,8 @@ impl From<&AutoDiscoveredORConstraint> for BindingBoxTree {
                 })
             }
             for ((n_index1, n_index2), size_constr) in &tr.size_constraints {
-                tree.size_constraints.insert(
-                    (n_index1 + prev_nodes, n_index2 + prev_nodes),
-                    *size_constr,
-                );
+                tree.size_constraints
+                    .insert((n_index1 + prev_nodes, n_index2 + prev_nodes), *size_constr);
             }
             prev_nodes += tr.nodes.len();
             prev_ev_vars += tr.get_ev_vars().len();
@@ -822,31 +852,16 @@ pub fn auto_discover_constraints_with_options(
         constraints: Vec::new(),
     };
     for cc in &count_constraints {
-        ret.constraints.push((
-            format!(
-                "{} - {} {} per {}",
-                cc.constraint.min_count,
-                cc.constraint.max_count,
-                cc.constraint.event_types.join(", "),
-                cc.constraint.object_type
-            ),
-            (&cc.constraint).into(),
-        ))
+        ret.constraints
+            .push((cc.constraint.get_constraint_name(), (&cc.constraint).into()))
     }
     for ef in &eventually_follows_constraints {
-        ret.constraints.push((
-            format!(
-                "{} -> {} for {}",
-                ef.constraint.from_event_type,
-                ef.constraint.to_event_type,
-                ef.constraint.object_types.join(", "),
-            ),
-            (&ef.constraint).into(),
-        ))
+        ret.constraints
+            .push((ef.constraint.get_constraint_name(), (&ef.constraint).into()))
     }
 
     for or in &or_constraints {
-        ret.constraints.push((format!("OR {:?}", or), or.into()))
+        ret.constraints.push((or.get_constraint_name(), or.into()))
     }
 
     ret
