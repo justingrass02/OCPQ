@@ -1,18 +1,14 @@
 import AlertHelper from "@/components/AlertHelper";
 import { Toggle } from "@/components/ui/toggle";
-import {
-  CheckCircledIcon,
-  ExclamationTriangleIcon,
-} from "@radix-ui/react-icons";
 import { useContext } from "react";
 import { PiSirenDuotone, PiSirenThin } from "react-icons/pi";
 import { TbTrash } from "react-icons/tb";
 import { Handle, Position, type NodeProps } from "reactflow";
 import { VisualEditorContext } from "../VisualEditorContext";
-import type { EvaluationRes, EventTypeNodeData } from "../types";
-import MiscNodeConstraints from "./MiscNodeConstraints";
-import NewVariableChooser from "../box/NewVariablesChooser";
 import FilterConstraintChooser from "../box/FilterConstraintChooser";
+import NewVariableChooser from "../box/NewVariablesChooser";
+import type { EventTypeNodeData } from "../types";
+import MiscNodeConstraints from "./MiscNodeConstraints";
 import ViolationIndicator from "./ViolationIndicator";
 
 export default function EventTypeNode({
