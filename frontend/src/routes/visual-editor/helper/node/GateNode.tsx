@@ -5,6 +5,7 @@ import { Handle, Position, type NodeProps } from "reactflow";
 import { VisualEditorContext } from "../VisualEditorContext";
 import type { GateNodeData } from "../types";
 import ViolationIndicator from "./ViolationIndicator";
+import { Combobox } from "@/components/ui/combobox";
 
 export default function EventTypeNode({ data, id }: NodeProps<GateNodeData>) {
   const { violationsPerNode, onNodeDataChange } =
@@ -31,9 +32,45 @@ export default function EventTypeNode({ data, id }: NodeProps<GateNodeData>) {
         <ViolationIndicator violationsPerNode={violations} />
       )}
       <div className="">
-        {data.type === "not" && "¬"}
-        {data.type === "or" && "∨"}
-        {data.type === "and" && "∧"}
+        <AlertHelper
+          title="Change Gate Type"
+          trigger={
+            <button className="bg-transparent hover:bg-blue-400/40 w-14 h-14 rounded">
+              {data.type === "not" && "¬"}
+              {data.type === "or" && "∨"}
+              {data.type === "and" && "∧"}
+            </button>
+          }
+          initialData={data}
+          content={({ data: d, setData: setD }) => (
+            <div>
+              <Combobox
+                options={
+                  data.type === "not"
+                    ? [{ value: "not", label: "not (¬)" }]
+                    : [
+                        { value: "and", label: "and (∧)" },
+                        { value: "or", label: "or (∨)" },
+                      ]
+                }
+                onChange={(value: string) => {
+                  setD({
+                    ...d,
+                    type:
+                      value === "not" ? "not" : value === "or" ? "or" : "and",
+                  });
+                }}
+                name={"Gate Type"}
+                value={d.type}
+              />
+            </div>
+          )}
+          submitAction="Save"
+          onSubmit={(d) => {
+            onNodeDataChange(id, d);
+          }}
+        />
+
         <Handle
           className="!w-3 !h-3"
           position={Position.Top}

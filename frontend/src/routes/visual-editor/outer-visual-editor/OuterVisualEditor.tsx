@@ -183,7 +183,7 @@ export default function VisualEditorOuter() {
             objectQualifiers !== undefined && (
               <>
                 <div
-                  className={`w-full max-w-2xl gap-y-2 ${
+                  className={`w-full max-w-4xl gap-y-2 ${
                     constraints.length > 0
                       ? "justify-between"
                       : "justify-center"
@@ -196,7 +196,7 @@ export default function VisualEditorOuter() {
                           title={"Delete All"}
                           variant="destructive"
                           size="icon"
-                          className="text-2xl h-14 w-14"
+                          className="h-12 w-12"
                           disabled={constraints.length === 0}
                         >
                           <CgTrash />
@@ -215,7 +215,7 @@ export default function VisualEditorOuter() {
                     />
                     <div className="flex flex-col justify-center gap-y-2">
                       <Button
-                        className="text-xl py-7 px-4"
+                        className="text-xl py-6 px-4"
                         onClick={() => {
                           prevDataRef.current.splice(constraints.length, 1);
                           changeIndex(
@@ -231,29 +231,29 @@ export default function VisualEditorOuter() {
                         <RxPlusCircled className="mr-2" />
                         Add Constraint
                       </Button>
+                    </div>
                       <AutoDiscoveryButton
                         ocelInfo={ocelInfo}
                         constraints={constraints}
                         setConstraints={setConstraints}
                         prevDataRef={prevDataRef}
                       />
-                    </div>
                     <Button
                       variant="outline"
-                      className="text-2xl h-14 w-14"
+                      className="h-12 w-12"
                       onClick={() => {
                         saveData();
                         toast.success("Saved Data");
                       }}
                     >
-                      <LuSave />
+                      <LuSave/>
                     </Button>
                   </div>
-                  <p className="mt-4 mb-2">{constraints.length} Constraints</p>
+                  <p className="mt-2 mb-1">{constraints.length} Constraints</p>
                   {constraints.length > 0 && (
                     <ToggleGroup
                       type="single"
-                      className="flex flex-wrap max-h-[15rem] overflow-y-auto w-full border rounded py-2"
+                      className="flex flex-wrap max-h-[8rem] overflow-y-auto w-full border rounded py-2"
                       value={activeIndex?.toString()}
                       onValueChange={(newVal) => {
                         const newIndex = parseInt(newVal);

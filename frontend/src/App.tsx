@@ -147,7 +147,7 @@ function App() {
             )}
           </div>
         </div>
-        <div className="px-4 overflow-auto py-8">
+        <div className="px-4 overflow-auto py-4">
           {isAtRoot && (
             <h2 className="text-3xl font-semibold mb-4">Load OCEL</h2>
           )}

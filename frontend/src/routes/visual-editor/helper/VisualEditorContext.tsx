@@ -4,6 +4,7 @@ import type {
   EvaluationResPerNodes,
   EventTypeLinkData,
   EventTypeNodeData,
+  GateNodeData,
 } from "./types";
 import type { OCELInfo } from "@/types/ocel";
 import type { EventVariable } from "@/types/generated/EventVariable";
@@ -14,7 +15,7 @@ export type VisualEditorContextValue = {
   showViolationsFor?: (data: EvaluationRes) => unknown;
   onNodeDataChange: (
     id: string,
-    newData: Partial<EventTypeNodeData> | undefined,
+    newData: Partial<EventTypeNodeData|GateNodeData> | undefined,
   ) => unknown;
   onEdgeDataChange: (
     id: string,

@@ -663,9 +663,7 @@ impl Into<BindingBoxTree> for &AutoDiscoveredORConstraint {
                         },
                         cs.iter().map(|i| i + prev_nodes).collect_vec(),
                     ),
-                    BindingBoxTreeNode::OR(c1, c2) => todo!(),
-                    BindingBoxTreeNode::AND(c1, c2) => todo!(),
-                    BindingBoxTreeNode::NOT(c) => todo!(),
+                    _ => todo!("Other box tree nodes are not supported for merging!"),
                 })
             }
             for ((n_index1, n_index2), size_constr) in &tr.size_constraints {
@@ -676,7 +674,7 @@ impl Into<BindingBoxTree> for &AutoDiscoveredORConstraint {
             }
             prev_nodes += tr.nodes.len();
             prev_ev_vars += tr.get_ev_vars().len();
-            // prev_ob_vars += tr.get_ob_vars().len();
+            prev_ob_vars += 0; //tr.get_ob_vars().len();
         }
 
         tree
