@@ -1,44 +1,37 @@
+import { BackendProviderContext } from "@/BackendProviderContext";
 import AlertHelper from "@/components/AlertHelper";
-import { Button } from "@/components/ui/button";
-import { RiRobot2Line } from "react-icons/ri";
-import type {
-  DiscoverConstraintsRequest,
-  DiscoverConstraintsRequestWrapper,
-} from "../helper/types";
-import type { EventTypeQualifiers, OCELInfo } from "@/types/ocel";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-
-// import {
-//   constructDiscoveredCountConstraint,
-//   constructDiscoveredEFConstraint,
-//   constructDiscoveredORConstraint,
-// } from "../helper/constructNodes";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import clsx from "clsx";
-import { LuDelete } from "react-icons/lu";
+import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
-import toast from "react-hot-toast";
-import { BackendProviderContext } from "@/BackendProviderContext";
-import { useContext } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import type { FlowAndViolationData } from "@/types/misc";
+import type { OCELInfo } from "@/types/ocel";
+import clsx from "clsx";
+import { useContext } from "react";
+import toast from "react-hot-toast";
+import { LuDelete } from "react-icons/lu";
+import { RiRobot2Line } from "react-icons/ri";
+import { applyLayoutToNodes } from "../helper/LayoutFlow";
 import { bindingBoxTreeToNodes } from "../helper/constructNodes";
+import type {
+  DiscoverConstraintsRequest,
+  DiscoverConstraintsRequestWrapper,
+} from "../helper/types";
 
 export default function AutoDiscoveryButton({
   ocelInfo,
-  qualifiers,
   constraints,
   setConstraints,
   prevDataRef,
 }: {
   ocelInfo: OCELInfo;
-  qualifiers: EventTypeQualifiers;
   constraints: {
     name: string;
     description: string;
@@ -425,6 +418,7 @@ export default function AutoDiscoveryButton({
                     0,
                     Date.now() + " - " + index,
                   );
+                  await applyLayoutToNodes(ns, es);
                   prevDataRef.current[index] = {
                     flowJson: {
                       nodes: ns,
@@ -434,82 +428,6 @@ export default function AutoDiscoveryButton({
                   };
                   index++;
                 }
-
-                // for (const c of json.countConstraints) {
-                //   const constructedCountConstraint =
-                //     constructDiscoveredCountConstraint(c, qualifiers);
-                //   if (
-                //     updatedConstraints.find(
-                //       (c) => c.name === constructedCountConstraint.name,
-                //     ) !== undefined
-                //   ) {
-                //     console.log(
-                //       "Skipping new constraint " +
-                //         constructedCountConstraint.name +
-                //         " bc. constraint with same name already exists",
-                //     );
-                //     continue;
-                //   }
-                //   updatedConstraints.push({
-                //     name: constructedCountConstraint.name,
-                //     description: constructedCountConstraint.description,
-                //   });
-                //   prevDataRef.current[index] =
-                //     constructedCountConstraint.constraint;
-                //   index++;
-                // }
-
-                // for (const c of json.eventuallyFollowsConstraints) {
-                //   const constructedEFConstraint =
-                //     constructDiscoveredEFConstraint(c, qualifiers);
-                //   if (
-                //     updatedConstraints.find(
-                //       (c) => c.name === constructedEFConstraint.name,
-                //     ) !== undefined
-                //   ) {
-                //     console.log(
-                //       "Skipping new constraint " +
-                //         constructedEFConstraint.name +
-                //         " bc. constraint with same name already exists",
-                //     );
-                //     continue;
-                //   }
-                //   updatedConstraints.push({
-                //     name: constructedEFConstraint.name,
-                //     description: constructedEFConstraint.description,
-                //   });
-                //   prevDataRef.current[index] =
-                //     constructedEFConstraint.constraint;
-                //   index++;
-                // }
-
-                // for (const c of json.orConstraints) {
-                //   const constructedORConstraint =
-                //     constructDiscoveredORConstraint(c, qualifiers);
-                //   if (constructedORConstraint === undefined) {
-                //     continue;
-                //   }
-                //   if (
-                //     updatedConstraints.find(
-                //       (c) => c.name === constructedORConstraint.name,
-                //     ) !== undefined
-                //   ) {
-                //     console.log(
-                //       "Skipping new constraint " +
-                //         constructedORConstraint.name +
-                //         " bc. constraint with same name already exists",
-                //     );
-                //     continue;
-                //   }
-                //   updatedConstraints.push({
-                //     name: constructedORConstraint.name,
-                //     description: constructedORConstraint.description,
-                //   });
-                //   prevDataRef.current[index] =
-                //     constructedORConstraint.constraint;
-                //   index++;
-                // }
-
                 setConstraints(updatedConstraints);
                 return json;
               })
