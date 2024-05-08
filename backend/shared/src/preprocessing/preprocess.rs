@@ -155,7 +155,7 @@ impl<'a> LinkedOCEL<'a> {
     }
 }
 
-pub fn link_ocel_info<'a>(ocel: &'a OCEL) -> LinkedOCEL {
+pub fn link_ocel_info(ocel: &OCEL) -> LinkedOCEL {
     let event_map: HashMap<String, &OCELEvent> =
         ocel.events.iter().map(|ev| (ev.id.clone(), ev)).collect();
     let object_map: HashMap<String, &OCELObject> = ocel

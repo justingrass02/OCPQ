@@ -130,7 +130,7 @@ impl BindingBox {
                         .into_par_iter()
                         .flat_map_iter(|b| {
                             let ob_index = b.get_ob_index(from_ob_var_name).unwrap();
-                            let ob = ocel.ob_by_index(&ob_index).unwrap();
+                            let ob = ocel.ob_by_index(ob_index).unwrap();
                             let ev_types = self.new_event_vars.get(ev_var_name).unwrap();
                             get_events_of_type_associated_with_objects(ocel, ev_types, &[*ob_index])
                                 .into_iter()

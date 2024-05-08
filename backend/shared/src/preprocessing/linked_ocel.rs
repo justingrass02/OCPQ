@@ -41,8 +41,8 @@ pub fn get_object_events_map(
     object_events_map
 }
 
-pub fn get_events_of_type_associated_with_objects<'a>(
-    linked_ocel: &'a IndexLinkedOCEL,
+pub fn get_events_of_type_associated_with_objects(
+    linked_ocel: &IndexLinkedOCEL,
     event_types: &HashSet<std::string::String>,
     object_indices: &[ObjectIndex],
 ) -> Vec<EventIndex> {
@@ -71,7 +71,7 @@ pub fn get_events_of_type_associated_with_objects<'a>(
         .unwrap()
         .iter()
         .filter(|e_index| {
-            event_types.contains(&linked_ocel.ev_by_index(&e_index).unwrap().event_type)
+            event_types.contains(&linked_ocel.ev_by_index(e_index).unwrap().event_type)
         })
         .copied()
         .collect();
@@ -85,7 +85,7 @@ pub fn get_events_of_type_associated_with_objects<'a>(
             .collect();
         intersection.retain(|ev| other_map.contains(ev))
     }
-    return intersection.into_iter().collect();
+    intersection.into_iter().collect()
 }
 
 pub fn get_event_relationships(ev: &OCELEvent) -> Vec<OCELRelationship> {

@@ -118,9 +118,9 @@ impl BindingBoxTree {
         if let Some(root) = self.nodes.first() {
             let (mut ret, violation) = root.evaluate(0, 0, Binding::default(), self, ocel);
             ret.push((0, Binding::default(), violation));
-            return ret;
+            ret
         } else {
-            return vec![];
+            vec![]
         }
     }
 
@@ -211,9 +211,9 @@ impl BindingBoxTreeNode {
                                 tree.nodes[*c].evaluate(*c, own_index, b.clone(), tree, ocel);
                             c_res.push((*c, b.clone(), violation));
                             if let Some(_x) = violation {
-                                return (true, c_res);
+                                (true, c_res)
                             } else {
-                                return (false, c_res);
+                                (false, c_res)
                             }
                         })
                     })
@@ -227,9 +227,9 @@ impl BindingBoxTreeNode {
                         },
                     );
                 if child_not_sat {
-                    return (ret, Some(ViolationReason::ChildNotSatisfied));
+                    (ret, Some(ViolationReason::ChildNotSatisfied))
                 } else {
-                    return (ret, None);
+                    (ret, None)
                 }
             }
             BindingBoxTreeNode::OR(i1, i2) => {
@@ -253,7 +253,7 @@ impl BindingBoxTreeNode {
                 if violation_1.is_some() && violation_2.is_some() {
                     return (ret, Some(ViolationReason::NoChildrenOfORSatisfied));
                 }
-                return (ret, None);
+                (ret, None)
             }
             BindingBoxTreeNode::AND(i1, i2) => {
                 let node1 = &tree.nodes[*i1];
@@ -276,7 +276,7 @@ impl BindingBoxTreeNode {
                 } else if violation_2.is_some() {
                     return (ret, Some(ViolationReason::RightChildOfANDUnsatisfied));
                 }
-                return (ret, None);
+                (ret, None)
             }
             BindingBoxTreeNode::NOT(i) => {
                 let mut ret = vec![];
@@ -288,9 +288,9 @@ impl BindingBoxTreeNode {
                 ret.push((*i, parent_binding.clone(), violation_c));
                 if violation_c.is_some() {
                     // NOT satisfied
-                    return (ret, None);
+                    (ret, None)
                 } else {
-                    return (ret, Some(ViolationReason::ChildrenOfNOTSatisfied));
+                    (ret, Some(ViolationReason::ChildrenOfNOTSatisfied))
                 }
             }
         }
@@ -353,7 +353,7 @@ pub enum BindingStep {
 
 impl Display for Binding {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Binding [\n")?;
+        writeln!(f, "Binding [")?;
         write!(f, "\tEvents: {{ ")?;
         for (i, (ev_var, ev_index)) in self.event_map.iter().enumerate() {
             write!(f, "{} => {}", ev_var, ev_index)?;

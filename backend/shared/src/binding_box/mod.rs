@@ -43,7 +43,7 @@ pub struct EvaluationResultWithCount {
 
 pub fn evaluate_box_tree(tree: BindingBoxTree, ocel: &IndexLinkedOCEL) -> EvaluateBoxTreeResult {
     let now = Instant::now();
-    let evaluation_results_flat = tree.evaluate(&ocel);
+    let evaluation_results_flat = tree.evaluate(ocel);
     let mut evaluation_results = tree
         .nodes
         .iter()

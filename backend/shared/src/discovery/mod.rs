@@ -39,19 +39,19 @@ pub struct EFConstraintInfo {
     pub cover_fraction: f32,
 }
 
-impl Into<BindingBoxTree> for &EventuallyFollowsConstraints {
-    fn into(self) -> BindingBoxTree {
+impl From<&EventuallyFollowsConstraints> for BindingBoxTree {
+    fn from(val: &EventuallyFollowsConstraints) -> Self {
         let bbox0 = BindingBoxTreeNode::Box(
             BindingBox {
                 new_event_vars: vec![(
                     EventVariable(0),
-                    vec![self.from_event_type.clone()].into_iter().collect(),
+                    vec![val.from_event_type.clone()].into_iter().collect(),
                 )]
                 .into_iter()
                 .collect(),
                 new_object_vars: vec![(
                     ObjectVariable(0),
-                    self.object_types.iter().cloned().collect(),
+                    val.object_types.iter().cloned().collect(),
                 )]
                 .into_iter()
                 .collect(),
@@ -67,7 +67,7 @@ impl Into<BindingBoxTree> for &EventuallyFollowsConstraints {
             BindingBox {
                 new_event_vars: vec![(
                     EventVariable(1),
-                    vec![self.to_event_type.clone()].into_iter().collect(),
+                    vec![val.to_event_type.clone()].into_iter().collect(),
                 )]
                 .into_iter()
                 .collect(),
@@ -81,7 +81,7 @@ impl Into<BindingBoxTree> for &EventuallyFollowsConstraints {
                     FilterConstraint::TimeBetweenEvents(
                         EventVariable(0),
                         EventVariable(1),
-                        (Some(self.min_seconds), Some(self.max_seconds)),
+                        (Some(val.min_seconds), Some(val.max_seconds)),
                     ),
                 ],
             },
@@ -333,14 +333,14 @@ pub struct CountConstraintInfo {
     pub cover_fraction: f32,
 }
 
-impl Into<BindingBoxTree> for &SimpleDiscoveredCountConstraints {
-    fn into(self) -> BindingBoxTree {
+impl From<&SimpleDiscoveredCountConstraints> for BindingBoxTree {
+    fn from(val: &SimpleDiscoveredCountConstraints) -> Self {
         let bbox0 = BindingBoxTreeNode::Box(
             BindingBox {
                 new_event_vars: HashMap::new(),
                 new_object_vars: vec![(
                     ObjectVariable(0),
-                    vec![self.object_type.clone()].into_iter().collect(),
+                    vec![val.object_type.clone()].into_iter().collect(),
                 )]
                 .into_iter()
                 .collect(),
@@ -352,7 +352,7 @@ impl Into<BindingBoxTree> for &SimpleDiscoveredCountConstraints {
             BindingBox {
                 new_event_vars: vec![(
                     EventVariable(0),
-                    vec![self.event_types.iter().cloned().collect()]
+                    vec![val.event_types.iter().cloned().collect()]
                         .into_iter()
                         .collect(),
                 )]
@@ -369,7 +369,7 @@ impl Into<BindingBoxTree> for &SimpleDiscoveredCountConstraints {
         );
         BindingBoxTree {
             nodes: vec![bbox0, bbox1],
-            size_constraints: vec![((0, 1), (Some(self.min_count), Some(self.max_count)))]
+            size_constraints: vec![((0, 1), (Some(val.min_count), Some(val.max_count)))]
                 .into_iter()
                 .collect(),
         }
@@ -556,9 +556,9 @@ pub enum AutoDiscoveredORConstraint {
     ),
 }
 
-impl Into<BindingBoxTree> for &AutoDiscoveredORConstraint {
-    fn into(self) -> BindingBoxTree {
-        let (tree1, tree2): (BindingBoxTree, BindingBoxTree) = match self {
+impl From<&AutoDiscoveredORConstraint> for BindingBoxTree {
+    fn from(val: &AutoDiscoveredORConstraint) -> Self {
+        let (tree1, tree2): (BindingBoxTree, BindingBoxTree) = match val {
             AutoDiscoveredORConstraint::EfOrCount(ef, cc) => {
                 let tree1: BindingBoxTree = ef.into();
                 let mut tree2: BindingBoxTree = cc.into();
@@ -568,7 +568,7 @@ impl Into<BindingBoxTree> for &AutoDiscoveredORConstraint {
                     .size_constraints
                     .into_iter()
                     .map(|orig_c| {
-                        let mut c = orig_c.clone();
+                        let mut c = orig_c;
                         c.0 = (0 - tree1.nodes.len() - 1, c.0 .1 - 1);
                         c
                     })
@@ -584,7 +584,7 @@ impl Into<BindingBoxTree> for &AutoDiscoveredORConstraint {
                     .size_constraints
                     .into_iter()
                     .map(|orig_c| {
-                        let mut c = orig_c.clone();
+                        let mut c = orig_c;
                         c.0 = (c.0 .0 - 1, c.0 .1 - 1);
                         c
                     })
@@ -655,7 +655,7 @@ impl Into<BindingBoxTree> for &AutoDiscoveredORConstraint {
                                         FilterConstraint::TimeBetweenEvents(
                                             EventVariable(ev1.0 + prev_ev_vars),
                                             EventVariable(ev2.0 + prev_ev_vars),
-                                            t.clone(),
+                                            *t,
                                         )
                                     }
                                 })
@@ -669,7 +669,7 @@ impl Into<BindingBoxTree> for &AutoDiscoveredORConstraint {
             for ((n_index1, n_index2), size_constr) in &tr.size_constraints {
                 tree.size_constraints.insert(
                     (n_index1 + prev_nodes, n_index2 + prev_nodes),
-                    size_constr.clone(),
+                    *size_constr,
                 );
             }
             prev_nodes += tr.nodes.len();
