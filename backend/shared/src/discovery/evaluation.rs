@@ -33,9 +33,7 @@ pub fn get_count_constraint_fraction(
     let counts_len = counts.len();
     let supporting_obj_ids_ref: Vec<_> = counts
         .into_iter()
-        .filter(|(count, _obj_id)| {
-            c.max_count >= *count && c.min_count <= *count
-        })
+        .filter(|(count, _obj_id)| c.max_count >= *count && c.min_count <= *count)
         .map(|(_c, obj_id)| obj_id)
         .collect();
     let num_supporting_objs = supporting_obj_ids_ref.len();
@@ -72,16 +70,10 @@ pub fn get_ef_constraint_fraction(
     let (total_from_ev_count, total_sat_from_ev_count) = object_ids
         .par_iter()
         .map(|obj_id| {
-            let from_evs = get_events_of_type_associated_with_objects(
-                linked_ocel,
-                &from_ev_type,
-                &[obj_id],
-            );
-            let to_evs = get_events_of_type_associated_with_objects(
-                linked_ocel,
-                &to_ev_type,
-                &[obj_id],
-            );
+            let from_evs =
+                get_events_of_type_associated_with_objects(linked_ocel, &from_ev_type, &[obj_id]);
+            let to_evs =
+                get_events_of_type_associated_with_objects(linked_ocel, &to_ev_type, &[obj_id]);
             let num_from_evs = from_evs.len();
             let num_sat_from_evs = from_evs
                 .iter()

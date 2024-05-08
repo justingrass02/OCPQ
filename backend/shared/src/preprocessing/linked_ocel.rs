@@ -71,7 +71,6 @@ pub fn get_events_of_type_associated_with_objects<'a>(
         .unwrap()
         .iter()
         .filter(|e_index| {
-
             event_types.contains(&linked_ocel.ev_by_index(&e_index).unwrap().event_type)
         })
         .copied()

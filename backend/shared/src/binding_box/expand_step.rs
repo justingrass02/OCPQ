@@ -133,31 +133,27 @@ impl BindingBox {
                             let ob_index = b.get_ob_index(from_ob_var_name).unwrap();
                             let ob = ocel.ob_by_index(&ob_index).unwrap();
                             let ev_types = self.new_event_vars.get(ev_var_name).unwrap();
-                            get_events_of_type_associated_with_objects(
-                                ocel,
-                                ev_types,
-                                &[*ob_index],
-                            )
-                            .into_iter()
-                            .filter_map(move |e_index| {
-                                // TODO: Better to also have an relationship index in IndexLinkedOCEL
-                                let e = ocel.ev_by_index(&e_index).unwrap();
-                                if qualifier.is_none()
-                                    || e.relationships.as_ref().is_some_and(|rels| {
-                                        rels.iter().any(|rel| {
-                                            rel.object_id == ob.id
-                                                && &rel.qualifier == qualifier.as_ref().unwrap()
+                            get_events_of_type_associated_with_objects(ocel, ev_types, &[*ob_index])
+                                .into_iter()
+                                .filter_map(move |e_index| {
+                                    // TODO: Better to also have an relationship index in IndexLinkedOCEL
+                                    let e = ocel.ev_by_index(&e_index).unwrap();
+                                    if qualifier.is_none()
+                                        || e.relationships.as_ref().is_some_and(|rels| {
+                                            rels.iter().any(|rel| {
+                                                rel.object_id == ob.id
+                                                    && &rel.qualifier == qualifier.as_ref().unwrap()
+                                            })
                                         })
-                                    })
-                                {
-                                    Some(b.clone().expand_with_ev(
-                                        *ev_var_name,
-                                        *ocel.event_index_map.get(&e.id).unwrap(),
-                                    ))
-                                } else {
-                                    None
-                                }
-                            })
+                                    {
+                                        Some(b.clone().expand_with_ev(
+                                            *ev_var_name,
+                                            *ocel.event_index_map.get(&e.id).unwrap(),
+                                        ))
+                                    } else {
+                                        None
+                                    }
+                                })
                         })
                         .collect();
                 }

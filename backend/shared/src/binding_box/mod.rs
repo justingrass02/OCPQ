@@ -26,12 +26,10 @@ pub struct EvaluateBoxTreeResult {
     pub event_ids: Vec<String>,
 }
 
-
 #[derive(Serialize, Deserialize)]
 pub struct CheckWithBoxTreeRequest {
     pub tree: BindingBoxTree,
 }
-
 
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]

@@ -4,7 +4,8 @@ use itertools::Itertools;
 use process_mining::import_ocel_json_from_path;
 
 use crate::{
-    binding_box::structs::{BindingBoxTree, BindingBoxTreeNode, FilterConstraint, ViolationReason}, preprocessing::linked_ocel::link_ocel_info,
+    binding_box::structs::{BindingBoxTree, BindingBoxTreeNode, FilterConstraint, ViolationReason},
+    preprocessing::linked_ocel::link_ocel_info,
 };
 
 use super::{BindingBox, BindingStep};
