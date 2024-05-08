@@ -141,7 +141,7 @@ export default function VisualEditorOuter() {
     }
   }
   return (
-    <div>
+    <div className="w-full h-full">
       <FlowContext.Provider
         value={{
           flushData: (data) => {
@@ -177,7 +177,7 @@ export default function VisualEditorOuter() {
               : undefined,
         }}
       >
-        <div className="flex flex-col justify-around items-center mb-2 gap-y-2">
+        <div className="flex flex-col justify-start items-center mb-2 gap-y-2 h-full">
           {ocelInfo !== undefined &&
             qualifiers !== undefined &&
             objectQualifiers !== undefined && (
@@ -233,7 +233,6 @@ export default function VisualEditorOuter() {
                       </Button>
                       <AutoDiscoveryButton
                         ocelInfo={ocelInfo}
-                        qualifiers={qualifiers}
                         constraints={constraints}
                         setConstraints={setConstraints}
                         prevDataRef={prevDataRef}
