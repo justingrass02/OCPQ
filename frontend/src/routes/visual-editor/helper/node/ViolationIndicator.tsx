@@ -23,7 +23,7 @@ export default function ViolationIndicator({
         }
       }}
       className={`absolute right-1 top-1 text-xs flex flex-col items-center gap-x-1 border border-transparent px-1 py-0.5 rounded-sm hover:bg-amber-100/70 hover:border-gray-400/50`}
-      title={`Found ${violationsPerNode.situationViolatedCount} Violations of ${violationsPerNode.situationCount} Bindings`}
+      title={`Found ${violationsPerNode.situationViolatedCount} Violations of ${violationsPerNode.situationCount} Situations`}
     >
       {violationsPerNode.situationViolatedCount > 0 && (
         <ExclamationTriangleIcon className="text-red-400 h-4 mt-1" />

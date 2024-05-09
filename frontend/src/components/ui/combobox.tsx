@@ -18,7 +18,7 @@ import {
 import { RxCheck, RxChevronUp } from "react-icons/rx";
 
 interface ComboboxProps {
-  options: { value: string; label: string | React.ReactNode }[];
+  options: { value: string; label: string | React.FC }[];
   onChange: (value: string) => unknown;
   name: string;
   value: string;
@@ -34,7 +34,9 @@ export function Combobox({
   title,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false);
-
+  const SelOption = value
+    ? options.find((o) => o.value === value)?.label
+    : name;
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild disabled={disabled}>
@@ -46,7 +48,8 @@ export function Combobox({
           aria-expanded={open}
           className="w-fit min-w-fit justify-between"
         >
-          {value ? options.find((o) => o.value === value)?.label : name}
+          {typeof SelOption === "string" ? SelOption : null}
+          {typeof SelOption === "function" && <SelOption />}
           <RxChevronUp className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -70,7 +73,8 @@ export function Combobox({
                     value === o.value ? "opacity-100" : "opacity-0",
                   )}
                 />
-                {o.label}
+                {typeof o.label === "string" && o.label}
+                {typeof o.label === "function" && <o.label />}
               </CommandItem>
             ))}
           </CommandGroup>

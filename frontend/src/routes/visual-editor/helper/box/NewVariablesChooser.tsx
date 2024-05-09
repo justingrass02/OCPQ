@@ -17,7 +17,12 @@ import type { ObjectVariable } from "@/types/generated/ObjectVariable";
 import { useContext, useState } from "react";
 import { LuPlus } from "react-icons/lu";
 import { VisualEditorContext } from "../VisualEditorContext";
-import { getEvVarName, getObVarName } from "./variable-names";
+import {
+  EvVarName,
+  ObVarName,
+  getEvVarName,
+  getObVarName,
+} from "./variable-names";
 
 export default function NewVariableChooser({
   id,
@@ -28,9 +33,8 @@ export default function NewVariableChooser({
   box: BindingBox;
   updateBox: (box: BindingBox) => unknown;
 }) {
-  const { ocelInfo, getAvailableVars } = useContext(VisualEditorContext);
-  const availableObjectVars = getAvailableVars(id, "object");
-  const availableEventVars = getAvailableVars(id, "event");
+  const { ocelInfo, getAvailableVars, getVarName } =
+    useContext(VisualEditorContext);
   const [alertState, setAlertState] = useState<
     {
       variant: "event" | "object";
@@ -41,6 +45,8 @@ export default function NewVariableChooser({
       | { mode: "edit"; editKey: ObjectVariable | EventVariable }
     )
   >();
+  const availableObjectVars = getAvailableVars(id, "object");
+  const availableEventVars = getAvailableVars(id, "event");
 
   function getAvailableObjVars(allowObjectVar?: ObjectVariable | undefined) {
     return Array(100)
@@ -96,7 +102,7 @@ export default function NewVariableChooser({
                 })
               }
             >
-              {getObVarName(parseInt(obVar))}: {obTypes.join(", ")}
+              <ObVarName obVar={parseInt(obVar)} /> {obTypes.join(", ")}
             </button>
           </li>
         ))}
@@ -134,7 +140,7 @@ export default function NewVariableChooser({
                 })
               }
             >
-              {getEvVarName(parseInt(evVar))}: {evTypes.join(", ")}
+              <EvVarName eventVar={parseInt(evVar)} />: {evTypes.join(", ")}
             </button>
           </li>
         ))}
@@ -170,7 +176,10 @@ export default function NewVariableChooser({
                             ? alertState.key
                             : undefined,
                         ).map((i) => ({
-                          value: i.toString() + " --- " + getObVarName(i),
+                          value:
+                            i.toString() +
+                            " --- " +
+                            getVarName(i, "object").name,
                           label: getObVarName(i),
                         }))
                       : getAvailableEvVars(
@@ -178,7 +187,10 @@ export default function NewVariableChooser({
                             ? alertState.key
                             : undefined,
                         ).map((i) => ({
-                          value: i.toString() + " --- " + getEvVarName(i),
+                          value:
+                            i.toString() +
+                            " --- " +
+                            getVarName(i, "event").name,
                           label: getEvVarName(i),
                         }))
                   }
@@ -193,8 +205,8 @@ export default function NewVariableChooser({
                     alertState.key.toString() +
                     " --- " +
                     (alertState?.variant === "object"
-                      ? getObVarName(alertState.key)
-                      : getEvVarName(alertState.key))
+                      ? getVarName(alertState.key, "object").name
+                      : getVarName(alertState.key, "event").name)
                   }
                 />
                 <MultiSelect

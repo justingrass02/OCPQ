@@ -279,7 +279,7 @@ export default function VisualEditorOuter() {
                                   null &&
                                 [
                                   ...Object.values(
-                                    prevDataRef.current[i].violations
+                                    prevDataRef.current[i]?.violations
                                       ?.evalRes ?? {},
                                   ),
                                 ]?.find(

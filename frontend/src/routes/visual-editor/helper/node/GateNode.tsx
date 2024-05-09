@@ -21,14 +21,14 @@ export default function EventTypeNode({ data, id }: NodeProps<GateNodeData>) {
     <div
       title={data.type}
       className={clsx(
-        "outline outline-2 shadow-lg z-10 flex flex-col items-center justify-center pt-1.5 py-0.5 px-0.5 rounded-md relative min-w-[8rem] min-h-[5rem] font-mono text-4xl font-bold",
+        "border-2 shadow-lg z-10 flex flex-col items-center justify-center pt-1.5 py-0.5 px-0.5 rounded-md relative min-w-[8rem] min-h-[5rem] font-mono text-4xl font-bold",
         violations !== undefined &&
           violations.situationViolatedCount > 0 &&
-          "bg-rose-50   outline-rose-300 shadow-rose-300",
+          "bg-rose-50   border-rose-300 shadow-rose-300",
         violations !== undefined &&
           violations.situationViolatedCount === 0 &&
-          "bg-emerald-50  outline-emerald-300 shadow-emerald-300",
-        violations === undefined && "bg-gray-50  outline-slate-500",
+          "bg-emerald-50  border-emerald-300 shadow-emerald-300",
+        violations === undefined && "bg-gray-50  border-slate-500",
       )}
     >
       {violations !== undefined && (

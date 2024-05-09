@@ -23,6 +23,7 @@ import ReactFlow, {
 
 import { BackendProviderContext } from "@/BackendProviderContext";
 import AlertHelper from "@/components/AlertHelper";
+import Spinner from "@/components/Spinner";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import {
@@ -40,12 +41,13 @@ import toast from "react-hot-toast";
 import { LuLayoutDashboard } from "react-icons/lu";
 import { MdClear } from "react-icons/md";
 import { PiPlayFill } from "react-icons/pi";
-import { TbLogicAnd, TbRestore, TbSquarePlus } from "react-icons/tb";
+import { TbLogicAnd, TbSquarePlus } from "react-icons/tb";
 import "reactflow/dist/style.css";
 import type { EventTypeQualifiers, OCELInfo } from "../../types/ocel";
 import { FlowContext } from "./helper/FlowContext";
 import { useLayoutedElements } from "./helper/LayoutFlow";
 import { VisualEditorContext } from "./helper/VisualEditorContext";
+import { EvVarName, ObVarName } from "./helper/box/variable-names";
 import {
   EVENT_TYPE_LINK_TYPE,
   EVENT_TYPE_NODE_TYPE,
@@ -66,7 +68,7 @@ import {
   type EventTypeNodeData,
   type GateNodeData,
 } from "./helper/types";
-import { getEvVarName, getObVarName } from "./helper/box/variable-names";
+import clsx from "clsx";
 
 interface VisualEditorProps {
   ocelInfo: OCELInfo;
@@ -75,10 +77,6 @@ interface VisualEditorProps {
 }
 
 export default function VisualEditor(props: VisualEditorProps) {
-  const [mode, setMode] = useState<"normal" | "view-tree" | "readonly">(
-    "normal",
-  );
-
   const { setInstance, registerOtherDataGetter, otherData, flushData } =
     useContext(FlowContext);
 
@@ -96,6 +94,8 @@ export default function VisualEditor(props: VisualEditorProps) {
   }, [otherData?.nodes, otherData?.edges, instance]);
 
   const backend = useContext(BackendProviderContext);
+
+  const [isEvaluationLoading, setEvaluationLoading] = useState(false);
 
   const onConnect = useCallback(
     ({ source, sourceHandle, target, targetHandle }: Edge | Connection) => {
@@ -301,26 +301,14 @@ export default function VisualEditor(props: VisualEditorProps) {
         nodeTypes={nodeTypes}
         nodes={nodes}
         edges={edges}
-        nodesConnectable={mode === "normal"}
-        nodesDraggable={mode === "normal" || mode === "view-tree"}
-        elementsSelectable={mode === "normal"}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         proOptions={{ hideAttribution: true }}
       >
-        <Controls
-          onInteractiveChange={(status) => {
-            if (status) {
-              setMode("normal");
-            } else {
-              setMode("readonly");
-            }
-          }}
-        />
+        <Controls onInteractiveChange={() => {}} />
         <Panel position="top-right" className="flex gap-x-2">
           <Button
-            disabled={mode !== "normal"}
             variant="outline"
             size="icon"
             title="Apply automatic layout"
@@ -337,7 +325,6 @@ export default function VisualEditor(props: VisualEditorProps) {
           </Button>
 
           <Button
-            disabled={mode !== "normal"}
             variant="outline"
             size="icon"
             title="Save PNG"
@@ -374,7 +361,6 @@ export default function VisualEditor(props: VisualEditorProps) {
             initialData={{ type: "not" } as GateNodeData}
             trigger={
               <Button
-                disabled={mode !== "normal"}
                 variant="outline"
                 title="Add Gate"
                 className="bg-white"
@@ -431,7 +417,6 @@ export default function VisualEditor(props: VisualEditorProps) {
             }}
           />
           <Button
-            disabled={mode !== "normal"}
             variant="outline"
             title="Add Event Node"
             className="bg-white"
@@ -474,72 +459,88 @@ export default function VisualEditor(props: VisualEditorProps) {
               flushData({ violations: undefined });
             }}
           >
-            {mode !== "view-tree" && (
-              <MdClear size={20} className="text-red-400" />
-            )}
-            {mode === "view-tree" && <TbRestore />}
+            <MdClear size={20} className="text-red-400" />
           </Button>
           <Button
+            disabled={isEvaluationLoading}
             variant="outline"
-            title={mode !== "view-tree" ? "Evaluate" : "Edit"}
-            className="bg-fuchsia-100 border-fuchsia-300 hover:bg-fuchsia-200 hover:border-fuchsia-300"
+            title="Evaluate"
+            className="relative bg-fuchsia-100 disabled:bg-fuchsia-200 border-fuchsia-300 hover:bg-fuchsia-200 hover:border-fuchsia-300"
             onClick={async () => {
+              setEvaluationLoading(true);
               const { tree, nodesOrder } = evaluateConstraints(nodes, edges);
               console.log({ tree });
-              const res = await toast.promise(
-                backend["ocel/check-constraints-box"](tree),
-                {
-                  loading: "Evaluating...",
-                  success: (res) => (
-                    <span>
-                      <b>Evaluation finished</b>
-                      <br />
+              try {
+                const res = await toast.promise(
+                  backend["ocel/check-constraints-box"](tree),
+                  {
+                    loading: "Evaluating...",
+                    success: (res) => (
                       <span>
-                        Bindings per step:
+                        <b>Evaluation finished</b>
                         <br />
-                        <span className="font-mono">
-                          {res.evaluationResults
-                            .map((r) => r.situationCount)
-                            .join(", ")}
-                        </span>
-                        <br />
-                        Violations per step:
-                        <br />
-                        <span className="font-mono">
-                          {res.evaluationResults
-                            .map((r) => r.situationViolatedCount)
-                            .join(", ")}
+                        <span>
+                          Situations per step:
+                          <br />
+                          <span className="font-mono">
+                            {res.evaluationResults
+                              .map((r) => r.situationCount)
+                              .join(", ")}
+                          </span>
+                          <br />
+                          Violations per step:
+                          <br />
+                          <span className="font-mono">
+                            {res.evaluationResults
+                              .map((r) => r.situationViolatedCount)
+                              .join(", ")}
+                          </span>
                         </span>
                       </span>
-                    </span>
-                  ),
-                  error: "Evaluation failed",
-                },
-              );
-              const evalRes: Record<string, EvaluationRes> = Object.fromEntries(
-                res.evaluationResults.map((res, i) => [nodesOrder[i].id, res]),
-              );
-              setViolationInfo((vi) => ({
-                ...vi,
-                violationsPerNode: {
-                  evalRes,
-                  objectIds: res.objectIds,
-                  eventIds: res.eventIds,
-                },
-              }));
-              flushData({
-                violations: {
-                  evalRes,
-                  objectIds: res.objectIds,
-                  eventIds: res.eventIds,
-                },
-              });
+                    ),
+                    error: "Evaluation failed",
+                  },
+                );
+                const evalRes: Record<string, EvaluationRes> =
+                  Object.fromEntries(
+                    res.evaluationResults.map((res, i) => [
+                      nodesOrder[i].id,
+                      res,
+                    ]),
+                  );
+                setViolationInfo((vi) => ({
+                  ...vi,
+                  violationsPerNode: {
+                    evalRes,
+                    objectIds: res.objectIds,
+                    eventIds: res.eventIds,
+                  },
+                }));
+                flushData({
+                  violations: {
+                    evalRes,
+                    objectIds: res.objectIds,
+                    eventIds: res.eventIds,
+                  },
+                });
+              } catch (e) {
+              } finally {
+                setEvaluationLoading(false);
+              }
             }}
           >
-            {mode !== "view-tree" && (
-              <PiPlayFill size={20} className="text-fuchsia-700" />
+            {isEvaluationLoading && (
+              <div className="w-7 h-7 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                <Spinner className="w-7 h-7 text-purple-600" />
+              </div>
             )}
-            {mode === "view-tree" && <TbRestore />}
+            <PiPlayFill
+              size={20}
+              className={clsx(
+                !isEvaluationLoading && "text-fuchsia-700",
+                isEvaluationLoading && "text-gray-600",
+              )}
+            />
           </Button>
         </Panel>
         <Background />
@@ -583,6 +584,8 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
     >
       {violationDetails !== undefined && (
         <SheetContent
+          side="left"
+          className="h-screen flex flex-col"
           overlay={false}
           onInteractOutside={(ev) => {
             ev.preventDefault();
@@ -621,7 +624,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
               )}
             </SheetDescription>
           </SheetHeader>
-          <ul className="overflow-auto h-[80vh] bg-slate-50 border rounded-sm mt-2 px-2 py-0.5 text-xs">
+          <ul className="overflow-auto h-full bg-slate-50 border rounded-sm mt-2 px-2 py-0.5 text-xs">
             {(mode === "violations"
               ? violationDetails.situations.filter(
                   ([_binding, reason]) => reason !== null,
@@ -643,7 +646,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                       {Object.entries(binding.eventMap).map(
                         ([evVarName, evIndex]) => (
                           <li key={evVarName}>
-                            {getEvVarName(parseInt(evVarName))}:{" "}
+                            <EvVarName eventVar={parseInt(evVarName)} />:{" "}
                             {violationResPerNodes.eventIds[evIndex]}
                           </li>
                         ),
@@ -654,7 +657,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                       {Object.entries(binding.objectMap).map(
                         ([obVarName, obIndex]) => (
                           <li key={obVarName}>
-                            {getObVarName(parseInt(obVarName))}:{" "}
+                            <ObVarName obVar={parseInt(obVarName)} />:{" "}
                             {violationResPerNodes.objectIds[obIndex]}
                           </li>
                         ),

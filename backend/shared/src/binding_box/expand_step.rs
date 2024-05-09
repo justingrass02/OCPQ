@@ -30,6 +30,7 @@ impl BindingBox {
         steps: &[BindingStep],
     ) -> Vec<Binding> {
         let mut ret = parent_bindings;
+        let mut sizes_per_step: Vec<usize> = Vec::with_capacity(steps.len());
         for step in steps {
             match &step {
                 BindingStep::BindEv(ev_var, time_constr) => {
@@ -212,8 +213,13 @@ impl BindingBox {
                         .collect()
                 }
             }
+            sizes_per_step.push(ret.len())
         }
 
+        if !steps.is_empty() {
+            println!("Steps: {:?}", steps);
+            println!("Set sizes: {:?}", sizes_per_step);
+        }
         ret
     }
 }

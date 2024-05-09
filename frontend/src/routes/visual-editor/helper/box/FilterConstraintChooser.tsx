@@ -17,7 +17,12 @@ import type { FilterConstraint } from "@/types/generated/FilterConstraint";
 import type { ObjectVariable } from "@/types/generated/ObjectVariable";
 import { useContext, useState } from "react";
 import { LuArrowRight, LuLink, LuPlus } from "react-icons/lu";
-import { getEvVarName, getObVarName } from "./variable-names";
+import {
+  EvVarName,
+  ObVarName,
+  getEvVarName,
+  getObVarName,
+} from "./variable-names";
 import { VisualEditorContext } from "../VisualEditorContext";
 import TimeDurationInput, {
   formatSeconds,
@@ -362,7 +367,7 @@ function FilterConstraintDisplay({ fc }: { fc: FilterConstraint }) {
     const [obVar, evVar, qualifier] = fc.ObjectAssociatedWithEvent;
     return (
       <div className="flex items-center gap-x-1 font-normal text-sm">
-        {getObVarName(obVar)} <LuLink /> {getEvVarName(evVar)}{" "}
+        <ObVarName obVar={obVar} /> <LuLink /> <EvVarName eventVar={evVar} />{" "}
         {qualifier != null ? `@${qualifier}` : ""}
       </div>
     );
@@ -372,7 +377,7 @@ function FilterConstraintDisplay({ fc }: { fc: FilterConstraint }) {
     const [obVar1, obVar2, qualifier] = fc.ObjectAssociatedWithObject;
     return (
       <div className="flex items-center gap-x-1 font-normal text-sm">
-        {getObVarName(obVar1)} <LuLink /> {getObVarName(obVar2)}{" "}
+        <ObVarName obVar={obVar1} /> <LuLink /> <ObVarName obVar={obVar2} />{" "}
         {qualifier != null ? `@${qualifier}` : ""}
       </div>
     );
@@ -382,7 +387,8 @@ function FilterConstraintDisplay({ fc }: { fc: FilterConstraint }) {
     const [evVar1, evVar2, [minTime, maxTime]] = fc.TimeBetweenEvents;
     return (
       <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
-        {getEvVarName(evVar1)} <LuArrowRight /> {getEvVarName(evVar2)}{" "}
+        <EvVarName eventVar={evVar1} /> <LuArrowRight />{" "}
+        <EvVarName eventVar={evVar2} />{" "}
         <span className="ml-2 inline-flex items-center gap-x-1 text-xs">
           {formatSeconds(minTime ?? -Infinity)} <span className="mx-1">-</span>{" "}
           {formatSeconds(maxTime ?? Infinity)}
@@ -403,11 +409,12 @@ function ObjectVarSelector({
   value: ObjectVariable | undefined;
   onChange: (value: ObjectVariable | undefined) => unknown;
 }) {
+  const { getVarName } = useContext(VisualEditorContext);
   return (
     <Combobox
       options={objectVars.map((v) => ({
         label: getObVarName(v),
-        value: `${v} --- ${getObVarName(v)}`,
+        value: `${v} --- ${getVarName(v, "object").name}`,
       }))}
       onChange={(val) => {
         const newVar = parseInt(val.split(" --- ")[0]);
@@ -418,7 +425,9 @@ function ObjectVarSelector({
         }
       }}
       name={"Object Variable"}
-      value={`${value} --- ${value !== undefined ? getObVarName(value) : ""}`}
+      value={`${value} --- ${
+        value !== undefined ? getVarName(value, "object").name : ""
+      }`}
     />
   );
 }
@@ -432,11 +441,12 @@ function EventVarSelector({
   value: EventVariable | undefined;
   onChange: (value: EventVariable | undefined) => unknown;
 }) {
+  const { getVarName } = useContext(VisualEditorContext);
   return (
     <Combobox
       options={eventVars.map((v) => ({
         label: getEvVarName(v),
-        value: `${v} --- ${getEvVarName(v)}`,
+        value: `${v} --- ${getVarName(v, "event").name}`,
       }))}
       onChange={(val) => {
         const newVar = parseInt(val.split(" --- ")[0]);
@@ -447,7 +457,9 @@ function EventVarSelector({
         }
       }}
       name={"Event Variable"}
-      value={`${value} --- ${value !== undefined ? getEvVarName(value) : ""}`}
+      value={`${value} --- ${
+        value !== undefined ? getVarName(value, "event").name : ""
+      }`}
     />
   );
 }
