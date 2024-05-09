@@ -216,10 +216,10 @@ impl BindingBox {
             sizes_per_step.push(ret.len())
         }
 
-        if !steps.is_empty() {
-            println!("Steps: {:?}", steps);
-            println!("Set sizes: {:?}", sizes_per_step);
-        }
+        // if !steps.is_empty() {
+        //     println!("Steps: {:?}", steps);
+        //     println!("Set sizes: {:?}", sizes_per_step);
+        // }
         ret
     }
 }
