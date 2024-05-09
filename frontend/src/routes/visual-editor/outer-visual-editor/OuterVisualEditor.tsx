@@ -173,9 +173,9 @@ export default function VisualEditorOuter() {
             activeIndex !== undefined
               ? {
                   violations: prevDataRef.current[activeIndex]?.violations,
-                  nodes: prevDataRef.current[activeIndex]?.flowJson.nodes,
-                  edges: prevDataRef.current[activeIndex]?.flowJson.edges,
-                  viewport: prevDataRef.current[activeIndex]?.flowJson.viewport,
+                  nodes: prevDataRef.current[activeIndex]?.flowJson?.nodes,
+                  edges: prevDataRef.current[activeIndex]?.flowJson?.edges,
+                  viewport: prevDataRef.current[activeIndex]?.flowJson?.viewport,
                 }
               : undefined,
         }}
