@@ -29,11 +29,11 @@ pub async fn get_available_ocels() -> (StatusCode, Json<Option<Vec<String>>>) {
     let mut ocel_names: Vec<String> = Vec::new();
     if let Ok(paths) = fs::read_dir(DATA_PATH) {
         for dir_entry in paths.flatten() {
-                let path_buf = dir_entry.path();
-                let path = path_buf.as_os_str().to_str().unwrap();
-                if path.ends_with(".json") || path.ends_with(".xml") {
-                    ocel_names.push(path.split('/').last().unwrap().to_string())
-                }
+            let path_buf = dir_entry.path();
+            let path = path_buf.as_os_str().to_str().unwrap();
+            if path.ends_with(".json") || path.ends_with(".xml") {
+                ocel_names.push(path.split('/').last().unwrap().to_string())
+            }
         }
     }
     (StatusCode::OK, Json(Some(ocel_names)))
