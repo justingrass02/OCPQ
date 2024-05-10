@@ -5,6 +5,8 @@ import {
   ExclamationTriangleIcon,
   CheckCircledIcon,
 } from "@radix-ui/react-icons";
+import clsx from "clsx";
+import { getViolationTextColor } from "../violation-styles";
 
 export default function ViolationIndicator({
   violationsPerNode,
@@ -26,10 +28,17 @@ export default function ViolationIndicator({
       title={`Found ${violationsPerNode.situationViolatedCount} Violations of ${violationsPerNode.situationCount} Situations`}
     >
       {violationsPerNode.situationViolatedCount > 0 && (
-        <ExclamationTriangleIcon className="text-red-400 h-4 mt-1" />
+        <ExclamationTriangleIcon
+          className={clsx(
+            "text-red-400 h-4 mt-1",
+            getViolationTextColor(violationsPerNode),
+          )}
+        />
       )}
       {violationsPerNode.situationViolatedCount === 0 && (
-        <CheckCircledIcon className="text-green-400 h-4" />
+        <CheckCircledIcon
+          className={clsx("h-4", getViolationTextColor(violationsPerNode))}
+        />
       )}
       <div className="flex flex-col items-center justify-center">
         <div className="leading-none font-semibold">

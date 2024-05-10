@@ -7,8 +7,13 @@ import type { GateNodeData } from "../types";
 import ViolationIndicator from "./ViolationIndicator";
 import { Combobox } from "@/components/ui/combobox";
 import clsx from "clsx";
+import { getViolationStyles } from "../violation-styles";
 
-export default function EventTypeNode({ data, id }: NodeProps<GateNodeData>) {
+export default function EventTypeNode({
+  data,
+  id,
+  selected,
+}: NodeProps<GateNodeData>) {
   const { violationsPerNode, onNodeDataChange } =
     useContext(VisualEditorContext);
 
@@ -22,13 +27,8 @@ export default function EventTypeNode({ data, id }: NodeProps<GateNodeData>) {
       title={data.type}
       className={clsx(
         "border-2 shadow-lg z-10 flex flex-col items-center justify-center pt-1.5 py-0.5 px-0.5 rounded-md relative min-w-[8rem] min-h-[5rem] font-mono text-4xl font-bold",
-        violations !== undefined &&
-          violations.situationViolatedCount > 0 &&
-          "bg-rose-50   border-rose-300 shadow-rose-300",
-        violations !== undefined &&
-          violations.situationViolatedCount === 0 &&
-          "bg-emerald-50  border-emerald-300 shadow-emerald-300",
-        violations === undefined && "bg-gray-50  border-slate-500",
+        getViolationStyles(violations),
+        selected && "border-dashed",
       )}
     >
       {violations !== undefined && (
@@ -38,7 +38,7 @@ export default function EventTypeNode({ data, id }: NodeProps<GateNodeData>) {
         <AlertHelper
           title="Change Gate Type"
           trigger={
-            <button className="bg-transparent hover:bg-blue-400/40 w-14 h-14 rounded">
+            <button className="bg-transparent hover:bg-blue-400/40 w-8 h-8 rounded">
               {data.type === "not" && "¬"}
               {data.type === "or" && "∨"}
               {data.type === "and" && "∧"}
