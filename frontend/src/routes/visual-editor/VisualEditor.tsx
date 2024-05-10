@@ -37,13 +37,13 @@ import clsx from "clsx";
 import { toPng, toSvg } from "html-to-image";
 import toast from "react-hot-toast";
 import { LuLayoutDashboard } from "react-icons/lu";
-import { MdClear } from "react-icons/md";
 import { PiPlayFill } from "react-icons/pi";
-import { TbLogicAnd, TbSquarePlus } from "react-icons/tb";
+import { RxReset } from "react-icons/rx";
+import { TbLogicAnd, TbPlus, TbSquare } from "react-icons/tb";
 import "reactflow/dist/style.css";
 import type { EventTypeQualifiers, OCELInfo } from "../../types/ocel";
 import { FlowContext } from "./helper/FlowContext";
-import { applyLayoutToNodes, useLayoutedElements } from "./helper/LayoutFlow";
+import { applyLayoutToNodes } from "./helper/LayoutFlow";
 import { VisualEditorContext } from "./helper/VisualEditorContext";
 import { EvVarName, ObVarName } from "./helper/box/variable-names";
 import {
@@ -183,17 +183,44 @@ export default function VisualEditor(props: VisualEditorProps) {
     [instance],
   );
 
+  const autoLayout = useCallback(async () => {
+    const origEdges = [...instance.getEdges()];
+    const origNodes = [...instance.getNodes()];
+    const isSelectionEmpty =
+      selectedRef.current.nodes.length <= 1 &&
+      selectedRef.current.edges.length <= 1;
+    const nodes = isSelectionEmpty
+      ? origNodes
+      : origNodes.filter((n) => n.selected);
+    const edges = (isSelectionEmpty ? origEdges : origEdges).filter(
+      (e) =>
+        nodes.find((n) => n.id === e.source) !== undefined &&
+        nodes.find((n) => n.id === e.target) !== undefined,
+    );
+    const { x: beforeX, y: beforeY } = nodes[0].position;
+    await applyLayoutToNodes(nodes, edges);
+    if (!isSelectionEmpty) {
+      const { x: afterX, y: afterY } = nodes[0].position;
+      const diffX = beforeX - afterX;
+      const diffY = beforeY - afterY;
+      nodes.forEach((n) => {
+        n.position.x += diffX;
+        n.position.y += diffY;
+      });
+    }
+    instance.setNodes(origNodes);
+    if (isSelectionEmpty) {
+      instance?.fitView();
+    }
+  }, [instance]);
+
   useEffect(() => {
     async function keyPressListener(ev: KeyboardEvent) {
       if (ev.altKey && ev.key === "n") {
         const { x, y } = instance.screenToFlowPosition(mousePos.current);
         addNewNode(x, y);
       } else if (ev.altKey && ev.key === "l") {
-        const nodes = [...instance.getNodes()];
-        const edges = [...instance.getEdges()];
-        await applyLayoutToNodes(nodes, edges);
-        instance.setNodes(nodes);
-        instance.fitView();
+        await autoLayout();
       }
     }
 
@@ -433,36 +460,7 @@ export default function VisualEditor(props: VisualEditorProps) {
             size="icon"
             title="Auto layout (Alt+L)"
             className="bg-white"
-            onClick={async () => {
-              const origEdges = [...instance.getEdges()];
-              const origNodes = [...instance.getNodes()];
-              const isSelectionEmpty =
-                selectedRef.current.nodes.length <= 1 &&
-                selectedRef.current.edges.length <= 1;
-              const nodes = isSelectionEmpty
-                ? origNodes
-                : origNodes.filter((n) => n.selected);
-              const edges = (isSelectionEmpty ? origEdges : origEdges).filter(
-                (e) =>
-                  nodes.find((n) => n.id === e.source) !== undefined &&
-                  nodes.find((n) => n.id === e.target) !== undefined,
-              );
-              const { x: beforeX, y: beforeY } = nodes[0].position;
-              await applyLayoutToNodes(nodes, edges);
-              if (!isSelectionEmpty) {
-                const { x: afterX, y: afterY } = nodes[0].position;
-                const diffX = beforeX - afterX;
-                const diffY = beforeY - afterY;
-                nodes.forEach((n) => {
-                  n.position.x += diffX;
-                  n.position.y += diffY;
-                });
-              }
-              instance.setNodes(origNodes);
-              if (isSelectionEmpty) {
-                instance?.fitView();
-              }
-            }}
+            onClick={async () => await autoLayout()}
           >
             <LuLayoutDashboard />
           </Button>
@@ -508,10 +506,15 @@ export default function VisualEditor(props: VisualEditorProps) {
               <Button
                 variant="outline"
                 title="Add Gate"
-                className="bg-white"
+                className="bg-white relative"
                 onClick={() => {}}
               >
                 <TbLogicAnd size={20} />
+                <TbPlus
+                  strokeWidth={"3px"}
+                  size={12}
+                  className="absolute right-1.5 bottom-1.5"
+                />
               </Button>
             }
             title={"Add Gate"}
@@ -564,110 +567,119 @@ export default function VisualEditor(props: VisualEditorProps) {
           <Button
             variant="outline"
             title="Add Node (Alt+N)"
-            className="bg-white"
+            className="bg-white relative"
             onClick={() => {
               addNewNode();
             }}
           >
-            <TbSquarePlus size={20} />
-          </Button>
-          <Button
-            size="icon"
-            variant="outline"
-            title={"Clear evaluation"}
-            className=""
-            onClick={async () => {
-              setViolationInfo({});
-              flushData({ violations: undefined });
-            }}
-          >
-            <MdClear size={20} className="text-red-400" />
-          </Button>
-          <Button
-            disabled={isEvaluationLoading}
-            variant="outline"
-            title="Evaluate"
-            className="relative bg-fuchsia-100 disabled:bg-fuchsia-200 border-fuchsia-300 hover:bg-fuchsia-200 hover:border-fuchsia-300"
-            onClick={async () => {
-              setEvaluationLoading(true);
-              const subTrees = evaluateConstraints(
-                instance.getNodes(),
-                instance.getEdges(),
-              );
-              const evalRes: Record<string, EvaluationRes> = {};
-              let objectIDs: string[] = [];
-              let eventIDs: string[] = [];
-              await Promise.allSettled(
-                subTrees.map(async ({ tree, nodesOrder }) => {
-                  const res = await toast.promise(
-                    backend["ocel/check-constraints-box"](tree),
-                    {
-                      loading: "Evaluating...",
-                      success: (res) => (
-                        <span>
-                          <b>Evaluation finished</b>
-                          <br />
-                          <span>
-                            Situations per step:
-                            <br />
-                            <span className="font-mono">
-                              {res.evaluationResults
-                                .map((r) => r.situationCount)
-                                .join(", ")}
-                            </span>
-                            <br />
-                            Violations per step:
-                            <br />
-                            <span className="font-mono">
-                              {res.evaluationResults
-                                .map((r) => r.situationViolatedCount)
-                                .join(", ")}
-                            </span>
-                          </span>
-                        </span>
-                      ),
-                      error: "Evaluation failed",
-                    },
-                  );
-                  res.evaluationResults.forEach((evRes, i) => {
-                    evalRes[nodesOrder[i].id] = evRes;
-                  });
-                  objectIDs = res.objectIds;
-                  eventIDs = res.eventIds;
-                  setViolationInfo((vi) => ({
-                    ...vi,
-                    violationsPerNode: {
-                      evalRes,
-                      objectIds: res.objectIds,
-                      eventIds: res.eventIds,
-                    },
-                  }));
-                }),
-              ).then(() => {
-                setEvaluationLoading(false);
-                flushData({
-                  violations: {
-                    evalRes,
-                    objectIds: objectIDs,
-                    eventIds: eventIDs,
-                  },
-                });
-              });
-            }}
-          >
-            {isEvaluationLoading && (
-              <div className="w-7 h-7 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-                <Spinner className="w-7 h-7 text-purple-600" />
-              </div>
-            )}
-            <PiPlayFill
-              size={20}
-              className={clsx(
-                !isEvaluationLoading && "text-fuchsia-700",
-                isEvaluationLoading && "text-gray-600",
-              )}
+            <TbSquare size={16} className="mr-0.5" />
+            <TbPlus
+              strokeWidth={"3px"}
+              size={12}
+              className="absolute right-1.5 bottom-1.5"
             />
           </Button>
+          <div className="flex flex-col-reverse items-center gap-y-1">
+            {violationInfo.violationsPerNode != null && (
+              <Button
+                size="icon"
+                variant="outline"
+                title={"Clear evaluation"}
+                className=""
+                onClick={async () => {
+                  setViolationInfo({});
+                  flushData({ violations: undefined });
+                }}
+              >
+                <RxReset size={16} />
+              </Button>
+            )}
+            <Button
+              disabled={isEvaluationLoading}
+              variant="outline"
+              title="Evaluate"
+              className="relative bg-fuchsia-100 disabled:bg-fuchsia-200 border-fuchsia-300 hover:bg-fuchsia-200 hover:border-fuchsia-300"
+              onClick={async () => {
+                setEvaluationLoading(true);
+                const subTrees = evaluateConstraints(
+                  instance.getNodes(),
+                  instance.getEdges(),
+                );
+                const evalRes: Record<string, EvaluationRes> = {};
+                let objectIDs: string[] = [];
+                let eventIDs: string[] = [];
+                await Promise.allSettled(
+                  subTrees.map(async ({ tree, nodesOrder }) => {
+                    const res = await toast.promise(
+                      backend["ocel/check-constraints-box"](tree),
+                      {
+                        loading: "Evaluating...",
+                        success: (res) => (
+                          <span>
+                            <b>Evaluation finished</b>
+                            <br />
+                            <span>
+                              Situations per step:
+                              <br />
+                              <span className="font-mono">
+                                {res.evaluationResults
+                                  .map((r) => r.situationCount)
+                                  .join(", ")}
+                              </span>
+                              <br />
+                              Violations per step:
+                              <br />
+                              <span className="font-mono">
+                                {res.evaluationResults
+                                  .map((r) => r.situationViolatedCount)
+                                  .join(", ")}
+                              </span>
+                            </span>
+                          </span>
+                        ),
+                        error: "Evaluation failed",
+                      },
+                    );
+                    res.evaluationResults.forEach((evRes, i) => {
+                      evalRes[nodesOrder[i].id] = evRes;
+                    });
+                    objectIDs = res.objectIds;
+                    eventIDs = res.eventIds;
+                    setViolationInfo((vi) => ({
+                      ...vi,
+                      violationsPerNode: {
+                        evalRes,
+                        objectIds: res.objectIds,
+                        eventIds: res.eventIds,
+                      },
+                    }));
+                  }),
+                ).then(() => {
+                  setEvaluationLoading(false);
+                  flushData({
+                    violations: {
+                      evalRes,
+                      objectIds: objectIDs,
+                      eventIds: eventIDs,
+                    },
+                  });
+                });
+              }}
+            >
+              {isEvaluationLoading && (
+                <div className="w-7 h-7 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                  <Spinner className="w-7 h-7 text-purple-600" />
+                </div>
+              )}
+              <PiPlayFill
+                size={20}
+                className={clsx(
+                  !isEvaluationLoading && "text-fuchsia-700",
+                  isEvaluationLoading && "text-gray-600",
+                )}
+              />
+            </Button>
+          </div>
         </Panel>
         <Background />
       </ReactFlow>
