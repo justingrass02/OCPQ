@@ -114,8 +114,13 @@ impl BindingBox {
                                 .into_iter()
                                 .flatten()
                                 .filter(|rel| {
-                                    qualifier.is_none()
-                                        || &rel.qualifier == qualifier.as_ref().unwrap()
+                                    (qualifier.is_none()
+                                        || &rel.qualifier == qualifier.as_ref().unwrap())
+                                        && self.new_object_vars.get(ob_var_name).is_some_and(|v| {
+                                            v.contains(
+                                                &ocel.ob_by_id(&rel.object_id).unwrap().object_type,
+                                            )
+                                        })
                                 })
                                 .map(move |rel| {
                                     b.clone().expand_with_ob(
