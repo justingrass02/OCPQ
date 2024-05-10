@@ -6,6 +6,14 @@ import { useCallback } from "react";
 import { type Edge, useReactFlow, type Node } from "reactflow";
 import type { EventTypeNodeData, GateNodeData } from "./types";
 const elk = new ELK();
+void (async () => {
+  console.log(
+    await elk.knownLayoutAlgorithms(),
+    await elk.knownLayoutCategories(),
+    await elk.knownLayoutOptions(),
+  );
+})();
+
 const defaultOptions = {
   // "elk.algorithm": "layered",
   // "elk.layered.spacing.nodeNodeBetweenLayers": 100,

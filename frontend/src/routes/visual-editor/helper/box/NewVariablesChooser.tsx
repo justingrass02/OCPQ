@@ -102,7 +102,7 @@ export default function NewVariableChooser({
                 })
               }
             >
-              <ObVarName obVar={parseInt(obVar)}/>: {obTypes.join(", ")}
+              <ObVarName obVar={parseInt(obVar)} />: {obTypes.join(", ")}
             </button>
           </li>
         ))}

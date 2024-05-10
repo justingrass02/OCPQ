@@ -47,7 +47,7 @@ export default function FilterConstraintChooser({
   >();
 
   return (
-    <div className="w-full text-left border-t border-t-blue-400 mt-2 pt-2">
+    <div className="w-full text-left border-t border-t-slate-700 mt-2 pt-2">
       <div className="flex items-center gap-x-1">
         <Label>Filter Constraints</Label>
         <Button

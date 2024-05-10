@@ -12,9 +12,6 @@ import ReactFlow, {
   Controls,
   MarkerType,
   Panel,
-  addEdge,
-  useEdgesState,
-  useNodesState,
   useReactFlow,
   type Connection,
   type Edge,
@@ -36,7 +33,8 @@ import {
 import type { EventVariable } from "@/types/generated/EventVariable";
 import type { ObjectVariable } from "@/types/generated/ObjectVariable";
 import { ImageIcon } from "@radix-ui/react-icons";
-import { toPng } from "html-to-image";
+import clsx from "clsx";
+import { toPng, toSvg } from "html-to-image";
 import toast from "react-hot-toast";
 import { LuLayoutDashboard } from "react-icons/lu";
 import { MdClear } from "react-icons/md";
@@ -45,13 +43,14 @@ import { TbLogicAnd, TbSquarePlus } from "react-icons/tb";
 import "reactflow/dist/style.css";
 import type { EventTypeQualifiers, OCELInfo } from "../../types/ocel";
 import { FlowContext } from "./helper/FlowContext";
-import { useLayoutedElements } from "./helper/LayoutFlow";
+import { applyLayoutToNodes, useLayoutedElements } from "./helper/LayoutFlow";
 import { VisualEditorContext } from "./helper/VisualEditorContext";
 import { EvVarName, ObVarName } from "./helper/box/variable-names";
 import {
   EVENT_TYPE_LINK_TYPE,
   EVENT_TYPE_NODE_TYPE,
   GATE_NODE_TYPE,
+  NODE_TYPE_SIZE,
   edgeTypes,
   nodeTypes,
 } from "./helper/const";
@@ -62,93 +61,58 @@ import {
 } from "./helper/evaluation/evaluate-constraints";
 import {
   ALL_GATE_TYPES,
+  type ConstraintInfo,
   type EvaluationRes,
   type EvaluationResPerNodes,
   type EventTypeLinkData,
   type EventTypeNodeData,
   type GateNodeData,
 } from "./helper/types";
-import clsx from "clsx";
 
 interface VisualEditorProps {
   ocelInfo: OCELInfo;
   eventTypeQualifiers: EventTypeQualifiers;
   children?: ReactNode;
+  constraintInfo: ConstraintInfo;
 }
 
 export default function VisualEditor(props: VisualEditorProps) {
   const { setInstance, registerOtherDataGetter, otherData, flushData } =
     useContext(FlowContext);
-
-  const [nodes, setNodes, onNodesChange] = useNodesState<
-    EventTypeNodeData | GateNodeData
-  >(otherData?.nodes ?? []);
-
-  const [edges, setEdges, onEdgesChange] = useEdgesState<EventTypeLinkData>(
-    otherData?.edges ?? [],
-  );
   const instance = useReactFlow();
 
   useEffect(() => {
-    instance.setNodes(otherData?.nodes ?? nodes);
+    instance.setNodes(otherData?.nodes ?? []);
   }, [otherData?.nodes, otherData?.edges, instance]);
 
   const backend = useContext(BackendProviderContext);
 
   const [isEvaluationLoading, setEvaluationLoading] = useState(false);
 
-  const onConnect = useCallback(
+  const isValidConnection = useCallback(
     ({ source, sourceHandle, target, targetHandle }: Edge | Connection) => {
-      setEdges((eds) => {
-        if (
-          source === null ||
-          target == null ||
-          sourceHandle == null ||
-          targetHandle == null
-        ) {
-          return eds;
-        } else {
-          const parents = getParentsNodeIDs(source, eds);
-          if (parents.includes(target)) {
-            toast("Invalid connection: Loops are forbidden!", {
-              position: "bottom-center",
-            });
-            console.warn("Loop connection attempted!");
-            return eds;
-          }
-          console.log({ parents, source, target });
-          const color = "#969696";
-          const newEdge: Edge<EventTypeLinkData> = {
-            id: sourceHandle + "|||" + targetHandle,
-            type: EVENT_TYPE_LINK_TYPE,
-            source,
-            sourceHandle,
-            target,
-            targetHandle,
-            markerEnd: {
-              type: MarkerType.ArrowClosed,
-              width: 15,
-              height: 12,
-              color: "#000000ff",
-            },
-            style: {
-              strokeWidth: 2,
-              stroke: color,
-            },
-            data: {
-              color,
-              minCount: null,
-              maxCount: null,
-            },
-          };
-          return addEdge(newEdge, eds);
+      const edges = instance.getEdges();
+      if (
+        source === null ||
+        target == null ||
+        sourceHandle == null ||
+        targetHandle == null
+      ) {
+        return false;
+      } else {
+        const parents = getParentsNodeIDs(source, edges);
+        if (parents.includes(target)) {
+          toast("Invalid connection: Loops are forbidden!", {
+            position: "bottom-center",
+          });
+          console.warn("Loop connection attempted!");
+          return false;
         }
-      });
+      }
+      return true;
     },
-    [setEdges],
+    [instance],
   );
-
-  const { getLayoutedElements } = useLayoutedElements();
 
   const [violationDetails, setViolationDetails] = useState<EvaluationRes>();
 
@@ -157,7 +121,6 @@ export default function VisualEditor(props: VisualEditorProps) {
     showViolationsFor?: (data: EvaluationRes) => unknown;
   }>({
     showViolationsFor: (d) => {
-      console.log({ d });
       setViolationDetails(d);
     },
     violationsPerNode: otherData?.violations,
@@ -170,36 +133,114 @@ export default function VisualEditor(props: VisualEditorProps) {
   }, [violationInfo]);
   const initialized = useRef<boolean>(false);
 
-  function getAvailableVars(
-    nodeID: string | undefined,
-    type: "event" | "object",
-  ): (EventVariable | ObjectVariable)[] {
-    if (nodeID === undefined) {
-      return [];
-    }
-    const node = instance.getNode(nodeID) as Node<
-      EventTypeNodeData | GateNodeData
-    > | null;
-    let ret: (EventVariable | ObjectVariable)[] = [];
-    if (node == null) {
-      console.warn("getAvailableVars for unknown id: " + nodeID, instance);
+  const selectedRef = useRef<{
+    nodes: Node<EventTypeNodeData | GateNodeData>[];
+    edges: Edge<EventTypeLinkData>[];
+  }>({ nodes: [], edges: [] });
+
+  const mousePos = useRef<{
+    x: number;
+    y: number;
+  }>({ x: 0, y: 0 });
+
+  const getAvailableVars = useCallback(
+    (
+      nodeID: string | undefined,
+      type: "event" | "object",
+    ): (EventVariable | ObjectVariable)[] => {
+      if (nodeID === undefined) {
+        return [];
+      }
+      const node = instance.getNode(nodeID) as Node<
+        EventTypeNodeData | GateNodeData
+      > | null;
+      let ret: (EventVariable | ObjectVariable)[] = [];
+      if (node == null) {
+        console.warn("getAvailableVars for unknown id: " + nodeID, instance);
+        return ret;
+      }
+      if ("box" in node.data) {
+        ret = [
+          ...Object.keys(
+            type === "event"
+              ? node.data.box.newEventVars
+              : node.data.box.newObjectVars,
+          ).map((n) => parseInt(n)),
+          ...getAvailableVars(
+            getParentNodeID(nodeID, instance.getEdges()),
+            type,
+          ),
+        ];
+      } else {
+        ret = getAvailableVars(
+          getParentNodeID(nodeID, instance.getEdges()),
+          type,
+        );
+      }
+      ret.sort((a, b) => a - b);
       return ret;
+    },
+    [instance],
+  );
+
+  useEffect(() => {
+    async function keyPressListener(ev: KeyboardEvent) {
+      if (ev.altKey && ev.key === "n") {
+        const { x, y } = instance.screenToFlowPosition(mousePos.current);
+        addNewNode(x, y);
+      } else if (ev.altKey && ev.key === "l") {
+        const nodes = [...instance.getNodes()];
+        const edges = [...instance.getEdges()];
+        await applyLayoutToNodes(nodes, edges);
+        instance.setNodes(nodes);
+        instance.fitView();
+      }
     }
-    if ("box" in node.data) {
-      ret = [
-        ...Object.keys(
-          type === "event"
-            ? node.data.box.newEventVars
-            : node.data.box.newObjectVars,
-        ).map((n) => parseInt(n)),
-        ...getAvailableVars(getParentNodeID(nodeID, edges), type),
-      ];
-    } else {
-      ret = getAvailableVars(getParentNodeID(nodeID, edges), type);
+
+    function mouseListener(ev: MouseEvent) {
+      mousePos.current = { x: ev.x, y: ev.y };
     }
-    ret.sort((a, b) => a - b);
-    return ret;
-  }
+
+    document.addEventListener("keyup", keyPressListener);
+    document.addEventListener("mousemove", mouseListener);
+    return () => {
+      document.removeEventListener("keyup", keyPressListener);
+      document.removeEventListener("mousemove", mouseListener);
+    };
+  }, [instance]);
+
+  const addNewNode = useCallback(
+    (x: number | undefined = undefined, y: number | undefined = undefined) => {
+      instance.setNodes((nodes) => {
+        const pos =
+          x === undefined || y === undefined
+            ? instance.screenToFlowPosition({
+                x: window.innerWidth / 2,
+                y: window.innerHeight / 1.5,
+              })
+            : { x, y };
+        return [
+          ...nodes,
+          {
+            id: Math.random() + "-" + Date.now(),
+            type: EVENT_TYPE_NODE_TYPE,
+            position: {
+              x: pos.x - NODE_TYPE_SIZE[EVENT_TYPE_NODE_TYPE].width / 2,
+              y: pos.y - NODE_TYPE_SIZE[EVENT_TYPE_NODE_TYPE].minHeight / 2,
+            },
+            data: {
+              box: {
+                newEventVars: {},
+                newObjectVars: {},
+                filterConstraint: [],
+              },
+            },
+          },
+        ];
+      });
+    },
+    [instance],
+  );
 
   const COLORS = {
     // https://colordesigner.io/color-scheme-builder?mode=lch#0067A6-FA9805-CE2727-00851D-A90A76-E0F20D-e9488f-0481cc-16cc9d-080999
@@ -226,12 +267,13 @@ export default function VisualEditor(props: VisualEditorProps) {
       "#758406",
     ],
   } as const;
+
   return (
     <VisualEditorContext.Provider
       value={{
         ocelInfo: props.ocelInfo,
         violationsPerNode: violationInfo.violationsPerNode,
-        showViolationsFor: violationInfo.showViolationsFor,
+        showViolationsFor: (d) => setViolationDetails(d),
         getAvailableVars,
         getVarName: (variable, type) => {
           return {
@@ -240,14 +282,15 @@ export default function VisualEditor(props: VisualEditorProps) {
           };
         },
         onNodeDataChange: (id, newData) => {
-          setNodes((ns) => {
+          instance.setNodes((ns) => {
+            // setNodes((ns) => {
             const newNodes = [...ns];
             const changedNodeIndex = newNodes.findIndex((n) => n.id === id);
             if (newData === undefined) {
               newNodes.splice(changedNodeIndex, 1);
-              setEdges((edges) =>
-                [...edges].filter((e) => e.source !== id && e.target !== id),
-              );
+              // instance.setEdges((edges) =>
+              //   [...edges].filter((e) => e.source !== id && e.target !== id),
+              // );
               return newNodes;
             }
             const changedNode = newNodes[changedNodeIndex];
@@ -262,14 +305,14 @@ export default function VisualEditor(props: VisualEditorProps) {
             return newNodes;
           });
           if (newData === undefined) {
-            setEdges((edges) =>
+            instance.setEdges((edges) =>
               edges.filter((e) => e.source !== id && e.target !== id),
             );
           }
         },
         onEdgeDataChange: (id, newData) => {
           if (newData !== undefined) {
-            setEdges((es) => {
+            instance.setEdges((es) => {
               const newEdges = [...es];
               const changedEdge = newEdges.find((e) => e.id === id);
               if (changedEdge?.data !== undefined) {
@@ -280,7 +323,7 @@ export default function VisualEditor(props: VisualEditorProps) {
               return newEdges;
             });
           } else {
-            setEdges((edges) => {
+            instance.setEdges((edges) => {
               const newEdges = edges.filter((e) => e.id !== id);
               return newEdges;
             });
@@ -299,26 +342,131 @@ export default function VisualEditor(props: VisualEditorProps) {
         maxZoom={10}
         edgeTypes={edgeTypes}
         nodeTypes={nodeTypes}
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
+        defaultNodes={otherData?.nodes ?? []}
+        defaultEdges={otherData?.edges ?? []}
+        isValidConnection={isValidConnection}
+        defaultEdgeOptions={{
+          type: EVENT_TYPE_LINK_TYPE,
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            width: 15,
+            height: 12,
+            color: "#000000ff",
+          },
+          style: {
+            strokeWidth: 2,
+            stroke: "#969696",
+          },
+          data: {
+            color: "#969696",
+            minCount: null,
+            maxCount: null,
+          },
+        }}
         proOptions={{ hideAttribution: true }}
+        onCopyCapture={(ev) => {
+          ev.clipboardData.setData(
+            "text/json+reactflow",
+            JSON.stringify(selectedRef.current),
+          );
+          ev.preventDefault();
+        }}
+        onPasteCapture={(ev) => {
+          const pastedNodesAndEdges = ev.clipboardData.getData(
+            "text/json+reactflow",
+          );
+          try {
+            const { nodes, edges }: typeof selectedRef.current =
+              JSON.parse(pastedNodesAndEdges);
+            const idPrefix =
+              Date.now() + `-p-${Math.floor(Math.random() * 1000)}-`;
+            // Mutate nodes to update position and IDs (+ select them)
+            const newNodes = nodes.map((n) => ({
+              id: idPrefix + n.id,
+              position: { x: n.position.x + 100, y: n.position.y + 100 },
+              selected: true,
+              data: n.data,
+              type: n.type,
+            }));
+            // Update nodes
+            instance.setNodes((prevNodes) => {
+              return [
+                // Unselect all existing nodes
+                ...prevNodes.map((n) => ({ ...n, selected: false })),
+                // ...and add pasted nodes
+                ...newNodes,
+              ];
+            });
+            // Update edges
+            instance.setEdges((prevEdges) => {
+              return [
+                // Unselect all exisiting edges
+                ...prevEdges.map((e) => ({ ...e, selected: false })),
+                // ...and add new pasted edges (mutating the ID, and source/target (handle) + selecting them)
+                ...edges
+                  .map((e) => ({
+                    id: idPrefix + e.id,
+                    type: e.type,
+                    source: idPrefix + e.source,
+                    target: idPrefix + e.target,
+                    sourceHandle: idPrefix + e.sourceHandle,
+                    targetHandle: idPrefix + e.targetHandle,
+                    selected: true,
+                  }))
+                  .filter(
+                    (e) =>
+                      newNodes.find((n) => n.id === e.source) !== undefined &&
+                      newNodes.find((n) => n.id === e.target) !== undefined,
+                  ),
+              ];
+            });
+          } catch (e) {
+            console.error(
+              "Failed to parase JSON on paste: ",
+              pastedNodesAndEdges,
+            );
+          }
+        }}
+        onSelectionChange={(sel) => {
+          selectedRef.current = sel;
+        }}
       >
         <Controls onInteractiveChange={() => {}} />
         <Panel position="top-right" className="flex gap-x-2">
           <Button
             variant="outline"
             size="icon"
-            title="Apply automatic layout"
+            title="Auto layout (Alt+L)"
             className="bg-white"
-            onClick={() => {
-              instance?.fitView();
-              getLayoutedElements({}, true);
-              setTimeout(() => {
+            onClick={async () => {
+              const origEdges = [...instance.getEdges()];
+              const origNodes = [...instance.getNodes()];
+              const isSelectionEmpty =
+                selectedRef.current.nodes.length <= 1 &&
+                selectedRef.current.edges.length <= 1;
+              const nodes = isSelectionEmpty
+                ? origNodes
+                : origNodes.filter((n) => n.selected);
+              const edges = (isSelectionEmpty ? origEdges : origEdges).filter(
+                (e) =>
+                  nodes.find((n) => n.id === e.source) !== undefined &&
+                  nodes.find((n) => n.id === e.target) !== undefined,
+              );
+              const { x: beforeX, y: beforeY } = nodes[0].position;
+              await applyLayoutToNodes(nodes, edges);
+              if (!isSelectionEmpty) {
+                const { x: afterX, y: afterY } = nodes[0].position;
+                const diffX = beforeX - afterX;
+                const diffY = beforeY - afterY;
+                nodes.forEach((n) => {
+                  n.position.x += diffX;
+                  n.position.y += diffY;
+                });
+              }
+              instance.setNodes(origNodes);
+              if (isSelectionEmpty) {
                 instance?.fitView();
-              }, 200);
+              }
             }}
           >
             <LuLayoutDashboard />
@@ -327,7 +475,7 @@ export default function VisualEditor(props: VisualEditorProps) {
           <Button
             variant="outline"
             size="icon"
-            title="Save PNG"
+            title="Save as Image (PNG, hold Shift for SVG)"
             className="bg-white"
             onClick={(ev) => {
               const button = ev.currentTarget;
@@ -336,21 +484,23 @@ export default function VisualEditor(props: VisualEditorProps) {
               const viewPort = document.querySelector(
                 ".react-flow__viewport",
               ) as HTMLElement;
-              setTimeout(() => {
-                void toPng(viewPort, {
-                  canvasHeight: viewPort.clientHeight * scaleFactor,
-                  canvasWidth: viewPort.clientWidth * scaleFactor,
+              const useSVG = ev.shiftKey;
+              void (useSVG ? toSvg : toPng)(viewPort, {
+                canvasHeight: viewPort.clientHeight * scaleFactor,
+                canvasWidth: viewPort.clientWidth * scaleFactor,
+              })
+                .then((dataURL) => {
+                  const a = document.createElement("a");
+                  a.setAttribute(
+                    "download",
+                    `${props.constraintInfo.name}.${useSVG ? "svg" : "png"}`,
+                  );
+                  a.setAttribute("href", dataURL);
+                  a.click();
                 })
-                  .then((dataURL) => {
-                    const a = document.createElement("a");
-                    a.setAttribute("download", "oced-declare-export.png");
-                    a.setAttribute("href", dataURL);
-                    a.click();
-                  })
-                  .finally(() => {
-                    button.disabled = false;
-                  });
-              }, 50);
+                .finally(() => {
+                  button.disabled = false;
+                });
             }}
           >
             <ImageIcon />
@@ -372,7 +522,7 @@ export default function VisualEditor(props: VisualEditorProps) {
             title={"Add Gate"}
             submitAction={"Submit"}
             onSubmit={(data) => {
-              setNodes((nodes) => {
+              instance.setNodes((nodes) => {
                 const center =
                   instance != null
                     ? instance.screenToFlowPosition({
@@ -418,33 +568,10 @@ export default function VisualEditor(props: VisualEditorProps) {
           />
           <Button
             variant="outline"
-            title="Add Event Node"
+            title="Add Node (Alt+N)"
             className="bg-white"
             onClick={() => {
-              setNodes((nodes) => {
-                const center =
-                  instance != null
-                    ? instance.screenToFlowPosition({
-                        x: window.innerWidth / 2,
-                        y: window.innerHeight / 1.5,
-                      })
-                    : { x: 0, y: 0 };
-                return [
-                  ...nodes,
-                  {
-                    id: Math.random() + "-" + Date.now(),
-                    type: EVENT_TYPE_NODE_TYPE,
-                    position: center,
-                    data: {
-                      box: {
-                        newEventVars: {},
-                        newObjectVars: {},
-                        filterConstraint: [],
-                      },
-                    },
-                  },
-                ];
-              });
+              addNewNode();
             }}
           >
             <TbSquarePlus size={20} />
@@ -468,65 +595,69 @@ export default function VisualEditor(props: VisualEditorProps) {
             className="relative bg-fuchsia-100 disabled:bg-fuchsia-200 border-fuchsia-300 hover:bg-fuchsia-200 hover:border-fuchsia-300"
             onClick={async () => {
               setEvaluationLoading(true);
-              const { tree, nodesOrder } = evaluateConstraints(nodes, edges);
-              console.log({ tree });
-              try {
-                const res = await toast.promise(
-                  backend["ocel/check-constraints-box"](tree),
-                  {
-                    loading: "Evaluating...",
-                    success: (res) => (
-                      <span>
-                        <b>Evaluation finished</b>
-                        <br />
+              const subTrees = evaluateConstraints(
+                instance.getNodes(),
+                instance.getEdges(),
+              );
+              const evalRes: Record<string, EvaluationRes> = {};
+              let objectIDs: string[] = [];
+              let eventIDs: string[] = [];
+              await Promise.allSettled(
+                subTrees.map(async ({ tree, nodesOrder }) => {
+                  const res = await toast.promise(
+                    backend["ocel/check-constraints-box"](tree),
+                    {
+                      loading: "Evaluating...",
+                      success: (res) => (
                         <span>
-                          Situations per step:
+                          <b>Evaluation finished</b>
                           <br />
-                          <span className="font-mono">
-                            {res.evaluationResults
-                              .map((r) => r.situationCount)
-                              .join(", ")}
-                          </span>
-                          <br />
-                          Violations per step:
-                          <br />
-                          <span className="font-mono">
-                            {res.evaluationResults
-                              .map((r) => r.situationViolatedCount)
-                              .join(", ")}
+                          <span>
+                            Situations per step:
+                            <br />
+                            <span className="font-mono">
+                              {res.evaluationResults
+                                .map((r) => r.situationCount)
+                                .join(", ")}
+                            </span>
+                            <br />
+                            Violations per step:
+                            <br />
+                            <span className="font-mono">
+                              {res.evaluationResults
+                                .map((r) => r.situationViolatedCount)
+                                .join(", ")}
+                            </span>
                           </span>
                         </span>
-                      </span>
-                    ),
-                    error: "Evaluation failed",
-                  },
-                );
-                const evalRes: Record<string, EvaluationRes> =
-                  Object.fromEntries(
-                    res.evaluationResults.map((res, i) => [
-                      nodesOrder[i].id,
-                      res,
-                    ]),
+                      ),
+                      error: "Evaluation failed",
+                    },
                   );
-                setViolationInfo((vi) => ({
-                  ...vi,
-                  violationsPerNode: {
-                    evalRes,
-                    objectIds: res.objectIds,
-                    eventIds: res.eventIds,
-                  },
-                }));
+                  res.evaluationResults.forEach((evRes, i) => {
+                    evalRes[nodesOrder[i].id] = evRes;
+                  });
+                  objectIDs = res.objectIds;
+                  eventIDs = res.eventIds;
+                  setViolationInfo((vi) => ({
+                    ...vi,
+                    violationsPerNode: {
+                      evalRes,
+                      objectIds: res.objectIds,
+                      eventIds: res.eventIds,
+                    },
+                  }));
+                }),
+              ).then(() => {
+                setEvaluationLoading(false);
                 flushData({
                   violations: {
                     evalRes,
-                    objectIds: res.objectIds,
-                    eventIds: res.eventIds,
+                    objectIds: objectIDs,
+                    eventIds: eventIDs,
                   },
                 });
-              } catch (e) {
-              } finally {
-                setEvaluationLoading(false);
-              }
+              });
             }}
           >
             {isEvaluationLoading && (
@@ -570,8 +701,6 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
 }) {
   const SITUATIONS_TO_SHOW = 100;
   const [mode, setMode] = useState<"violations" | "situations">("violations");
-
-  console.log({ violationDetails, violationResPerNodes });
   return (
     <Sheet
       modal={false}

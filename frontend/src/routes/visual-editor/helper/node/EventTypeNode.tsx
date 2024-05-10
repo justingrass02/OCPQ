@@ -1,7 +1,6 @@
 import AlertHelper from "@/components/AlertHelper";
-import { Toggle } from "@/components/ui/toggle";
-import { useContext } from "react";
-import { PiSirenDuotone, PiSirenThin } from "react-icons/pi";
+import clsx from "clsx";
+import { memo, useContext } from "react";
 import { TbTrash } from "react-icons/tb";
 import { Handle, Position, type NodeProps } from "reactflow";
 import { VisualEditorContext } from "../VisualEditorContext";
@@ -10,12 +9,9 @@ import NewVariableChooser from "../box/NewVariablesChooser";
 import type { EventTypeNodeData } from "../types";
 import MiscNodeConstraints from "./MiscNodeConstraints";
 import ViolationIndicator from "./ViolationIndicator";
-import clsx from "clsx";
-
-export default function EventTypeNode({
-  data,
-  id,
-}: NodeProps<EventTypeNodeData>) {
+import { getViolationStyles } from "../violation-styles";
+export default memo(EventTypeNode);
+function EventTypeNode({ data, id, selected }: NodeProps<EventTypeNodeData>) {
   const { violationsPerNode, onNodeDataChange } =
     useContext(VisualEditorContext);
 
@@ -23,18 +19,12 @@ export default function EventTypeNode({
     violationsPerNode === undefined || data.hideViolations === true
       ? undefined
       : violationsPerNode.evalRes[id];
-
   return (
     <div
       className={clsx(
         "border-2 shadow-lg z-10 flex flex-col py-1 pb-2 px-0.5 rounded-md relative min-h-[5rem] w-[15rem]",
-        violations !== undefined &&
-          violations.situationViolatedCount > 0 &&
-          "bg-rose-50   border-rose-300 shadow-rose-300",
-        violations !== undefined &&
-          violations.situationViolatedCount === 0 &&
-          "bg-emerald-50  border-emerald-300 shadow-emerald-300",
-        violations === undefined && "bg-gray-50  border-slate-500",
+        getViolationStyles(violations),
+        selected && "border-dashed",
       )}
     >
       {/* <Toggle
