@@ -49,3 +49,5 @@ export type DiscoverConstraintsRequestWrapper = DiscoverConstraintsRequest & {
 export type DiscoverConstraintsResponse = {
   constraints: [string, BindingBoxTree][];
 };
+
+export type ConstraintInfo = { name: string; description: string };

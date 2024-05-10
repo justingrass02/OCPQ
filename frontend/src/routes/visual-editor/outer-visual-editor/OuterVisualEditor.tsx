@@ -19,7 +19,7 @@ import ConstraintContainer from "../constraint-container/ConstraintContainer";
 import { FlowContext } from "../helper/FlowContext";
 
 import type { FlowAndViolationData } from "@/types/misc";
-import type { EvaluationResPerNodes } from "../helper/types";
+import type { ConstraintInfo, EvaluationResPerNodes } from "../helper/types";
 import AutoDiscoveryButton from "./AutoDiscovery";
 const LOCALSTORAGE_SAVE_KEY_DATA = "oced-declare-data";
 const LOCALSTORAGE_SAVE_KEY_CONSTRAINTS_META = "oced-declare-meta";
@@ -33,9 +33,7 @@ export default function VisualEditorOuter() {
   const [objectQualifiers, setObjectQualifiers] =
     useState<ObjectTypeQualifiers>({});
   const ocelInfo = useContext(OcelInfoContext);
-  const [constraints, setConstraints] = useState<
-    { name: string; description: string }[]
-  >([]);
+  const [constraints, setConstraints] = useState<ConstraintInfo[]>([]);
   const [currentInstanceAndData, setCurrentInstanceAndData] = useState<{
     instance?: ReactFlowInstance | undefined;
     getter?: () =>
@@ -175,7 +173,8 @@ export default function VisualEditorOuter() {
                   violations: prevDataRef.current[activeIndex]?.violations,
                   nodes: prevDataRef.current[activeIndex]?.flowJson?.nodes,
                   edges: prevDataRef.current[activeIndex]?.flowJson?.edges,
-                  viewport: prevDataRef.current[activeIndex]?.flowJson?.viewport,
+                  viewport:
+                    prevDataRef.current[activeIndex]?.flowJson?.viewport,
                 }
               : undefined,
         }}
@@ -375,6 +374,7 @@ export default function VisualEditorOuter() {
                           </div>
                         </div>
                         <ConstraintContainer
+                          constraintInfo={c}
                           ocelInfo={ocelInfo}
                           objectQualifiers={objectQualifiers}
                           qualifiers={qualifiers}
