@@ -9,7 +9,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { LuHash } from "react-icons/lu";
 
 import { Input } from "@/components/ui/input";
@@ -41,7 +41,15 @@ export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
   });
 
   const { onEdgeDataChange } = useContext(VisualEditorContext);
-
+  useEffect(() => {
+    if (data === undefined) {
+      onEdgeDataChange(id, {
+        color: "#969696",
+        maxCount: null,
+        minCount: null,
+      });
+    }
+  }, [data]);
   return (
     <>
       <QuantifiedObjectEdge {...props} />

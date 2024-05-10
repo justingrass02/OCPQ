@@ -315,10 +315,10 @@ export default function VisualEditor(props: VisualEditorProps) {
             instance.setEdges((es) => {
               const newEdges = [...es];
               const changedEdge = newEdges.find((e) => e.id === id);
-              if (changedEdge?.data !== undefined) {
+              if (changedEdge !== undefined) {
                 changedEdge.data = { ...changedEdge.data, ...newData };
               } else {
-                console.warn("Did not find changed edge data");
+                console.warn("Did not find changed edge data for id: " + id);
               }
               return newEdges;
             });
@@ -356,11 +356,6 @@ export default function VisualEditor(props: VisualEditorProps) {
           style: {
             strokeWidth: 2,
             stroke: "#969696",
-          },
-          data: {
-            color: "#969696",
-            minCount: null,
-            maxCount: null,
           },
         }}
         proOptions={{ hideAttribution: true }}
