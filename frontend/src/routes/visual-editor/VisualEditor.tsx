@@ -214,7 +214,7 @@ export default function VisualEditor(props: VisualEditorProps) {
     }
     instance.setNodes(origNodes);
     if (isSelectionEmpty) {
-      instance?.fitView();
+      instance?.fitView({ duration: 200 });
     }
   }, [instance]);
 
