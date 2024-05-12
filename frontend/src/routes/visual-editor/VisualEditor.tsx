@@ -73,6 +73,13 @@ import {
   type GateNodeData,
 } from "./helper/types";
 
+function isEditorElementTarget(el: HTMLElement | EventTarget | null) {
+  return (
+    el === document.body ||
+    (el !== null && "className" in el && el.className?.includes("react-flow"))
+  );
+}
+
 interface VisualEditorProps {
   ocelInfo: OCELInfo;
   eventTypeQualifiers: EventTypeQualifiers;
@@ -281,6 +288,9 @@ export default function VisualEditor(props: VisualEditorProps) {
 
   useEffect(() => {
     async function keyPressListener(ev: KeyboardEvent) {
+      if (!isEditorElementTarget(ev.target)) {
+        return;
+      }
       if (ev.altKey && ev.key === "n") {
         const { x, y } = instance.screenToFlowPosition(mousePos.current);
         addNewNode(x, y);
@@ -315,12 +325,9 @@ export default function VisualEditor(props: VisualEditorProps) {
     function mouseListener(ev: MouseEvent) {
       mousePos.current = { x: ev.x, y: ev.y };
     }
+
     async function copyListener(ev: ClipboardEvent) {
-      console.log(ev.target);
-      if (
-        ev.target !== document.body &&
-        !(ev.target as HTMLElement).className?.includes("react-flow")
-      ) {
+      if (!isEditorElementTarget(ev.target)) {
         return;
       }
       ev.preventDefault();
@@ -331,13 +338,36 @@ export default function VisualEditor(props: VisualEditorProps) {
       toast("Copied selection!", { icon: <LuClipboardCopy /> });
     }
 
+    // TODO: Decide if we really want cut functionality. Copy + delete is also very easy
+    // + currently there is no way to undo
+    // async function cutListener(ev: ClipboardEvent) {
+    //   if (!isEditorElementTarget(ev.target)) {
+    //     return;
+    //   }
+    //   ev.preventDefault();
+    //   if (ev.clipboardData !== null) {
+    //     const data = JSON.stringify(selectedRef.current);
+    //     ev.clipboardData.setData("application/json+ocedeclare-flow", data);
+    //     const nodeIDSet = new Set(selectedRef.current.nodes.map((n) => n.id));
+    //     const edgeIDSet = new Set(selectedRef.current.edges.map((e) => e.id));
+    //     instance.setNodes((ns) => ns.filter((n) => !nodeIDSet.has(n.id)));
+    //     instance.setEdges((es) =>
+    //       es.filter(
+    //         (e) =>
+    //           !edgeIDSet.has(e.id) &&
+    //           !edgeIDSet.has(e.source) &&
+    //           !edgeIDSet.has(e.target),
+    //       ),
+    //     );
+    //   }
+    //   toast("Cut selection!", { icon: <LuClipboardCopy /> });
+    // }
+
     function pasteListener(ev: ClipboardEvent) {
-      if (
-        ev.target !== document.body &&
-        !(ev.target as HTMLElement).className?.includes("react-flow")
-      ) {
+      if (!isEditorElementTarget(ev.target)) {
         return;
       }
+      console.log(ev);
       if (ev.clipboardData != null) {
         // For debugging: Print all clipboard data items
         // [...ev.clipboardData.items].forEach((ci) =>
@@ -376,14 +406,16 @@ export default function VisualEditor(props: VisualEditorProps) {
       }
     }
     document.addEventListener("copy", copyListener);
+    // document.addEventListener("cut", cutListener);
     document.addEventListener("paste", pasteListener);
-    document.addEventListener("keyup", keyPressListener);
+    document.addEventListener("keydown", keyPressListener);
     document.addEventListener("mousemove", mouseListener);
     return () => {
-      document.removeEventListener("keyup", keyPressListener);
-      document.removeEventListener("mousemove", mouseListener);
       document.removeEventListener("copy", copyListener);
+      // document.removeEventListener("cut", cutListener);
       document.removeEventListener("paste", pasteListener);
+      document.removeEventListener("keydown", keyPressListener);
+      document.removeEventListener("mousemove", mouseListener);
     };
   }, [instance]);
 
@@ -517,7 +549,8 @@ export default function VisualEditor(props: VisualEditorProps) {
           }
         }}
         defaultViewport={otherData?.viewport}
-        maxZoom={10}
+        maxZoom={3.5}
+        minZoom={0.33}
         edgeTypes={edgeTypes}
         nodeTypes={nodeTypes}
         defaultNodes={otherData?.nodes ?? []}
