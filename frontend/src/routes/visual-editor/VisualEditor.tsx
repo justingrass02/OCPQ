@@ -299,6 +299,16 @@ export default function VisualEditor(props: VisualEditorProps) {
         } catch (e) {
           console.error(e);
         }
+      } else if ((ev.ctrlKey || ev.altKey) && ev.key === "a") {
+        ev.preventDefault();
+        ev.stopPropagation();
+        instance.setNodes((nodes) =>
+          nodes.map((n) => ({ ...n, selected: true })),
+        );
+        instance.setEdges((edges) =>
+          edges.map((e) => ({ ...e, selected: true })),
+        );
+        return false;
       }
     }
 
