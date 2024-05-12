@@ -29,10 +29,7 @@ export default function ViolationIndicator({
     >
       {violationsPerNode.situationViolatedCount > 0 && (
         <ExclamationTriangleIcon
-          className={clsx(
-            "h-4 mt-1",
-            getViolationTextColor(violationsPerNode),
-          )}
+          className={clsx("h-4 mt-1", getViolationTextColor(violationsPerNode))}
         />
       )}
       {violationsPerNode.situationViolatedCount === 0 && (
