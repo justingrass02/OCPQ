@@ -65,16 +65,16 @@ export default function AutoDiscoveryButton({
         {
           countConstraints: {
             coverFraction: 0.9,
-            objectTypes: [ocelInfo.object_types[0].name],
+            objectTypes: ocelInfo.object_types.map((ot) => ot.name),
             enabled: true,
           },
           eventuallyFollowsConstraints: {
-            objectTypes: [ocelInfo.object_types[0].name],
+            objectTypes: ocelInfo.object_types.map((ot) => ot.name),
             coverFraction: 0.9,
             enabled: true,
           },
           orConstraints: {
-            objectTypes: [ocelInfo.object_types[0].name],
+            objectTypes: ocelInfo.object_types.map((ot) => ot.name),
             enabled: true,
           },
         } satisfies DiscoverConstraintsRequestWrapper as DiscoverConstraintsRequestWrapper
@@ -423,7 +423,7 @@ export default function AutoDiscoveryButton({
                     flowJson: {
                       nodes: ns,
                       edges: es,
-                      viewport: { x: 0, y: 0, zoom: 0.4 },
+                      viewport: { x: 0, y: 0, zoom: 1.0 },
                     },
                   };
                   index++;
