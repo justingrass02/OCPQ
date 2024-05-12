@@ -36,7 +36,11 @@ import { ImageIcon } from "@radix-ui/react-icons";
 import clsx from "clsx";
 import { toPng, toSvg } from "html-to-image";
 import toast from "react-hot-toast";
-import { LuLayoutDashboard } from "react-icons/lu";
+import {
+  LuClipboardCopy,
+  LuClipboardPaste,
+  LuLayoutDashboard,
+} from "react-icons/lu";
 import { PiPlayFill } from "react-icons/pi";
 import { RxReset } from "react-icons/rx";
 import { TbLogicAnd, TbPlus, TbSquare } from "react-icons/tb";
@@ -214,6 +218,65 @@ export default function VisualEditor(props: VisualEditorProps) {
     }
   }, [instance]);
 
+  function addPastedData(
+    nodes: Node<EventTypeNodeData | GateNodeData>[],
+    edges: Edge<EventTypeLinkData>[],
+  ) {
+    const idPrefix = Date.now() + `-p-${Math.floor(Math.random() * 1000)}-`;
+
+    const nodeRect = nodes.length > 0 ? nodes[0].position : { x: 0, y: 0 };
+    const { x, y } = instance.screenToFlowPosition(mousePos.current);
+    const firstNodeSize =
+      NODE_TYPE_SIZE[
+        nodes[0].type === EVENT_TYPE_NODE_TYPE
+          ? EVENT_TYPE_NODE_TYPE
+          : GATE_NODE_TYPE
+      ];
+    const xOffset = x - nodeRect.x - firstNodeSize.width / 2;
+    const yOffset = y - nodeRect.y - firstNodeSize.minHeight / 2;
+    // Mutate nodes to update position and IDs (+ select them)
+    const newNodes = nodes.map((n) => ({
+      id: idPrefix + n.id,
+      position: { x: n.position.x + xOffset, y: n.position.y + yOffset },
+      selected: true,
+      data: n.data,
+      type: n.type,
+    }));
+    // Update nodes
+    instance.setNodes((prevNodes) => {
+      return [
+        // Unselect all existing nodes
+        ...prevNodes.map((n) => ({ ...n, selected: false })),
+        // ...and add pasted nodes
+        ...newNodes,
+      ];
+    });
+    // Update edges
+    instance.setEdges((prevEdges) => {
+      return [
+        // Unselect all exisiting edges
+        ...prevEdges.map((e) => ({ ...e, selected: false })),
+        // ...and add new pasted edges (mutating the ID, and source/target (handle) + selecting them)
+        ...edges
+          .map((e) => ({
+            id: idPrefix + e.id,
+            type: e.type,
+            source: idPrefix + e.source,
+            target: idPrefix + e.target,
+            sourceHandle: idPrefix + e.sourceHandle,
+            targetHandle: idPrefix + e.targetHandle,
+            selected: true,
+            data: e.data,
+          }))
+          .filter(
+            (e) =>
+              newNodes.find((n) => n.id === e.source) !== undefined &&
+              newNodes.find((n) => n.id === e.target) !== undefined,
+          ),
+      ];
+    });
+  }
+
   useEffect(() => {
     async function keyPressListener(ev: KeyboardEvent) {
       if (ev.altKey && ev.key === "n") {
@@ -221,18 +284,94 @@ export default function VisualEditor(props: VisualEditorProps) {
         addNewNode(x, y);
       } else if (ev.altKey && ev.key === "l") {
         await autoLayout();
+        toast("Applied Auto-Layout");
+      } else if (ev.altKey && ev.key === "c") {
+        ev.preventDefault();
+        try {
+          await navigator.clipboard.writeText(
+            JSON.stringify(selectedRef.current),
+          );
+          toast("Copied selection as plain JSON!", {
+            icon: <LuClipboardCopy />,
+          });
+        } catch (e) {
+          console.error(e);
+        }
       }
     }
 
     function mouseListener(ev: MouseEvent) {
       mousePos.current = { x: ev.x, y: ev.y };
     }
+    async function copyListener(ev: ClipboardEvent) {
+      console.log(ev.target);
+      if (
+        ev.target !== document.body &&
+        !(ev.target as HTMLElement).className?.includes("react-flow")
+      ) {
+        return;
+      }
+      ev.preventDefault();
+      if (ev.clipboardData !== null) {
+        const data = JSON.stringify(selectedRef.current);
+        ev.clipboardData.setData("application/json+ocedeclare-flow", data);
+      }
+      toast("Copied selection!", { icon: <LuClipboardCopy /> });
+    }
 
+    function pasteListener(ev: ClipboardEvent) {
+      if (
+        ev.target !== document.body &&
+        !(ev.target as HTMLElement).className?.includes("react-flow")
+      ) {
+        return;
+      }
+      if (ev.clipboardData != null) {
+        // For debugging: Print all clipboard data items
+        // [...ev.clipboardData.items].forEach((ci) =>
+        //   ci.getAsString((s) => console.log(`- ${ci.type} - ${ci.kind}: ${s}`)),
+        // );
+        let pastedNodesAndEdges = ev.clipboardData.getData(
+          "application/json+ocedeclare-flow",
+        );
+        if (pastedNodesAndEdges === "") {
+          pastedNodesAndEdges = ev.clipboardData.getData("text/plain");
+          // const domParser = new DOMParser();
+          // try {
+          //   const parsedDom = domParser.parseFromString(
+          //     pastedNodesAndEdges,
+          //     "text/html",
+          //   );
+          //   const el = parsedDom.getElementById("ocedeclare-json");
+          //   console.log({ el });
+          //   if (el !== null) {
+          //     pastedNodesAndEdges = el.getAttribute("data-json");
+          //   }
+          // } catch (e) {
+          //   console.log("Failed to parse JSON in HTML", e);
+          // }
+        }
+        try {
+          const { nodes, edges }: typeof selectedRef.current =
+            JSON.parse(pastedNodesAndEdges);
+          addPastedData(nodes, edges);
+          toast("Pasted selection!", { icon: <LuClipboardPaste /> });
+        } catch (e) {
+          toast("Failed to parse pasted data. Try using Alt+C to copy nodes.");
+          console.error("Failed to parse JSON on paste: ", pastedNodesAndEdges);
+        }
+        ev.preventDefault();
+      }
+    }
+    document.addEventListener("copy", copyListener);
+    document.addEventListener("paste", pasteListener);
     document.addEventListener("keyup", keyPressListener);
     document.addEventListener("mousemove", mouseListener);
     return () => {
       document.removeEventListener("keyup", keyPressListener);
       document.removeEventListener("mousemove", mouseListener);
+      document.removeEventListener("copy", copyListener);
+      document.removeEventListener("paste", pasteListener);
     };
   }, [instance]);
 
