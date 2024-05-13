@@ -8,7 +8,7 @@ export function getViolationStyles(
   }
   const violationFraction =
     violations.situationViolatedCount / violations.situationCount;
-    
+
   if (violationFraction >= 0.75) {
     return "bg-rose-50 border-rose-300 shadow-rose-300";
   }

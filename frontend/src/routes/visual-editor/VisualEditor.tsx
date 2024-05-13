@@ -30,8 +30,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Binding } from "@/types/generated/Binding";
 import type { EventVariable } from "@/types/generated/EventVariable";
 import type { ObjectVariable } from "@/types/generated/ObjectVariable";
+import { ViolationReason } from "@/types/generated/ViolationReason";
 import { ImageIcon } from "@radix-ui/react-icons";
 import clsx from "clsx";
 import { toPng, toSvg } from "html-to-image";
@@ -44,6 +46,8 @@ import {
 import { PiPlayFill } from "react-icons/pi";
 import { RxReset } from "react-icons/rx";
 import { TbLogicAnd, TbPlus, TbSquare } from "react-icons/tb";
+import AutoSizer from "react-virtualized-auto-sizer";
+import { VariableSizeList, type ListChildComponentProps } from "react-window";
 import "reactflow/dist/style.css";
 import type { EventTypeQualifiers, OCELInfo } from "../../types/ocel";
 import { FlowContext } from "./helper/FlowContext";
@@ -72,7 +76,6 @@ import {
   type EventTypeNodeData,
   type GateNodeData,
 } from "./helper/types";
-
 function isEditorElementTarget(el: HTMLElement | EventTarget | null) {
   return (
     el === document.body ||
@@ -92,9 +95,35 @@ export default function VisualEditor(props: VisualEditorProps) {
     useContext(FlowContext);
   const instance = useReactFlow();
 
+  const [violationDetails, setViolationDetails] = useState<EvaluationRes>();
+
+  const [violationInfo, setViolationInfo] = useState<{
+    violationsPerNode?: EvaluationResPerNodes;
+    showViolationsFor?: (data: EvaluationRes) => unknown;
+  }>({
+    showViolationsFor: (d) => {
+      setViolationDetails(d);
+    },
+    violationsPerNode: otherData?.violations,
+  });
+
   useEffect(() => {
     instance.setNodes(otherData?.nodes ?? []);
-  }, [otherData?.nodes, otherData?.edges, instance]);
+    instance.setEdges(otherData?.edges ?? []);
+    setViolationInfo({
+      ...violationInfo,
+      violationsPerNode: otherData?.violations,
+    });
+    if (otherData?.viewport !== undefined) {
+      instance.setViewport(otherData?.viewport);
+    }
+  }, [
+    otherData?.edges,
+    otherData?.nodes,
+    otherData?.viewport,
+    otherData?.violations,
+    instance,
+  ]);
 
   const backend = useContext(BackendProviderContext);
 
@@ -124,18 +153,6 @@ export default function VisualEditor(props: VisualEditorProps) {
     },
     [instance],
   );
-
-  const [violationDetails, setViolationDetails] = useState<EvaluationRes>();
-
-  const [violationInfo, setViolationInfo] = useState<{
-    violationsPerNode?: EvaluationResPerNodes;
-    showViolationsFor?: (data: EvaluationRes) => unknown;
-  }>({
-    showViolationsFor: (d) => {
-      setViolationDetails(d);
-    },
-    violationsPerNode: otherData?.violations,
-  });
 
   useEffect(() => {
     registerOtherDataGetter(() => ({
@@ -771,7 +788,7 @@ export default function VisualEditor(props: VisualEditorProps) {
             />
           </Button>
           <div className="flex flex-col-reverse items-center gap-y-1">
-            {violationInfo.violationsPerNode != null && (
+            {violationInfo.violationsPerNode !== undefined && (
               <Button
                 size="icon"
                 variant="outline"
@@ -897,8 +914,61 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
     React.SetStateAction<EvaluationRes | undefined>
   >;
 }) {
-  const SITUATIONS_TO_SHOW = 100;
+  function getItemHeight([binding, reason]: [Binding, ViolationReason | null]) {
+    return (
+      8 +
+      (3 +
+        (reason === null ? 0 : 1) +
+        Object.keys(binding.eventMap).length +
+        Object.keys(binding.objectMap).length) *
+        24
+    );
+  }
   const [mode, setMode] = useState<"violations" | "situations">("violations");
+  const items =
+    mode === "violations"
+      ? violationDetails.situations.filter(
+          ([_binding, reason]) => reason !== null,
+        )
+      : violationDetails.situations;
+  const Row = ({ index, style }: ListChildComponentProps) => {
+    const [binding, reason] = items[index];
+    return (
+      <div className="pb-2 h-full" style={style} key={index}>
+        <div className="h-full border px-1 py-1 rounded-sm bg-blue-50 text-lg">
+          <div>
+            {reason !== null && (
+              <p className="text-orange-600 h-6 block">{reason}</p>
+            )}
+            <span className="text-emerald-700 font-bold h-6 block">
+              Events:
+            </span>{" "}
+            <ul className="flex flex-col ml-6 list-disc">
+              {Object.entries(binding.eventMap).map(([evVarName, evIndex]) => (
+                <li key={evVarName} className="h-6">
+                  <EvVarName eventVar={parseInt(evVarName)} />:{" "}
+                  <span className="w-[16ch] align-top whitespace-nowrap inline-block text-ellipsis overflow-hidden">
+                    {violationResPerNodes.eventIds[evIndex]}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <h3 className="text-blue-700 font-bold h-6 block">Objects:</h3>
+            <ul className="flex flex-col ml-6 list-disc">
+              {Object.entries(binding.objectMap).map(([obVarName, obIndex]) => (
+                <li key={obVarName} className="h-6">
+                  <ObVarName obVar={parseInt(obVarName)} />:{" "}
+                  <span className="w-[16ch] align-top whitespace-nowrap inline-block text-ellipsis overflow-hidden">
+                    {violationResPerNodes.objectIds[obIndex]}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  };
   return (
     <Sheet
       modal={false}
@@ -936,63 +1006,21 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                 ? violationDetails.situationViolatedCount
                 : violationDetails.situationCount}{" "}
               {mode === "situations" ? "Situations" : "Violations"}
-              {(mode === "violations"
-                ? violationDetails.situationViolatedCount
-                : violationDetails.situationCount) > SITUATIONS_TO_SHOW && (
-                <>
-                  <br />
-                  {
-                    <span className="text-xs">
-                      Showing only the first {SITUATIONS_TO_SHOW}{" "}
-                      {mode === "situations" ? "Situations" : "Violations"}
-                    </span>
-                  }
-                </>
-              )}
             </SheetDescription>
           </SheetHeader>
           <ul className="overflow-auto h-full bg-slate-50 border rounded-sm mt-2 px-2 py-0.5 text-xs">
-            {(mode === "violations"
-              ? violationDetails.situations.filter(
-                  ([_binding, reason]) => reason !== null,
-                )
-              : violationDetails.situations
-            )
-              .slice(0, SITUATIONS_TO_SHOW)
-              .map(([binding, reason], i) => (
-                <li
-                  key={i}
-                  className="border mx-1 my-2 px-1 py-1 rounded-sm bg-blue-50 text-lg"
+            <AutoSizer>
+              {({ height, width }) => (
+                <VariableSizeList
+                  itemCount={items.length}
+                  itemSize={(i) => getItemHeight(items[i])}
+                  width={width}
+                  height={height}
                 >
-                  <div>
-                    <p className="text-orange-600">{reason}</p>
-                    <span className="text-emerald-700 font-bold">
-                      Events:
-                    </span>{" "}
-                    <ul className="flex flex-col ml-6 list-disc">
-                      {Object.entries(binding.eventMap).map(
-                        ([evVarName, evIndex]) => (
-                          <li key={evVarName}>
-                            <EvVarName eventVar={parseInt(evVarName)} />:{" "}
-                            {violationResPerNodes.eventIds[evIndex]}
-                          </li>
-                        ),
-                      )}
-                    </ul>
-                    <h3 className="text-blue-700 font-bold">Objects:</h3>
-                    <ul className="flex flex-col ml-6 list-disc">
-                      {Object.entries(binding.objectMap).map(
-                        ([obVarName, obIndex]) => (
-                          <li key={obVarName}>
-                            <ObVarName obVar={parseInt(obVarName)} />:{" "}
-                            {violationResPerNodes.objectIds[obIndex]}
-                          </li>
-                        ),
-                      )}
-                    </ul>
-                  </div>
-                </li>
-              ))}
+                  {Row}
+                </VariableSizeList>
+              )}
+            </AutoSizer>
           </ul>
         </SheetContent>
       )}

@@ -2,30 +2,50 @@ import { OcelInfoContext } from "@/App";
 import { BackendProviderContext } from "@/BackendProviderContext";
 import AlertHelper from "@/components/AlertHelper";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { EventTypeQualifiers, ObjectTypeQualifiers } from "@/types/ocel";
 import clsx from "clsx";
-import json5 from "json5";
 import { Fragment, useContext, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { CgTrash } from "react-icons/cg";
 import { LuSave } from "react-icons/lu";
-import { RxCrossCircled, RxPlusCircled } from "react-icons/rx";
-import { type ReactFlowInstance } from "reactflow";
-import ConstraintContainer from "../constraint-container/ConstraintContainer";
+import { RxPlusCircled } from "react-icons/rx";
+import { ReactFlowProvider, type ReactFlowInstance } from "reactflow";
 import { FlowContext } from "../helper/FlowContext";
 
 import type { FlowAndViolationData } from "@/types/misc";
+import json5 from "json5";
+import { PiPlayFill } from "react-icons/pi";
+import { FixedSizeList, type ListChildComponentProps } from "react-window";
+import VisualEditor from "../VisualEditor";
 import type { ConstraintInfo, EvaluationResPerNodes } from "../helper/types";
+import {
+  getViolationStyles,
+  getViolationTextColor,
+} from "../helper/violation-styles";
 import AutoDiscoveryButton from "./AutoDiscovery";
+
 const LOCALSTORAGE_SAVE_KEY_DATA = "oced-declare-data";
 const LOCALSTORAGE_SAVE_KEY_CONSTRAINTS_META = "oced-declare-meta";
 
 function parse(s: string) {
-  return json5.parse(s);
+  try {
+    return JSON.parse(s);
+  } catch (e) {
+    console.warn("trying to use json5 instead");
+    return json5.parse(s);
+  }
 }
 
 export default function VisualEditorOuter() {
@@ -42,6 +62,7 @@ export default function VisualEditorOuter() {
         }
       | undefined;
   }>({});
+
   const backend = useContext(BackendProviderContext);
   useEffect(() => {
     toast
@@ -83,6 +104,29 @@ export default function VisualEditorOuter() {
 
   const prevDataRef = useRef<FlowAndViolationData[]>([]);
   const [activeIndex, setActiveIndex] = useState<number>();
+  const [deletePromptForIndex, setDeletePromptForIndex] = useState<number>();
+
+  const Row = ({ index, style }: ListChildComponentProps) => {
+    const c = constraints[index];
+    if (c === undefined) {
+      return null;
+    }
+    return (
+      <div style={style} className="pb-1">
+        <button
+          onClick={() => setActiveIndex(index)}
+          className={clsx(
+            "w-full h-full block whitespace-nowrap overflow-hidden text-ellipsis border rounded px-2",
+            index !== activeIndex && "bg-gray-50 border-gray-300",
+            index === activeIndex && "bg-blue-200 border-blue-300",
+          )}
+        >
+          {c.name !== "" ? c.name : `Constraint ${index + 1}`}
+        </button>
+      </div>
+    );
+  };
+
   useEffect(() => {
     const meta = parse(
       localStorage.getItem(LOCALSTORAGE_SAVE_KEY_CONSTRAINTS_META) ?? "[]",
@@ -94,6 +138,7 @@ export default function VisualEditorOuter() {
     prevDataRef.current = data;
     setConstraints(meta);
   }, []);
+
   function saveData() {
     if (
       currentInstanceAndData.instance !== undefined &&
@@ -109,17 +154,17 @@ export default function VisualEditorOuter() {
     }
 
     if (prevDataRef.current !== undefined) {
-      console.log(json5.stringify(prevDataRef.current));
+      console.log(JSON.stringify(prevDataRef.current));
       localStorage.setItem(
         LOCALSTORAGE_SAVE_KEY_DATA,
-        json5.stringify(
+        JSON.stringify(
           prevDataRef.current.map((x) => ({ ...x, violations: undefined })),
         ),
       );
     }
     localStorage.setItem(
       LOCALSTORAGE_SAVE_KEY_CONSTRAINTS_META,
-      json5.stringify(constraints),
+      JSON.stringify(constraints),
     );
   }
 
@@ -252,140 +297,224 @@ export default function VisualEditorOuter() {
                       <LuSave size={"24"} />
                     </Button>
                   </div>
-                  <p className="mt-2 mb-1">{constraints.length} Constraints</p>
-                  {constraints.length > 0 && (
-                    <ToggleGroup
-                      type="single"
-                      className="flex flex-wrap max-h-[8rem] overflow-y-auto w-full border rounded py-2"
-                      value={activeIndex?.toString()}
-                      onValueChange={(newVal) => {
-                        const newIndex = parseInt(newVal);
-                        changeIndex(newIndex);
-                      }}
-                    >
-                      {constraints.map((c, i) => (
-                        <div key={i} className="relative">
-                          <ToggleGroupItem
-                            value={i.toString()}
-                            variant="outline"
-                            className={clsx(
-                              "data-[state=on]:bg-blue-200 data-[state=on]:border-blue-300",
-                              prevDataRef.current[i]?.violations == null && "",
-                              prevDataRef.current[i]?.violations != null &&
-                                "bg-green-200/30 data-[state=on]:bg-green-300/80",
-                              prevDataRef.current[i] !== undefined &&
-                                prevDataRef.current[i]?.violations?.evalRes !==
-                                  null &&
-                                [
-                                  ...Object.values(
-                                    prevDataRef.current[i]?.violations
-                                      ?.evalRes ?? {},
-                                  ),
-                                ]?.find(
-                                  (vs) => vs.situationViolatedCount > 0,
-                                ) != null &&
-                                "bg-red-200/30 data-[state=on]:bg-red-300/80",
-                            )}
-                            title={c.name}
-                          >
-                            <span className="w-[21ch] whitespace-nowrap overflow-hidden text-ellipsis">
-                              {c.name !== "" ? c.name : `Constraint ${i + 1}`}
-                            </span>
-                          </ToggleGroupItem>
-                          <AlertHelper
-                            trigger={
-                              <button
-                                className="absolute -right-1 -top-1 opacity-25 hover:opacity-100 hover:text-red-600"
-                                title="Remove constraint"
-                              >
-                                <RxCrossCircled />
-                              </button>
-                            }
-                            title="Are you sure?"
-                            initialData={undefined}
-                            content={() => (
-                              <>
-                                Deleting this constraint will delete all
-                                contained nodes.
-                              </>
-                            )}
-                            submitAction="Delete"
-                            onSubmit={() => {
-                              prevDataRef.current.splice(i, 1);
-                              if (
-                                activeIndex !== undefined &&
-                                activeIndex >= constraints.length - 1
-                              ) {
-                                changeIndex(activeIndex - 1);
-                              }
-                              setConstraints((constraints) => {
-                                const newConstraints = [...constraints];
-                                newConstraints.splice(i, 1);
-                                return newConstraints;
-                              });
-                            }}
-                          />
-                        </div>
-                      ))}
-                    </ToggleGroup>
-                  )}
                 </div>
+                <AlertDialog
+                  open={deletePromptForIndex !== undefined}
+                  onOpenChange={(o) => {
+                    if (!o) {
+                      setDeletePromptForIndex(undefined);
+                    }
+                  }}
+                >
+                  <AlertDialogContent className="flex flex-col max-h-full justify-between">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Constraint</AlertDialogTitle>
+                    </AlertDialogHeader>
+                    <div className="text-sm text-gray-700 max-h-full overflow-auto px-2">
+                      Deleting this constraint will delete all contained nodes.
+                    </div>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={(ev) => {
+                          if (deletePromptForIndex === undefined) return;
+                          prevDataRef.current.splice(deletePromptForIndex, 1);
+                          if (
+                            activeIndex !== undefined &&
+                            activeIndex >= constraints.length - 1
+                          ) {
+                            changeIndex(activeIndex - 1);
+                          }
+                          setConstraints((constraints) => {
+                            const newConstraints = [...constraints];
+                            newConstraints.splice(deletePromptForIndex, 1);
+                            return newConstraints;
+                          });
+                        }}
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
 
-                {constraints.map(
-                  (c, i) =>
-                    activeIndex === i && (
-                      <Fragment key={i}>
-                        <div className="max-w-xs w-full flex flex-col gap-y-1">
-                          <Input
-                            className="text-lg font-medium"
-                            placeholder="Name"
-                            type="text"
-                            defaultValue={
-                              c.name !== "" ? c.name : `Constraint ${i + 1}`
-                            }
-                            onBlur={(ev) => {
-                              setConstraints((cs) => {
-                                if (ev.target != null) {
-                                  const newCs = [...cs];
-                                  newCs[i].name = ev.target.value;
-                                  return newCs;
-                                } else {
-                                  return cs;
-                                }
-                              });
-                            }}
-                          />
-                          <div className="px-2">
-                            <Textarea
-                              defaultValue={c.description}
-                              placeholder="Description"
-                              onBlur={(ev) => {
-                                setConstraints((cs) => {
-                                  if (ev.target != null) {
-                                    const newCs = [...cs];
-                                    newCs[i].description = ev.target.value;
-                                    return newCs;
-                                  } else {
-                                    return cs;
+                <ReactFlowProvider>
+                  <Fragment>
+                    <div
+                      className={clsx(
+                        "grid",
+                        activeIndex !== undefined &&
+                          constraints[activeIndex] !== undefined &&
+                          "grid-cols-3",
+                        (activeIndex === undefined ||
+                          constraints[activeIndex] === undefined) &&
+                          "grid-cols-1",
+                      )}
+                    >
+                      <div>
+                        <p className="h-[2rem]">
+                          {constraints.length} Constraints
+                        </p>
+                        <FixedSizeList
+                          height={125}
+                          itemCount={constraints.length}
+                          itemSize={40}
+                          width={300}
+                        >
+                          {Row}
+                        </FixedSizeList>
+                      </div>
+                      {activeIndex !== undefined &&
+                        constraints[activeIndex] !== undefined && (
+                          <div>
+                            <p className="h-[2rem]">Selected Constraint</p>
+                            <div
+                              className="max-w-xs w-full flex flex-col gap-y-1 px-2"
+                              key={activeIndex}
+                            >
+                              <>
+                                <Input
+                                  className="text-lg font-medium"
+                                  placeholder="Name"
+                                  type="text"
+                                  defaultValue={
+                                    constraints[activeIndex].name !== ""
+                                      ? constraints[activeIndex].name
+                                      : `Constraint ${activeIndex + 1}`
                                   }
-                                });
-                              }}
-                            />
+                                  onBlur={(ev) => {
+                                    setConstraints((cs) => {
+                                      if (ev.target != null) {
+                                        const newCs = [...cs];
+                                        newCs[activeIndex].name =
+                                          ev.target.value;
+                                        return newCs;
+                                      } else {
+                                        return cs;
+                                      }
+                                    });
+                                  }}
+                                />
+                                <div className="px-2">
+                                  <Textarea
+                                    defaultValue={
+                                      constraints[activeIndex].description
+                                    }
+                                    placeholder="Description"
+                                    onBlur={(ev) => {
+                                      setConstraints((cs) => {
+                                        if (ev.target != null) {
+                                          const newCs = [...cs];
+                                          newCs[activeIndex].description =
+                                            ev.target.value;
+                                          return newCs;
+                                        } else {
+                                          return cs;
+                                        }
+                                      });
+                                    }}
+                                  />
+                                </div>
+                              </>
+                            </div>
                           </div>
-                        </div>
-                        <ConstraintContainer
-                          constraintInfo={c}
-                          ocelInfo={ocelInfo}
-                          objectQualifiers={objectQualifiers}
-                          qualifiers={qualifiers}
-                        />
-                      </Fragment>
-                    ),
-                )}
+                        )}
+                      {activeIndex !== undefined &&
+                        constraints[activeIndex] !== undefined && (
+                          <div>
+                            <p className="h-[2rem]">Constraint Info</p>
+                            <div className="px-2 border rounded flex flex-col items-center justify-around w-full">
+                              {
+                                prevDataRef.current[activeIndex].flowJson.nodes
+                                  .length
+                              }{" "}
+                              Nodes
+                              <br />
+                              {
+                                prevDataRef.current[activeIndex].flowJson.edges
+                                  .length
+                              }{" "}
+                              Edges
+                              <TotalViolationInfo
+                                violations={
+                                  prevDataRef.current[activeIndex].violations
+                                }
+                              />
+                            </div>
+                          </div>
+                        )}
+                    </div>
+                    <div className="relative w-full h-full px-12">
+                      {activeIndex !== undefined &&
+                        constraints[activeIndex] !== undefined && (
+                          <div className="xl:w-full min-h-[50rem] h-full border p-2">
+                            {qualifiers !== undefined &&
+                              ocelInfo !== undefined && (
+                                <>
+                                  <VisualEditor
+                                    constraintInfo={constraints[activeIndex]}
+                                    eventTypeQualifiers={qualifiers}
+                                    ocelInfo={ocelInfo}
+                                  ></VisualEditor>
+                                </>
+                              )}
+                          </div>
+                        )}
+                    </div>
+                  </Fragment>
+                </ReactFlowProvider>
               </>
             )}
         </div>
       </FlowContext.Provider>
+    </div>
+  );
+}
+
+function TotalViolationInfo({
+  violations,
+}: {
+  violations: EvaluationResPerNodes | undefined;
+}) {
+  const [situationViolatedCount, situationCount] = Object.values(
+    violations?.evalRes ?? {},
+  ).reduce(
+    ([violationCount, situationCount], val) => [
+      violationCount + val.situationViolatedCount,
+      situationCount + val.situationCount,
+    ],
+    [0, 0],
+  );
+  const percentage = (100 * situationViolatedCount) / situationCount;
+
+  return (
+    <div
+      className={clsx(
+        "rounded w-full",
+        isNaN(percentage) && "text-gray-700",
+        !isNaN(percentage) && "font-bold border-2",
+        !isNaN(percentage) &&
+          getViolationStyles({ situationViolatedCount, situationCount }),
+        !isNaN(percentage) &&
+          getViolationTextColor({ situationViolatedCount, situationCount }),
+      )}
+    >
+      {!isNaN(percentage) && (
+        <>{Math.round(100 * percentage) / 100}% Violations</>
+      )}
+      {isNaN(percentage) && <>No evaluation result available</>}
+      <br />
+      {!isNaN(percentage) && (
+        <>
+          ({situationViolatedCount} of {situationCount})
+        </>
+      )}
+      {isNaN(percentage) && (
+        <span className="inline-flex items-center gap-x-1">
+          Evaluate using the <PiPlayFill className="text-purple-600" /> button
+          below
+        </span>
+      )}
     </div>
   );
 }
