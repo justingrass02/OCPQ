@@ -86,7 +86,6 @@ export async function applyLayoutToNodes(
     })),
   };
   await elk.layout(graph).then(({ children }: ElkNode) => {
-    console.log({ children });
     if (children !== undefined) {
       children.forEach((node) => {
         const n = nodes.find((n) => n.id === node.id);

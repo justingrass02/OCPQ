@@ -30,10 +30,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Binding } from "@/types/generated/Binding";
+import type { Binding } from "@/types/generated/Binding";
 import type { EventVariable } from "@/types/generated/EventVariable";
 import type { ObjectVariable } from "@/types/generated/ObjectVariable";
-import { ViolationReason } from "@/types/generated/ViolationReason";
+import type { ViolationReason } from "@/types/generated/ViolationReason";
 import { ImageIcon } from "@radix-ui/react-icons";
 import clsx from "clsx";
 import { toPng, toSvg } from "html-to-image";
@@ -587,76 +587,6 @@ export default function VisualEditor(props: VisualEditorProps) {
           },
         }}
         proOptions={{ hideAttribution: true }}
-        // onCopyCapture={(ev) => {
-        //   ev.clipboardData.setData(
-        //     "application/json+reactflow",
-        //     JSON.stringify(selectedRef.current),
-        //   );
-
-        //   ev.preventDefault();
-        // }}
-        // onPasteCapture={(ev) => {
-        //   [...ev.clipboardData.items].forEach((ci) =>
-        //     ci.getAsString((s) => console.log(`${ci.type} - ${ci.kind}: ${s}`)),
-        //   );
-        //   let pastedNodesAndEdges = ev.clipboardData.getData(
-        //     "application/json+reactflow",
-        //   );
-        //   if (pastedNodesAndEdges === "") {
-        //     pastedNodesAndEdges = ev.clipboardData.getData("text/plain");
-        //   }
-        //   try {
-        //     const { nodes, edges }: typeof selectedRef.current =
-        //       JSON.parse(pastedNodesAndEdges);
-        //     const idPrefix =
-        //       Date.now() + `-p-${Math.floor(Math.random() * 1000)}-`;
-        //     // Mutate nodes to update position and IDs (+ select them)
-        //     const newNodes = nodes.map((n) => ({
-        //       id: idPrefix + n.id,
-        //       position: { x: n.position.x + 100, y: n.position.y + 100 },
-        //       selected: true,
-        //       data: n.data,
-        //       type: n.type,
-        //     }));
-        //     // Update nodes
-        //     instance.setNodes((prevNodes) => {
-        //       return [
-        //         // Unselect all existing nodes
-        //         ...prevNodes.map((n) => ({ ...n, selected: false })),
-        //         // ...and add pasted nodes
-        //         ...newNodes,
-        //       ];
-        //     });
-        //     // Update edges
-        //     instance.setEdges((prevEdges) => {
-        //       return [
-        //         // Unselect all exisiting edges
-        //         ...prevEdges.map((e) => ({ ...e, selected: false })),
-        //         // ...and add new pasted edges (mutating the ID, and source/target (handle) + selecting them)
-        //         ...edges
-        //           .map((e) => ({
-        //             id: idPrefix + e.id,
-        //             type: e.type,
-        //             source: idPrefix + e.source,
-        //             target: idPrefix + e.target,
-        //             sourceHandle: idPrefix + e.sourceHandle,
-        //             targetHandle: idPrefix + e.targetHandle,
-        //             selected: true,
-        //           }))
-        //           .filter(
-        //             (e) =>
-        //               newNodes.find((n) => n.id === e.source) !== undefined &&
-        //               newNodes.find((n) => n.id === e.target) !== undefined,
-        //           ),
-        //       ];
-        //     });
-        //   } catch (e) {
-        //     console.error(
-        //       "Failed to parase JSON on paste: ",
-        //       pastedNodesAndEdges,
-        //     );
-        //   }
-        // }}
         onSelectionChange={(sel) => {
           selectedRef.current = sel;
         }}

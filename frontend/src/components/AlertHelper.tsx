@@ -17,7 +17,11 @@ type AlertHelperProps<T> =
       trigger: React.ReactNode;
       title: React.ReactNode;
       initialData: T;
-      content: React.FC<{ data: T; setData: (data: T) => unknown; close: () => unknown }>;
+      content: React.FC<{
+        data: T;
+        setData: (data: T) => unknown;
+        close: () => unknown;
+      }>;
       submitAction?: React.ReactNode | undefined;
       onCancel?: () => unknown;
       onSubmit: (
@@ -30,7 +34,11 @@ type AlertHelperProps<T> =
       trigger: React.ReactNode;
       title: React.ReactNode;
       initialData: T;
-      content: React.FC<{ data: T; setData: (data: T) => unknown; close: () => unknown }>;
+      content: React.FC<{
+        data: T;
+        setData: (data: T) => unknown;
+        close: () => unknown;
+      }>;
       submitAction?: React.ReactNode | undefined;
       onCancel?: () => unknown;
       onSubmit: (
@@ -60,7 +68,11 @@ export default function AlertHelper<T>(props: AlertHelperProps<T>) {
           <AlertDialogTitle>{props.title}</AlertDialogTitle>
         </AlertDialogHeader>
         <div className="text-sm text-gray-700 max-h-full overflow-auto px-2">
-          <props.content data={data} setData={setData} close={() => setOpen(false)} />
+          <props.content
+            data={data}
+            setData={setData}
+            close={() => setOpen(false)}
+          />
         </div>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>

@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { EventTypeQualifiers, ObjectTypeQualifiers } from "@/types/ocel";
 import clsx from "clsx";
-import { Fragment, useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { CgTrash } from "react-icons/cg";
 import { LuSave } from "react-icons/lu";
@@ -26,16 +26,14 @@ import { FlowContext } from "../helper/FlowContext";
 
 import type { FlowAndViolationData } from "@/types/misc";
 import json5 from "json5";
-import { PiPlayFill } from "react-icons/pi";
 import { FixedSizeList, type ListChildComponentProps } from "react-window";
 import VisualEditor from "../VisualEditor";
 import type { ConstraintInfo, EvaluationResPerNodes } from "../helper/types";
-import {
-  getViolationStyles,
-  getViolationTextColor,
-} from "../helper/violation-styles";
 import AutoDiscoveryButton from "./AutoDiscovery";
 
+import { TbTrash } from "react-icons/tb";
+import AutoSizer from "react-virtualized-auto-sizer";
+import TotalViolationInfo from "../TotalViolationInfo";
 const LOCALSTORAGE_SAVE_KEY_DATA = "oced-declare-data";
 const LOCALSTORAGE_SAVE_KEY_CONSTRAINTS_META = "oced-declare-meta";
 
@@ -54,6 +52,8 @@ export default function VisualEditorOuter() {
     useState<ObjectTypeQualifiers>({});
   const ocelInfo = useContext(OcelInfoContext);
   const [constraints, setConstraints] = useState<ConstraintInfo[]>([]);
+  const constraintListRefSmall = useRef<FixedSizeList>(null);
+  const [showConstraintSelection, setShowConstraintSelection] = useState(false);
   const [currentInstanceAndData, setCurrentInstanceAndData] = useState<{
     instance?: ReactFlowInstance | undefined;
     getter?: () =>
@@ -106,27 +106,6 @@ export default function VisualEditorOuter() {
   const [activeIndex, setActiveIndex] = useState<number>();
   const [deletePromptForIndex, setDeletePromptForIndex] = useState<number>();
 
-  const Row = ({ index, style }: ListChildComponentProps) => {
-    const c = constraints[index];
-    if (c === undefined) {
-      return null;
-    }
-    return (
-      <div style={style} className="pb-1">
-        <button
-          onClick={() => setActiveIndex(index)}
-          className={clsx(
-            "w-full h-full block whitespace-nowrap overflow-hidden text-ellipsis border rounded px-2",
-            index !== activeIndex && "bg-gray-50 border-gray-300",
-            index === activeIndex && "bg-blue-200 border-blue-300",
-          )}
-        >
-          {c.name !== "" ? c.name : `Constraint ${index + 1}`}
-        </button>
-      </div>
-    );
-  };
-
   useEffect(() => {
     const meta = parse(
       localStorage.getItem(LOCALSTORAGE_SAVE_KEY_CONSTRAINTS_META) ?? "[]",
@@ -138,6 +117,12 @@ export default function VisualEditorOuter() {
     prevDataRef.current = data;
     setConstraints(meta);
   }, []);
+
+  useEffect(() => {
+    if (activeIndex !== undefined) {
+      constraintListRefSmall.current?.scrollToItem(activeIndex, "smart");
+    }
+  }, [activeIndex, showConstraintSelection]);
 
   function saveData() {
     if (
@@ -168,23 +153,76 @@ export default function VisualEditorOuter() {
     );
   }
 
-  function changeIndex(newIndex: number, length = constraints.length) {
-    if (!isNaN(newIndex) && newIndex >= 0 && newIndex < length) {
-      if (
-        currentInstanceAndData.instance !== undefined &&
-        activeIndex !== undefined &&
-        currentInstanceAndData.getter !== undefined
-      ) {
-        const dataFromPrevIndex = currentInstanceAndData.instance.toObject();
-        const prevOtherData = currentInstanceAndData.getter();
-        prevDataRef.current[activeIndex] = {
-          flowJson: dataFromPrevIndex,
-          violations: prevOtherData?.violations,
-        };
-      }
+  function changeIndex(
+    newIndex: number | undefined,
+    length = constraints.length,
+  ) {
+    if (
+      currentInstanceAndData.instance !== undefined &&
+      activeIndex !== undefined &&
+      currentInstanceAndData.getter !== undefined
+    ) {
+      const dataFromPrevIndex = currentInstanceAndData.instance.toObject();
+      const prevOtherData = currentInstanceAndData.getter();
+      prevDataRef.current[activeIndex] = {
+        flowJson: dataFromPrevIndex,
+        violations: prevOtherData?.violations,
+      };
+    }
+    if (
+      newIndex === undefined ||
+      (!isNaN(newIndex) && newIndex >= 0 && newIndex < length)
+    ) {
       setActiveIndex(newIndex);
     }
   }
+
+  function ConstraintMetaInfo({
+    constraint,
+    index,
+  }: {
+    constraint: ConstraintInfo;
+    index: number;
+  }) {
+    return (
+      <div
+        className={clsx(
+          "flex justify-between border rounded h-full w-full items-center",
+          index !== activeIndex && "bg-gray-50 border-gray-300",
+          index === activeIndex && "bg-blue-200 border-blue-300 font-semibold",
+        )}
+      >
+        <button
+          onClick={() => {
+            changeIndex(index);
+            setShowConstraintSelection(false);
+          }}
+          className={clsx(
+            "w-full h-full block whitespace-nowrap overflow-hidden text-ellipsis px-2 text-left",
+          )}
+        >
+          <h4 className="text-sm">
+            {constraint.name !== ""
+              ? constraint.name
+              : `Constraint ${index + 1}`}
+          </h4>
+          <p className="text-xs font-light text-gray-700">
+            {constraint.description !== ""
+              ? constraint.description
+              : "No description"}
+          </p>
+        </button>
+
+        <button
+          className="text-red-700 px-2 block hover:bg-red-300 h-full"
+          onClick={() => setDeletePromptForIndex(index)}
+        >
+          <TbTrash />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full">
       <FlowContext.Provider
@@ -258,6 +296,7 @@ export default function VisualEditorOuter() {
                       onSubmit={() => {
                         prevDataRef.current = [];
                         setConstraints([]);
+                        setActiveIndex(undefined);
                       }}
                     />
                     <div className="flex flex-col justify-center gap-y-2">
@@ -271,7 +310,10 @@ export default function VisualEditorOuter() {
                           );
                           setConstraints((cs) => [
                             ...cs,
-                            { name: "", description: "" },
+                            {
+                              name: `New Constraint (${cs.length + 1})`,
+                              description: "",
+                            },
                           ]);
                         }}
                       >
@@ -310,13 +352,29 @@ export default function VisualEditorOuter() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Delete Constraint</AlertDialogTitle>
                     </AlertDialogHeader>
-                    <div className="text-sm text-gray-700 max-h-full overflow-auto px-2">
-                      Deleting this constraint will delete all contained nodes.
+                    <div className="text-base text-gray-700 max-h-full overflow-auto px-2">
+                      {deletePromptForIndex !== undefined && (
+                        <>
+                          <span className="">
+                            Constraint:{" "}
+                            <span className="font-semibold">
+                              {(constraints[deletePromptForIndex]?.name)
+                                .length > 0
+                                ? constraints[deletePromptForIndex]?.name
+                                : `Constraint ${deletePromptForIndex + 1}`}
+                            </span>
+                          </span>
+                          <br />
+                          <br />
+                        </>
+                      )}
+                      Deleting this constraint will delete all contained nodes
+                      and cannot be undone.
                     </div>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={(ev) => {
+                        onClick={() => {
                           if (deletePromptForIndex === undefined) return;
                           prevDataRef.current.splice(deletePromptForIndex, 1);
                           if (
@@ -339,37 +397,124 @@ export default function VisualEditorOuter() {
                 </AlertDialog>
 
                 <ReactFlowProvider>
-                  <Fragment>
+                  <div className="w-full h-full flex flex-col gap-y-2 px-12">
                     <div
                       className={clsx(
-                        "grid",
+                        "grid w-full px-4 text-center",
                         activeIndex !== undefined &&
                           constraints[activeIndex] !== undefined &&
                           "grid-cols-3",
                         (activeIndex === undefined ||
                           constraints[activeIndex] === undefined) &&
-                          "grid-cols-1",
+                          "grid-cols-1 max-w-sm mx-auto h-full",
                       )}
                     >
-                      <div>
-                        <p className="h-[2rem]">
-                          {constraints.length} Constraints
-                        </p>
-                        <FixedSizeList
-                          height={125}
-                          itemCount={constraints.length}
-                          itemSize={40}
-                          width={300}
+                      <div className="flex flex-col w-full h-full relative">
+                        <AlertDialog
+                          open={showConstraintSelection}
+                          onOpenChange={(o) => {
+                            setShowConstraintSelection(o);
+                          }}
                         >
-                          {Row}
-                        </FixedSizeList>
+                          <AlertDialogContent className="flex flex-col max-h-full justify-between">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Select Constraint
+                              </AlertDialogTitle>
+                            </AlertDialogHeader>
+                            <div className="h-[50vh] w-full">
+                              <AutoSizer>
+                                {({ height, width }) => (
+                                  <FixedSizeList
+                                    initialScrollOffset={
+                                      activeIndex !== undefined
+                                        ? 45 * activeIndex - height / 2
+                                        : undefined
+                                    }
+                                    height={height}
+                                    itemCount={constraints.length}
+                                    itemSize={45}
+                                    width={width}
+                                  >
+                                    {({
+                                      index,
+                                      style,
+                                    }: ListChildComponentProps) => {
+                                      const c = constraints[index];
+                                      if (c === undefined) {
+                                        return null;
+                                      }
+                                      return (
+                                        <div style={style} className="pb-1">
+                                          <ConstraintMetaInfo
+                                            constraint={c}
+                                            index={index}
+                                          />
+                                        </div>
+                                      );
+                                    }}
+                                  </FixedSizeList>
+                                )}
+                              </AutoSizer>
+                            </div>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                        <div
+                          className={clsx(
+                            "mb-1",
+                            activeIndex !== undefined && "-mt-[1rem]",
+                          )}
+                        >
+                          <Button
+                            disabled={constraints.length === 0}
+                            onClick={() => setShowConstraintSelection(true)}
+                          >
+                            {constraints.length} Constraints...
+                          </Button>
+                        </div>
+                        <div className="h-full w-full">
+                          <AutoSizer>
+                            {({ height, width }) => (
+                              <FixedSizeList
+                                ref={constraintListRefSmall}
+                                height={
+                                  activeIndex === undefined ? height : 100
+                                }
+                                itemCount={constraints.length}
+                                itemSize={45}
+                                width={width}
+                              >
+                                {({
+                                  index,
+                                  style,
+                                }: ListChildComponentProps) => {
+                                  const c = constraints[index];
+                                  if (c === undefined) {
+                                    return null;
+                                  }
+                                  return (
+                                    <div style={style} className="pb-1">
+                                      <ConstraintMetaInfo
+                                        constraint={c}
+                                        index={index}
+                                      />
+                                    </div>
+                                  );
+                                }}
+                              </FixedSizeList>
+                            )}
+                          </AutoSizer>
+                        </div>
                       </div>
                       {activeIndex !== undefined &&
                         constraints[activeIndex] !== undefined && (
                           <div>
-                            <p className="h-[2rem]">Selected Constraint</p>
+                            <p className="h-[1.5rem]">Selected Constraint</p>
                             <div
-                              className="max-w-xs w-full flex flex-col gap-y-1 px-2"
+                              className="w-full flex flex-col gap-y-1 px-2"
                               key={activeIndex}
                             >
                               <>
@@ -422,32 +567,34 @@ export default function VisualEditorOuter() {
                       {activeIndex !== undefined &&
                         constraints[activeIndex] !== undefined && (
                           <div>
-                            <p className="h-[2rem]">Constraint Info</p>
+                            <p className="h-[1.5rem]">Constraint Info</p>
                             <div className="px-2 border rounded flex flex-col items-center justify-around w-full">
-                              {
-                                prevDataRef.current[activeIndex].flowJson.nodes
-                                  .length
-                              }{" "}
+                              {prevDataRef.current[activeIndex]?.flowJson !==
+                              undefined
+                                ? prevDataRef.current[activeIndex].flowJson
+                                    .nodes.length
+                                : 0}{" "}
                               Nodes
                               <br />
-                              {
-                                prevDataRef.current[activeIndex].flowJson.edges
-                                  .length
-                              }{" "}
+                              {prevDataRef.current[activeIndex]?.flowJson !==
+                              undefined
+                                ? prevDataRef.current[activeIndex].flowJson
+                                    .edges.length
+                                : 0}{" "}
                               Edges
                               <TotalViolationInfo
                                 violations={
-                                  prevDataRef.current[activeIndex].violations
+                                  prevDataRef.current[activeIndex]?.violations
                                 }
                               />
                             </div>
                           </div>
                         )}
                     </div>
-                    <div className="relative w-full h-full px-12">
-                      {activeIndex !== undefined &&
-                        constraints[activeIndex] !== undefined && (
-                          <div className="xl:w-full min-h-[50rem] h-full border p-2">
+                    {activeIndex !== undefined &&
+                      constraints[activeIndex] !== undefined && (
+                        <div className="relative w-full h-full">
+                          <div className="xl:w-full min-h-[35rem] h-full border p-2">
                             {qualifiers !== undefined &&
                               ocelInfo !== undefined && (
                                 <>
@@ -459,62 +606,14 @@ export default function VisualEditorOuter() {
                                 </>
                               )}
                           </div>
-                        )}
-                    </div>
-                  </Fragment>
+                        </div>
+                      )}
+                  </div>
                 </ReactFlowProvider>
               </>
             )}
         </div>
       </FlowContext.Provider>
-    </div>
-  );
-}
-
-function TotalViolationInfo({
-  violations,
-}: {
-  violations: EvaluationResPerNodes | undefined;
-}) {
-  const [situationViolatedCount, situationCount] = Object.values(
-    violations?.evalRes ?? {},
-  ).reduce(
-    ([violationCount, situationCount], val) => [
-      violationCount + val.situationViolatedCount,
-      situationCount + val.situationCount,
-    ],
-    [0, 0],
-  );
-  const percentage = (100 * situationViolatedCount) / situationCount;
-
-  return (
-    <div
-      className={clsx(
-        "rounded w-full",
-        isNaN(percentage) && "text-gray-700",
-        !isNaN(percentage) && "font-bold border-2",
-        !isNaN(percentage) &&
-          getViolationStyles({ situationViolatedCount, situationCount }),
-        !isNaN(percentage) &&
-          getViolationTextColor({ situationViolatedCount, situationCount }),
-      )}
-    >
-      {!isNaN(percentage) && (
-        <>{Math.round(100 * percentage) / 100}% Violations</>
-      )}
-      {isNaN(percentage) && <>No evaluation result available</>}
-      <br />
-      {!isNaN(percentage) && (
-        <>
-          ({situationViolatedCount} of {situationCount})
-        </>
-      )}
-      {isNaN(percentage) && (
-        <span className="inline-flex items-center gap-x-1">
-          Evaluate using the <PiPlayFill className="text-purple-600" /> button
-          below
-        </span>
-      )}
     </div>
   );
 }
