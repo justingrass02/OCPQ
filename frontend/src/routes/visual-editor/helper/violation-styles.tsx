@@ -1,13 +1,14 @@
 import type { EvaluationResultWithCount } from "@/types/generated/EvaluationResultWithCount";
 
 export function getViolationStyles(
-  violations: EvaluationResultWithCount | undefined,
+  violations: Omit<EvaluationResultWithCount, "situations"> | undefined,
 ) {
-  if (violations === undefined) {
+  if (violations === undefined || violations.situationCount === 0) {
     return "bg-gray-50  border-slate-500";
   }
   const violationFraction =
     violations.situationViolatedCount / violations.situationCount;
+    
   if (violationFraction >= 0.75) {
     return "bg-rose-50 border-rose-300 shadow-rose-300";
   }
@@ -27,9 +28,9 @@ export function getViolationStyles(
 }
 
 export function getViolationTextColor(
-  violations: EvaluationResultWithCount | undefined,
+  violations: Omit<EvaluationResultWithCount, "situations"> | undefined,
 ) {
-  if (violations === undefined) {
+  if (violations === undefined || violations.situationCount === 0) {
     return "text-slate-500";
   }
   const violationFraction =
