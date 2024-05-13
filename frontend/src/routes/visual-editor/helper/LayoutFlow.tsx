@@ -15,11 +15,10 @@ const elk = new ELK();
 // })();
 
 const defaultOptions = {
-  // "elk.algorithm": "layered",
-  // "elk.layered.spacing.nodeNodeBetweenLayers": 100,
-  // "elk.spacing.nodeNode": 80,
-  // "elk.direction": "DOWN",
-  "elk.algorithm": "org.eclipse.elk.mrtree",
+  "elk.layered.spacing.nodeNodeBetweenLayers": "100",
+  "elk.direction": "DOWN",
+
+  "elk.algorithm": "mrtree",
   "elk.spacing.nodeNode": "100",
 };
 
@@ -71,9 +70,7 @@ export async function applyLayoutToNodes(
         id: n.id,
         width: n.width ?? ("box" in n.data ? 240 : 128),
         height: n.height ?? ("box" in n.data ? 180 : 80),
-        properties: {
-          "org.eclipse.elk.portConstraints": "FIXED_ORDER",
-        },
+        properties: { "org.eclipse.elk.portConstraints": "FIXED_SIDE" },
         //  also pass plain id to handle edges without a sourceHandle or targetHandle
         ports: [
           { id: n.id, properties: { side: "EAST" } },
@@ -88,7 +85,6 @@ export async function applyLayoutToNodes(
       targets: [e.targetHandle ?? e.target],
     })),
   };
-
   await elk.layout(graph).then(({ children }: ElkNode) => {
     console.log({ children });
     if (children !== undefined) {
