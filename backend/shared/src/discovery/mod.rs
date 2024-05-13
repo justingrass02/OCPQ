@@ -565,149 +565,234 @@ pub fn auto_discover_count_constraints(
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum AutoDiscoveredORConstraint {
-    EfOrCount(
-        EventuallyFollowsConstraints,
-        SimpleDiscoveredCountConstraints,
-    ),
-    CountOrEf(
-        EventuallyFollowsConstraints,
-        SimpleDiscoveredCountConstraints,
-    ),
-}
+pub struct AutoDiscoveredORConstraint(
+    pub EventuallyFollowsConstraints,
+    pub SimpleDiscoveredCountConstraints,
+);
+
 impl AutoDiscoveredORConstraint {
     fn get_constraint_name(&self) -> String {
-        let (a, b) = match self {
-            AutoDiscoveredORConstraint::EfOrCount(a, b) => (a, b),
-            AutoDiscoveredORConstraint::CountOrEf(a, b) => (a, b),
-        };
         format!(
             "OR {} / {}",
-            a.get_constraint_name(),
-            b.get_constraint_name()
+            self.0.get_constraint_name(),
+            self.1.get_constraint_name()
         )
     }
 }
 impl From<&AutoDiscoveredORConstraint> for BindingBoxTree {
     fn from(val: &AutoDiscoveredORConstraint) -> Self {
-        let (tree1, tree2): (BindingBoxTree, BindingBoxTree) = match val {
-            AutoDiscoveredORConstraint::EfOrCount(ef, cc) => {
-                let tree1: BindingBoxTree = ef.into();
-                let mut tree2: BindingBoxTree = cc.into();
-                // Remove first node from tree2 & move size constraint to OR -> new first tree2 node
-                tree2.nodes = tree2.nodes.into_iter().skip(1).collect();
-                tree2.size_constraints = tree2
-                    .size_constraints
-                    .into_iter()
-                    .map(|orig_c| {
-                        let mut c = orig_c;
-                        c.0 = (0 - tree1.nodes.len() - 1, c.0 .1 - 1);
-                        c
-                    })
-                    .collect();
-                (tree1, tree2)
-            }
-            AutoDiscoveredORConstraint::CountOrEf(cc, ef) => {
-                let mut tree1: BindingBoxTree = cc.into();
-                let tree2: BindingBoxTree = ef.into();
-                // Remove first node from tree1 & move size constraint to OR -> new first tree1 node
-                tree1.nodes = tree1.nodes.into_iter().skip(1).collect();
-                tree1.size_constraints = tree1
-                    .size_constraints
-                    .into_iter()
-                    .map(|orig_c| {
-                        let mut c = orig_c;
-                        c.0 = (c.0 .0 - 1, c.0 .1 - 1);
-                        c
-                    })
-                    .collect();
-                (tree1, tree2)
-            }
-        };
-        let root_objs = match tree1.nodes.first().unwrap() {
-            BindingBoxTreeNode::Box(bbox, _) => bbox.new_object_vars.clone(),
-            BindingBoxTreeNode::OR(_, _) => todo!(),
-            BindingBoxTreeNode::AND(_, _) => todo!(),
-            BindingBoxTreeNode::NOT(_) => todo!(),
-        };
-
-        let mut tree = BindingBoxTree {
-            nodes: vec![
-                BindingBoxTreeNode::Box(
-                    BindingBox {
-                        new_event_vars: vec![].into_iter().collect(),
-                        new_object_vars: root_objs,
-                        filter_constraint: vec![],
-                    },
-                    vec![1],
-                ),
-                BindingBoxTreeNode::OR(2, 2 + tree1.nodes.len()),
-            ],
-            size_constraints: vec![].into_iter().collect(),
-        };
-        let mut prev_nodes = 2;
-        let mut prev_ob_vars = 0;
-        let mut prev_ev_vars = 0;
-
-        for tr in &[tree1, tree2] {
-            for node in &tr.nodes {
-                tree.nodes.push(match node {
-                    BindingBoxTreeNode::Box(bbox, cs) => BindingBoxTreeNode::Box(
-                        BindingBox {
-                            new_event_vars: bbox
-                                .new_event_vars
-                                .iter()
-                                .map(|(a, b)| (EventVariable(a.0 + prev_ev_vars), b.clone()))
-                                .collect(),
-                            new_object_vars: HashMap::new(),
-                            // new_object_vars: bbox
-                            //     .new_object_vars
-                            //     .iter()
-                            //     .map(|(a, b)| (ObjectVariable(a.0 + prev_ob_vars), b.clone()))
-                            //     .collect(),
-                            filter_constraint: bbox
-                                .filter_constraint
-                                .iter()
-                                .map(|fc| match fc {
-                                    FilterConstraint::ObjectAssociatedWithEvent(ov, ev, q) => {
-                                        FilterConstraint::ObjectAssociatedWithEvent(
-                                            ObjectVariable(ov.0 + prev_ob_vars),
-                                            EventVariable(ev.0 + prev_ev_vars),
-                                            q.clone(),
-                                        )
-                                    }
-                                    FilterConstraint::ObjectAssociatedWithObject(ov1, ov2, q) => {
-                                        FilterConstraint::ObjectAssociatedWithObject(
-                                            ObjectVariable(ov1.0 + prev_ob_vars),
-                                            ObjectVariable(ov2.0 + prev_ob_vars),
-                                            q.clone(),
-                                        )
-                                    }
-                                    FilterConstraint::TimeBetweenEvents(ev1, ev2, t) => {
-                                        FilterConstraint::TimeBetweenEvents(
-                                            EventVariable(ev1.0 + prev_ev_vars),
-                                            EventVariable(ev2.0 + prev_ev_vars),
-                                            *t,
-                                        )
-                                    }
-                                })
-                                .collect(),
-                        },
-                        cs.iter().map(|i| i + prev_nodes).collect_vec(),
-                    ),
-                    _ => todo!("Other box tree nodes are not supported for merging!"),
-                })
-            }
-            for ((n_index1, n_index2), size_constr) in &tr.size_constraints {
-                tree.size_constraints
-                    .insert((n_index1 + prev_nodes, n_index2 + prev_nodes), *size_constr);
-            }
-            prev_nodes += tr.nodes.len();
-            prev_ev_vars += tr.get_ev_vars().len();
-            prev_ob_vars += 0; //tr.get_ob_vars().len();
+        let object_type = val.1.object_type.clone();
+        if val.0.object_types.len() > 1 {
+            println!("=== Multiple object types: {:?}", val.0.object_types);
         }
+        if !val.0.object_types.contains(&object_type) {
+            panic!("!!! No object overlap in OR constraint");
+        }
+        let root_node = BindingBoxTreeNode::Box(
+            BindingBox {
+                new_event_vars: HashMap::default(),
+                new_object_vars: val
+                    .0
+                    .object_types
+                    .iter()
+                    .enumerate()
+                    .map(|(i, ot)| (ObjectVariable(i), vec![ot.clone()].into_iter().collect()))
+                    .collect(),
+                filter_constraint: Vec::default(),
+            },
+            vec![1],
+        );
+        let or_node = BindingBoxTreeNode::OR(2, 3);
+        let count_node = BindingBoxTreeNode::Box(
+            BindingBox {
+                new_event_vars: vec![(
+                    EventVariable(0),
+                    val.1.event_types.iter().cloned().collect(),
+                )]
+                .into_iter()
+                .collect(),
+                new_object_vars: HashMap::default(),
+                filter_constraint: vec![FilterConstraint::ObjectAssociatedWithEvent(
+                    ObjectVariable(0),
+                    EventVariable(0),
+                    None,
+                )],
+            },
+            vec![],
+        );
+        let ef_node1 = BindingBoxTreeNode::Box(
+            BindingBox {
+                new_event_vars: vec![(
+                    EventVariable(1),
+                    vec![val.0.from_event_type.clone()].into_iter().collect(),
+                )]
+                .into_iter()
+                .collect(),
+                new_object_vars: HashMap::default(),
+                filter_constraint: vec![FilterConstraint::ObjectAssociatedWithEvent(
+                    ObjectVariable(0),
+                    EventVariable(1),
+                    None,
+                )],
+            },
+            vec![4],
+        );
+
+        let ef_node2 = BindingBoxTreeNode::Box(
+            BindingBox {
+                new_event_vars: vec![(
+                    EventVariable(2),
+                    vec![val.0.to_event_type.clone()].into_iter().collect(),
+                )]
+                .into_iter()
+                .collect(),
+                new_object_vars: HashMap::default(),
+                filter_constraint: vec![
+                    FilterConstraint::ObjectAssociatedWithEvent(
+                        ObjectVariable(0),
+                        EventVariable(2),
+                        None,
+                    ),
+                    FilterConstraint::TimeBetweenEvents(
+                        EventVariable(1),
+                        EventVariable(2),
+                        (Some(val.0.min_seconds), Some(val.0.max_seconds)),
+                    ),
+                ],
+            },
+            vec![],
+        );
+
+        let tree = BindingBoxTree {
+            nodes: vec![root_node, or_node, count_node, ef_node1, ef_node2],
+            size_constraints: vec![
+                ((1, 2), (Some(val.1.min_count), Some(val.1.max_count))),
+                ((3, 4), (Some(1), None)),
+            ]
+            .into_iter()
+            .collect(),
+        };
 
         tree
+        // Previous code (might be useful for merging arbitrary trees)
+        // let (tree1, tree2): (BindingBoxTree, BindingBoxTree) = match val {
+        //     AutoDiscoveredORConstraint::EfOrCount(ef, cc) => {
+        //         let tree1: BindingBoxTree = ef.into();
+        //         let mut tree2: BindingBoxTree = cc.into();
+        //         // Remove first node from tree2 & move size constraint to OR -> new first tree2 node
+        //         tree2.nodes = tree2.nodes.into_iter().skip(1).collect();
+        //         tree2.size_constraints = tree2
+        //             .size_constraints
+        //             .into_iter()
+        //             .map(|orig_c| {
+        //                 let mut c = orig_c;
+        //                 c.0 = (0 - tree1.nodes.len() - 1, c.0 .1 - 1);
+        //                 c
+        //             })
+        //             .collect();
+        //         (tree1, tree2)
+        //     }
+        //     AutoDiscoveredORConstraint::CountOrEf(cc, ef) => {
+        //         let mut tree1: BindingBoxTree = cc.into();
+        //         let tree2: BindingBoxTree = ef.into();
+        //         // Remove first node from tree1 & move size constraint to OR -> new first tree1 node
+        //         tree1.nodes = tree1.nodes.into_iter().skip(1).collect();
+        //         tree1.size_constraints = tree1
+        //             .size_constraints
+        //             .into_iter()
+        //             .map(|orig_c| {
+        //                 let mut c = orig_c;
+        //                 c.0 = (c.0 .0 - 1, c.0 .1 - 1);
+        //                 c
+        //             })
+        //             .collect();
+        //         (tree1, tree2)
+        //     }
+        // };
+        // let root_objs = match tree1.nodes.first().unwrap() {
+        //     BindingBoxTreeNode::Box(bbox, _) => bbox.new_object_vars.clone(),
+        //     BindingBoxTreeNode::OR(_, _) => todo!(),
+        //     BindingBoxTreeNode::AND(_, _) => todo!(),
+        //     BindingBoxTreeNode::NOT(_) => todo!(),
+        // };
+
+        // let mut tree = BindingBoxTree {
+        //     nodes: vec![
+        //         BindingBoxTreeNode::Box(
+        //             BindingBox {
+        //                 new_event_vars: vec![].into_iter().collect(),
+        //                 new_object_vars: root_objs,
+        //                 filter_constraint: vec![],
+        //             },
+        //             vec![1],
+        //         ),
+        //         BindingBoxTreeNode::OR(2, 2 + tree1.nodes.len()),
+        //     ],
+        //     size_constraints: vec![].into_iter().collect(),
+        // };
+        // let mut prev_nodes = 2;
+        // let mut prev_ob_vars = 0;
+        // let mut prev_ev_vars = 0;
+
+        // for tr in &[tree1, tree2] {
+        //     for node in &tr.nodes {
+        //         tree.nodes.push(match node {
+        //             BindingBoxTreeNode::Box(bbox, cs) => BindingBoxTreeNode::Box(
+        //                 BindingBox {
+        //                     new_event_vars: bbox
+        //                         .new_event_vars
+        //                         .iter()
+        //                         .map(|(a, b)| (EventVariable(a.0 + prev_ev_vars), b.clone()))
+        //                         .collect(),
+        //                     new_object_vars: HashMap::new(),
+        //                     // new_object_vars: bbox
+        //                     //     .new_object_vars
+        //                     //     .iter()
+        //                     //     .map(|(a, b)| (ObjectVariable(a.0 + prev_ob_vars), b.clone()))
+        //                     //     .collect(),
+        //                     filter_constraint: bbox
+        //                         .filter_constraint
+        //                         .iter()
+        //                         .map(|fc| match fc {
+        //                             FilterConstraint::ObjectAssociatedWithEvent(ov, ev, q) => {
+        //                                 FilterConstraint::ObjectAssociatedWithEvent(
+        //                                     ObjectVariable(ov.0 + prev_ob_vars),
+        //                                     EventVariable(ev.0 + prev_ev_vars),
+        //                                     q.clone(),
+        //                                 )
+        //                             }
+        //                             FilterConstraint::ObjectAssociatedWithObject(ov1, ov2, q) => {
+        //                                 FilterConstraint::ObjectAssociatedWithObject(
+        //                                     ObjectVariable(ov1.0 + prev_ob_vars),
+        //                                     ObjectVariable(ov2.0 + prev_ob_vars),
+        //                                     q.clone(),
+        //                                 )
+        //                             }
+        //                             FilterConstraint::TimeBetweenEvents(ev1, ev2, t) => {
+        //                                 FilterConstraint::TimeBetweenEvents(
+        //                                     EventVariable(ev1.0 + prev_ev_vars),
+        //                                     EventVariable(ev2.0 + prev_ev_vars),
+        //                                     *t,
+        //                                 )
+        //                             }
+        //                         })
+        //                         .collect(),
+        //                 },
+        //                 cs.iter().map(|i| i + prev_nodes).collect_vec(),
+        //             ),
+        //             _ => todo!("Other box tree nodes are not supported for merging!"),
+        //         })
+        //     }
+        //     for ((n_index1, n_index2), size_constr) in &tr.size_constraints {
+        //         tree.size_constraints
+        //             .insert((n_index1 + prev_nodes, n_index2 + prev_nodes), *size_constr);
+        //     }
+        //     prev_nodes += tr.nodes.len();
+        //     prev_ev_vars += tr.get_ev_vars().len();
+        //     prev_ob_vars += 0; //tr.get_ob_vars().len();
+        // }
+
+        // tree
     }
 }
 
@@ -765,7 +850,7 @@ pub fn auto_discover_or_constraints(
                     discovered_ors
                         .lock()
                         .unwrap()
-                        .push(AutoDiscoveredORConstraint::EfOrCount(
+                        .push(AutoDiscoveredORConstraint(
                             c.constraint.clone(),
                             c2.constraint.clone(),
                         ));
