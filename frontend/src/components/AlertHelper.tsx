@@ -55,11 +55,11 @@ export default function AlertHelper<T>(props: AlertHelperProps<T>) {
       }}
     >
       <AlertDialogTrigger asChild>{props.trigger}</AlertDialogTrigger>
-      <AlertDialogContent className="max-h-full h-fit  flex flex-col justify-between">
+      <AlertDialogContent className="flex flex-col max-h-full justify-between">
         <AlertDialogHeader>
           <AlertDialogTitle>{props.title}</AlertDialogTitle>
         </AlertDialogHeader>
-        <div className="text-sm text-gray-700 max-h-full h-full overflow-auto px-2">
+        <div className="text-sm text-gray-700 max-h-full overflow-auto px-2">
           <props.content data={data} setData={setData} />
         </div>
         <AlertDialogFooter>
