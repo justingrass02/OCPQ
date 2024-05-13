@@ -17,8 +17,8 @@ type AlertHelperProps<T> =
       trigger: React.ReactNode;
       title: React.ReactNode;
       initialData: T;
-      content: React.FC<{ data: T; setData: (data: T) => unknown }>;
-      submitAction: React.ReactNode;
+      content: React.FC<{ data: T; setData: (data: T) => unknown; close: () => unknown }>;
+      submitAction?: React.ReactNode | undefined;
       onCancel?: () => unknown;
       onSubmit: (
         data: T,
@@ -30,8 +30,8 @@ type AlertHelperProps<T> =
       trigger: React.ReactNode;
       title: React.ReactNode;
       initialData: T;
-      content: React.FC<{ data: T; setData: (data: T) => unknown }>;
-      submitAction: React.ReactNode;
+      content: React.FC<{ data: T; setData: (data: T) => unknown; close: () => unknown }>;
+      submitAction?: React.ReactNode | undefined;
       onCancel?: () => unknown;
       onSubmit: (
         data: T,
@@ -60,28 +60,30 @@ export default function AlertHelper<T>(props: AlertHelperProps<T>) {
           <AlertDialogTitle>{props.title}</AlertDialogTitle>
         </AlertDialogHeader>
         <div className="text-sm text-gray-700 max-h-full overflow-auto px-2">
-          <props.content data={data} setData={setData} />
+          <props.content data={data} setData={setData} close={() => setOpen(false)} />
         </div>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            disabled={loading}
-            onClick={(ev) => {
-              if (props.mode === "promise") {
-                ev.preventDefault();
-                setLoading(true);
-                void props.onSubmit(data, ev).finally(() => {
-                  setLoading(false);
-                  setOpen(false);
-                });
-              } else {
-                props.onSubmit(data, ev);
-              }
-            }}
-          >
-            {loading && <Spinner />}
-            {props.submitAction}
-          </AlertDialogAction>
+          {props.submitAction !== undefined && (
+            <AlertDialogAction
+              disabled={loading}
+              onClick={(ev) => {
+                if (props.mode === "promise") {
+                  ev.preventDefault();
+                  setLoading(true);
+                  void props.onSubmit(data, ev).finally(() => {
+                    setLoading(false);
+                    setOpen(false);
+                  });
+                } else {
+                  props.onSubmit(data, ev);
+                }
+              }}
+            >
+              {loading && <Spinner />}
+              {props.submitAction}
+            </AlertDialogAction>
+          )}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
