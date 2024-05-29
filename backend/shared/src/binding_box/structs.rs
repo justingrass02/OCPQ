@@ -162,8 +162,8 @@ pub enum BindingBoxTreeNode {
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum ViolationReason {
-    TooFewMatchingEvents,
-    TooManyMatchingEvents,
+    TooFewMatchingEvents(usize),
+    TooManyMatchingEvents(usize),
     NoChildrenOfORSatisfied,
     LeftChildOfANDUnsatisfied,
     RightChildOfANDUnsatisfied,
@@ -193,13 +193,15 @@ impl BindingBoxTreeNode {
                     .get(&(parent_index, own_index))
                     .cloned()
                     .unwrap_or_default();
-
+                let mut vio = None;
                 if min_size.is_some_and(|min| expanded.len() < min) {
-                    return (vec![], Some(ViolationReason::TooFewMatchingEvents));
+                    vio = Some(ViolationReason::TooFewMatchingEvents(expanded.len()));
+                    // return (vec![], Some(ViolationReason::TooFewMatchingEvents));
                     // return vec![(own_index, parent_binding,Some(ViolationReason::TooFewMatchingEvents))];
                 }
-                if max_size.is_some_and(|max| expanded.len() > max) {
-                    return (vec![], Some(ViolationReason::TooManyMatchingEvents));
+                if vio.is_none() && max_size.is_some_and(|max| expanded.len() > max) {
+                    vio = Some(ViolationReason::TooManyMatchingEvents(expanded.len()));
+                    // return (vec![], Some(ViolationReason::TooManyMatchingEvents));
                     // return vec![(own_index, parent_binding,Some(ViolationReason::TooManyMatchingEvents))];
                 }
 
@@ -226,11 +228,10 @@ impl BindingBoxTreeNode {
                             )
                         },
                     );
-                if child_not_sat {
-                    (ret, Some(ViolationReason::ChildNotSatisfied))
-                } else {
-                    (ret, None)
+                if vio.is_none() && child_not_sat {
+                    vio = Some(ViolationReason::ChildNotSatisfied)
                 }
+                (ret, vio)
             }
             BindingBoxTreeNode::OR(i1, i2) => {
                 let node1 = &tree.nodes[*i1];

@@ -47,13 +47,16 @@ const tauriBackend: BackendProvider = {
       { options },
     );
   },
+  "ocel/graph": async (options) => {
+    return await invoke("ocel_graph", { options });
+  },
 };
 
 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BackendProviderContext.Provider value={tauriBackend}>
-    <Toaster position="bottom-left" />
+      <Toaster position="bottom-left" />
       <MainRouterProvider />
     </BackendProviderContext.Provider>
   </React.StrictMode>,

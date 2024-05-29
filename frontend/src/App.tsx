@@ -8,7 +8,7 @@ import {
 import { createContext, useContext, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 // import { Outlet, useLocation } from "react-router-dom";
-import { PiSealCheckBold } from "react-icons/pi";
+import { PiGraph, PiSealCheckBold } from "react-icons/pi";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import "./App.css";
 import { BackendProviderContext } from "./BackendProviderContext";
@@ -128,6 +128,10 @@ function App() {
             {ocelInfo != null && (
               <>
                 <MenuLink to="/ocel-info">OCEL Info</MenuLink>
+                <MenuLink to="/graph">
+                  <PiGraph className="text-lg mr-1 text-purple-700" />
+                  Graph
+                </MenuLink>
                 <MenuLink
                   to="/constraints"
                   classNames={[
@@ -147,7 +151,7 @@ function App() {
             )}
           </div>
         </div>
-        <div className="px-4 overflow-auto py-4">
+        <div className="px-4 overflow-y-auto overflow-x-hidden py-4">
           {isAtRoot && (
             <h2 className="text-3xl font-semibold mb-4">Load OCEL</h2>
           )}

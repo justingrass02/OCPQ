@@ -7,10 +7,15 @@ use std::{
 };
 
 use ocedeclare_shared::{
-    binding_box::{evaluate_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult}, discovery::{
+    binding_box::{evaluate_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult},
+    discovery::{
         auto_discover_constraints_with_options, AutoDiscoverConstraintsRequest,
         AutoDiscoverConstraintsResponse,
-    }, ocel_qualifiers::qualifiers::{get_qualifiers_for_event_types, QualifiersForEventType}, preprocessing::linked_ocel::{link_ocel_info, IndexLinkedOCEL}, OCELInfo
+    },
+    ocel_graph::{get_ocel_graph, OCELGraph, OCELGraphOptions},
+    ocel_qualifiers::qualifiers::{get_qualifiers_for_event_types, QualifiersForEventType},
+    preprocessing::linked_ocel::{link_ocel_info, IndexLinkedOCEL},
+    OCELInfo,
 };
 use process_mining::{import_ocel_json_from_path, import_ocel_xml_file};
 use tauri::State;
@@ -62,7 +67,7 @@ fn get_object_qualifiers(
 fn check_with_box_tree(
     req: CheckWithBoxTreeRequest,
     state: State<OCELStore>,
-) -> Result<EvaluateBoxTreeResult,String> {
+) -> Result<EvaluateBoxTreeResult, String> {
     match state.lock().unwrap().as_ref() {
         Some(ocel) => Ok(evaluate_box_tree(req.tree, &ocel)),
         None => Err("No OCEL loaded".to_string()),
@@ -80,6 +85,17 @@ fn auto_discover_constraints(
     }
 }
 
+#[tauri::command(async)]
+fn ocel_graph(options: OCELGraphOptions, state: State<OCELStore>) -> Result<OCELGraph, String> {
+    match state.lock().unwrap().as_ref() {
+        Some(ocel) => match get_ocel_graph(&ocel, options) {
+            Some(graph) => Ok(graph),
+            None => Err("Could not construct OCEL Graph".to_string()),
+        },
+        None => Err("No OCEL loaded".to_string()),
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(OCELStore::new(None))
@@ -89,7 +105,8 @@ fn main() {
             get_event_qualifiers,
             get_object_qualifiers,
             check_with_box_tree,
-            auto_discover_constraints
+            auto_discover_constraints,
+            ocel_graph
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

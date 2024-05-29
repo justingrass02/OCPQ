@@ -11,6 +11,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -201,7 +208,14 @@ export default function VisualEditorOuter() {
             "w-full h-full block whitespace-nowrap overflow-hidden text-ellipsis px-2 text-left",
           )}
         >
-          <h4 className="text-sm">
+          <h4
+            className="text-sm"
+            title={
+              constraint.name !== ""
+                ? constraint.name
+                : `Constraint ${index + 1}`
+            }
+          >
             {constraint.name !== ""
               ? constraint.name
               : `Constraint ${index + 1}`}
@@ -410,18 +424,16 @@ export default function VisualEditorOuter() {
                       )}
                     >
                       <div className="flex flex-col w-full h-full relative">
-                        <AlertDialog
+                        <Dialog
                           open={showConstraintSelection}
                           onOpenChange={(o) => {
                             setShowConstraintSelection(o);
                           }}
                         >
-                          <AlertDialogContent className="flex flex-col max-h-full justify-between">
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>
-                                Select Constraint
-                              </AlertDialogTitle>
-                            </AlertDialogHeader>
+                          <DialogContent className="flex flex-col max-h-full justify-between">
+                            <DialogHeader>
+                              <DialogTitle>Select Constraint</DialogTitle>
+                            </DialogHeader>
                             <div className="h-[50vh] w-full">
                               <AutoSizer>
                                 {({ height, width }) => (
@@ -457,11 +469,8 @@ export default function VisualEditorOuter() {
                                 )}
                               </AutoSizer>
                             </div>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                          </DialogContent>
+                        </Dialog>
                         <div
                           className={clsx(
                             "mb-1",

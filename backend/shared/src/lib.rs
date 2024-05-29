@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 pub mod ocel_qualifiers {
     pub mod qualifiers;
 }
+pub mod ocel_graph;
 pub mod binding_box;
 pub mod constraints_2;
 pub mod discovery;
@@ -19,6 +20,8 @@ pub struct OCELInfo {
     pub num_events: usize,
     pub object_types: Vec<OCELType>,
     pub event_types: Vec<OCELType>,
+    pub object_ids: Vec<String>,
+    pub event_ids: Vec<String>,
 }
 
 impl From<&OCEL> for OCELInfo {
@@ -28,6 +31,8 @@ impl From<&OCEL> for OCELInfo {
             num_events: val.events.len(),
             object_types: val.object_types.clone(),
             event_types: val.event_types.clone(),
+            event_ids: val.events.iter().map(|ev| ev.id.clone()).collect(),
+            object_ids: val.objects.iter().map(|ob| ob.id.clone()).collect()
         }
     }
 }

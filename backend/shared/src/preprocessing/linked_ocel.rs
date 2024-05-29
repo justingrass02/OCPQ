@@ -152,6 +152,41 @@ impl Display for ObjectIndex {
     }
 }
 
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
+pub enum ObjectOrEventIndex {
+    Object(ObjectIndex),
+    Event(EventIndex),
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum OCELNode {
+    Event(OCELEvent),
+    Object(OCELObject),
+}
+
+impl OCELNode {
+    pub fn get_id(&self) -> &String {
+        match &self {
+            OCELNode::Event(ev) => &ev.id,
+            OCELNode::Object(ob) => &ob.id,
+        }
+    }
+}
+
+pub enum OCELNodeRef<'a> {
+    Event(&'a OCELEvent),
+    Object(&'a OCELObject),
+}
+impl<'a> OCELNodeRef<'a> {
+    pub fn cloned(self) -> OCELNode {
+        match self {
+            OCELNodeRef::Event(ev) => OCELNode::Event(ev.clone()),
+            OCELNodeRef::Object(ob) => OCELNode::Object(ob.clone()),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct IndexLinkedOCEL {
     pub object_events_map: HashMap<ObjectIndex, Vec<EventIndex>>,
@@ -162,6 +197,9 @@ pub struct IndexLinkedOCEL {
     pub ocel: OCEL,
     pub event_index_map: HashMap<String, EventIndex>,
     pub object_index_map: HashMap<String, ObjectIndex>,
+
+    pub rels: HashMap<ObjectOrEventIndex, Vec<(ObjectIndex, String)>>,
+    pub symmetric_rels: HashMap<ObjectOrEventIndex, HashSet<ObjectOrEventIndex>>,
 }
 
 impl IndexLinkedOCEL {
@@ -186,6 +224,17 @@ impl IndexLinkedOCEL {
 
     pub fn index_of_ev<'a>(&'a self, ev_id: &String) -> Option<&'a EventIndex> {
         self.event_index_map.get(ev_id)
+    }
+
+    pub fn ob_or_ev_by_index<'a>(&'a self, index: ObjectOrEventIndex) -> Option<OCELNodeRef> {
+        match index {
+            ObjectOrEventIndex::Object(ob_index) => {
+                self.ob_by_index(&ob_index).map(|o| OCELNodeRef::Object(o))
+            }
+            ObjectOrEventIndex::Event(ev_index) => {
+                self.ev_by_index(&ev_index).map(|e| OCELNodeRef::Event(e))
+            }
+        }
     }
 }
 
@@ -242,6 +291,37 @@ pub fn link_ocel_info(ocel: OCEL) -> IndexLinkedOCEL {
         .collect();
     let object_events_map = get_object_events_map(&ocel, &object_index_map);
     let object_rels_per_type = get_object_rels_per_type(&ocel, &object_map);
+    let mut rels: HashMap<ObjectOrEventIndex, Vec<(ObjectIndex, String)>> = HashMap::new();
+    let mut symmetric_rels: HashMap<ObjectOrEventIndex, HashSet<ObjectOrEventIndex>> =
+        HashMap::new();
+    for (e_index_usize, e) in ocel.events.iter().enumerate() {
+        let e_index = ObjectOrEventIndex::Event(EventIndex(e_index_usize));
+        for r in e.relationships.iter().flatten() {
+            if let Some(object_index) = object_index_map.get(&r.object_id) {
+                let o2_index = ObjectOrEventIndex::Object(*object_index);
+                symmetric_rels.entry(e_index).or_default().insert(o2_index);
+                symmetric_rels.entry(o2_index).or_default().insert(e_index);
+                rels.entry(e_index)
+                    .or_default()
+                    .push((*object_index, r.qualifier.clone()));
+            }
+        }
+    }
+    for (o_index_usize, o) in ocel.objects.iter().enumerate() {
+        let o_index = ObjectOrEventIndex::Object(ObjectIndex(o_index_usize));
+        for r in o.relationships.iter().flatten() {
+            if let Some(object_index) = object_index_map.get(&r.object_id) {
+                let o2_index = ObjectOrEventIndex::Object(*object_index);
+                symmetric_rels.entry(o_index).or_default().insert(o2_index);
+                symmetric_rels.entry(o2_index).or_default().insert(o_index);
+                rels.entry(o_index)
+                    .or_default()
+                    .push((*object_index, r.qualifier.clone()));
+            }
+        }
+    }
+
+    // let rels = ocel.events.iter().enumerate().flat_map(|(e_index,e)| e.relationships.iter().flatten().map(|r| (ObjectOrEventIndex::Event(EventIndex(e_index)),object_index_map.get())))
     IndexLinkedOCEL {
         events_of_type,
         objects_of_type,
@@ -250,5 +330,7 @@ pub fn link_ocel_info(ocel: OCEL) -> IndexLinkedOCEL {
         ocel,
         event_index_map,
         object_index_map,
+        rels,
+        symmetric_rels,
     }
 }

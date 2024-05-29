@@ -1,15 +1,18 @@
+import { createContext } from "react";
 import type {
   DiscoverConstraintsRequest,
   DiscoverConstraintsResponse,
 } from "./routes/visual-editor/helper/types";
-import type {
-  EventTypeQualifiers,
-  OCELInfo,
-  ObjectTypeQualifiers,
-} from "./types/ocel";
-import { createContext } from "react";
 import type { BindingBoxTree } from "./types/generated/BindingBoxTree";
 import type { EvaluateBoxTreeResult } from "./types/generated/EvaluateBoxTreeResult";
+import type { OCELGraphOptions } from "./types/generated/OCELGraphOptions";
+import type {
+  EventTypeQualifiers,
+  OCELEvent,
+  OCELInfo,
+  OCELObject,
+  ObjectTypeQualifiers
+} from "./types/ocel";
 export type BackendProvider = {
   "ocel/info": () => Promise<OCELInfo>;
   "ocel/upload"?: (file: File) => Promise<OCELInfo>;
@@ -24,6 +27,10 @@ export type BackendProvider = {
   "ocel/discover-constraints": (
     autoDiscoveryOptions: DiscoverConstraintsRequest,
   ) => Promise<DiscoverConstraintsResponse>;
+  "ocel/graph": (options: OCELGraphOptions) => Promise<{
+    nodes: (OCELEvent | OCELObject)[];
+    links: { source: string; target: string; qualifier: string }[];
+  }>;
 };
 
 export async function warnForNoBackendProvider<T>(): Promise<T> {
@@ -39,6 +46,7 @@ export const BackendProviderContext = createContext<BackendProvider>({
   "ocel/event-qualifiers": warnForNoBackendProvider,
   "ocel/object-qualifiers": warnForNoBackendProvider,
   "ocel/discover-constraints": warnForNoBackendProvider,
+  "ocel/graph": warnForNoBackendProvider,
 });
 
 export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
@@ -102,5 +110,18 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
         body: JSON.stringify(autoDiscoveryOptions),
       })
     ).json();
+  },
+  "ocel/graph": async (options) => {
+    const res = await fetch("http://localhost:3000/ocel/graph", {
+      method: "post",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(options),
+    });
+    console.log({ res });
+    if (res.ok) {
+      return await res.json();
+    } else {
+      throw new Error(res.statusText);
+    }
   },
 };

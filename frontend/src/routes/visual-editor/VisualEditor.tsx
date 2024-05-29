@@ -76,6 +76,7 @@ import {
   type EventTypeNodeData,
   type GateNodeData,
 } from "./helper/types";
+import { downloadURL } from "@/lib/download-url";
 function isEditorElementTarget(el: HTMLElement | EventTarget | null) {
   return (
     el === document.body ||
@@ -621,13 +622,10 @@ export default function VisualEditor(props: VisualEditorProps) {
                 canvasWidth: viewPort.clientWidth * scaleFactor,
               })
                 .then((dataURL) => {
-                  const a = document.createElement("a");
-                  a.setAttribute(
-                    "download",
+                  downloadURL(
+                    dataURL,
                     `${props.constraintInfo.name}.${useSVG ? "svg" : "png"}`,
                   );
-                  a.setAttribute("href", dataURL);
-                  a.click();
                 })
                 .finally(() => {
                   button.disabled = false;
@@ -868,7 +866,15 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
         <div className="h-full border px-1 py-1 rounded-sm bg-blue-50 text-lg">
           <div>
             {reason !== null && (
-              <p className="text-orange-600 h-6 block">{reason}</p>
+              <p className="text-orange-600 h-6 block">
+                {typeof reason === "string" && reason}
+                {typeof reason === "object" &&
+                  "TooFewMatchingEvents" in reason &&
+                  `TooFewMatchingEvents (#${reason.TooFewMatchingEvents})`}
+                {typeof reason === "object" &&
+                  "TooManyMatchingEvents" in reason &&
+                  `TooManyMatchingEvents (#${reason.TooManyMatchingEvents})`}
+              </p>
             )}
             <span className="text-emerald-700 font-bold h-6 block">
               Events:
@@ -877,7 +883,19 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
               {Object.entries(binding.eventMap).map(([evVarName, evIndex]) => (
                 <li key={evVarName} className="h-6">
                   <EvVarName eventVar={parseInt(evVarName)} />:{" "}
-                  <span className="w-[16ch] align-top whitespace-nowrap inline-block text-ellipsis overflow-hidden">
+                  <span
+                    className="w-[16ch] align-top whitespace-nowrap inline-block text-ellipsis overflow-hidden"
+                    title={violationResPerNodes.eventIds[evIndex]}
+                    onDoubleClick={(ev) => {
+                      const range = document.createRange();
+                      range.selectNodeContents(ev.currentTarget);
+                      const selection = window.getSelection();
+                      if (selection != null) {
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                      }
+                    }}
+                  >
                     {violationResPerNodes.eventIds[evIndex]}
                   </span>
                 </li>
@@ -888,7 +906,19 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
               {Object.entries(binding.objectMap).map(([obVarName, obIndex]) => (
                 <li key={obVarName} className="h-6">
                   <ObVarName obVar={parseInt(obVarName)} />:{" "}
-                  <span className="w-[16ch] align-top whitespace-nowrap inline-block text-ellipsis overflow-hidden">
+                  <span
+                    className="w-[16ch] align-top whitespace-nowrap inline-block text-ellipsis overflow-hidden"
+                    title={violationResPerNodes.objectIds[obIndex]}
+                    onDoubleClick={(ev) => {
+                      const range = document.createRange();
+                      range.selectNodeContents(ev.currentTarget);
+                      const selection = window.getSelection();
+                      if (selection != null) {
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                      }
+                    }}
+                  >
                     {violationResPerNodes.objectIds[obIndex]}
                   </span>
                 </li>

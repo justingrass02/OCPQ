@@ -5,6 +5,8 @@ export type OCELInfo = {
   num_events: number;
   object_types: OCELType[];
   event_types: OCELType[];
+  object_ids: string[];
+  event_ids: string[];
 };
 export type OCELAttributeValue = string | number | boolean | null;
 export type OCELObjectAttribute = {

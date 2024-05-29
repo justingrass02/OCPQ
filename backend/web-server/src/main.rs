@@ -6,6 +6,7 @@ use axum::{
     Json, Router,
 };
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     env,
@@ -18,13 +19,21 @@ use ocedeclare_shared::{
         auto_discover_constraints_with_options, AutoDiscoverConstraintsRequest,
         AutoDiscoverConstraintsResponse,
     },
+    ocel_graph::{get_ocel_graph, OCELGraph, OCELGraphOptions},
     ocel_qualifiers::qualifiers::{
         get_qualifiers_for_event_types, QualifierAndObjectType, QualifiersForEventType,
     },
-    preprocessing::{linked_ocel::IndexLinkedOCEL, preprocess::link_ocel_info},
+    preprocessing::{
+        linked_ocel::{IndexLinkedOCEL, ObjectIndex, ObjectOrEventIndex},
+        preprocess::link_ocel_info,
+    },
     OCELInfo,
 };
-use process_mining::{event_log::ocel::ocel_struct::OCEL, import_ocel_xml_slice};
+use process_mining::{
+    event_log::ocel::ocel_struct::OCEL,
+    import_ocel_xml_slice,
+    ocel::ocel_struct::{OCELEvent, OCELObject},
+};
 use tower_http::cors::CorsLayer;
 
 use crate::load_ocel::{
@@ -72,6 +81,7 @@ async fn main() {
             "/ocel/object-qualifiers",
             get(get_qualifers_for_object_types),
         )
+        .route("/ocel/graph", post(ocel_graph_req))
         .route("/ocel/check-constraints-box", post(check_with_box_tree_req))
         .route(
             "/ocel/discover-constraints",
@@ -155,6 +165,17 @@ pub async fn get_qualifers_for_object_types<'a>(
         link_ocel_info(&ocel.ocel).object_rels_per_type.clone()
     });
     match qualifier_and_type {
+        Some(x) => (StatusCode::OK, Json(Some(x))),
+        None => (StatusCode::BAD_REQUEST, Json(None)),
+    }
+}
+
+pub async fn ocel_graph_req<'a>(
+    State(state): State<AppState>,
+    Json(options): Json<OCELGraphOptions>,
+) -> (StatusCode, Json<Option<OCELGraph>>) {
+    let graph = with_ocel_from_state(&State(state), |ocel| get_ocel_graph(ocel, options));
+    match graph.flatten() {
         Some(x) => (StatusCode::OK, Json(Some(x))),
         None => (StatusCode::BAD_REQUEST, Json(None)),
     }
