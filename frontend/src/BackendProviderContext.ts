@@ -11,7 +11,7 @@ import type {
   OCELEvent,
   OCELInfo,
   OCELObject,
-  ObjectTypeQualifiers
+  ObjectTypeQualifiers,
 } from "./types/ocel";
 export type BackendProvider = {
   "ocel/info": () => Promise<OCELInfo>;
