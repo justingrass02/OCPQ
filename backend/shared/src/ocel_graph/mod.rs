@@ -50,7 +50,7 @@ pub fn get_ocel_graph(ocel: &IndexLinkedOCEL, options: OCELGraphOptions) -> Opti
     if let Some(root_index) = root_index_opt {
         let mut queue = vec![(root_index, 0)];
         let mut done_indices: Vec<ObjectOrEventIndex> = Vec::new();
-        let mut expanded_arcs: Vec<(ObjectOrEventIndex, ObjectOrEventIndex)> = Vec::new();
+        let mut expanded_arcs: Vec<(ObjectOrEventIndex, ObjectOrEventIndex, String)> = Vec::new();
         done_indices.push(root_index);
         let max_distance = options.max_distance;
         while let Some((index, distance)) = queue.pop() {
@@ -58,8 +58,12 @@ pub fn get_ocel_graph(ocel: &IndexLinkedOCEL, options: OCELGraphOptions) -> Opti
                 if let Some(rels) = ocel.symmetric_rels.get(&index) {
                     // Check for rels_size_ignore_threshold but also continue if at the root node (root node always gets expanded)
                     if root_index == index || rels.len() < options.rels_size_ignore_threshold {
-                        for (r, reversed) in rels {
-                            let arc = if !reversed { (index, *r) } else { (*r, index) };
+                        for (r, reversed, qualifier) in rels {
+                            let arc = if !reversed {
+                                (index, *r, qualifier.clone())
+                            } else {
+                                (*r, index, qualifier.clone())
+                            };
                             if !done_indices.contains(r) {
                                 expanded_arcs.push(arc);
                                 queue.push((*r, distance + 1));
@@ -85,14 +89,14 @@ pub fn get_ocel_graph(ocel: &IndexLinkedOCEL, options: OCELGraphOptions) -> Opti
             .collect();
         let links = expanded_arcs
             .iter()
-            .map(|(from, to)| {
+            .map(|(from, to, qualifier)| {
                 let from = ocel.ob_or_ev_by_index(*from).unwrap().cloned();
                 let to = ocel.ob_or_ev_by_index(*to).unwrap().cloned();
 
                 GraphLink {
                     source: from.get_id().clone(),
                     target: to.get_id().clone(),
-                    qualifier: String::new(),
+                    qualifier: qualifier.clone(),
                 }
             })
             .collect();
