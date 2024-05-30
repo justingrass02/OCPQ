@@ -239,6 +239,18 @@ impl IndexLinkedOCEL {
             }
         }
     }
+    pub fn get_symmetric_rels_ob(
+        &self,
+        index: &ObjectIndex,
+    ) -> Option<&HashSet<(ObjectOrEventIndex, bool, String)>> {
+        self.symmetric_rels.get(&ObjectOrEventIndex::Object(*index))
+    }
+    pub fn get_symmetric_rels_ev(
+        &self,
+        index: &EventIndex,
+    ) -> Option<&HashSet<(ObjectOrEventIndex, bool, String)>> {
+        self.symmetric_rels.get(&ObjectOrEventIndex::Event(*index))
+    }
 }
 
 pub fn link_ocel_info(ocel: OCEL) -> IndexLinkedOCEL {
