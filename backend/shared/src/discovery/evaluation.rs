@@ -23,7 +23,7 @@ pub fn get_count_constraint_fraction(
         .map(|obj_id| {
             let count = get_events_of_type_associated_with_objects(
                 linked_ocel,
-                &c.event_types.iter().collect_vec(),
+                &c.related_types.iter().collect_vec(),
                 &[obj_id],
             )
             .len();

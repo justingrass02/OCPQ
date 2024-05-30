@@ -5,6 +5,7 @@ use std::{
     sync::Mutex,
 };
 
+use graph_discovery::build_frequencies_from_graph;
 use itertools::Itertools;
 use process_mining::OCEL;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
@@ -15,12 +16,16 @@ use crate::{
         structs::{BindingBoxTreeNode, EventVariable, FilterConstraint, ObjectVariable},
         BindingBox, BindingBoxTree,
     },
-    preprocessing::preprocess::{link_ocel_info, LinkedOCEL},
+    preprocessing::{
+        linked_ocel::IndexLinkedOCEL,
+        preprocess::{link_ocel_info, LinkedOCEL},
+    },
 };
 
 use self::evaluation::{get_count_constraint_fraction, get_ef_constraint_fraction};
 
 pub mod evaluation;
+pub mod graph_discovery;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -320,13 +325,20 @@ pub fn auto_discover_eventually_follows(
     ret
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone)]
+pub enum EventOrObject {
+    Event,
+    Object,
+}
+#[derive(Debug, Clone)]
 pub struct SimpleDiscoveredCountConstraints {
     pub min_count: usize,
     pub max_count: usize,
-    pub object_type: String,
-    pub event_types: Vec<String>,
+    pub root_type: String,
+    pub root_is: EventOrObject,
+    // This is the types of items we constraint in their count!
+    pub related_types: Vec<String>,
+    pub related_types_are: EventOrObject,
 }
 // We might want to also return a set of "supporting objects" for each discovered constraints
 // These are the objects for which the count constraint is satisfied
@@ -347,43 +359,82 @@ impl SimpleDiscoveredCountConstraints {
             "{} - {} {} per {}",
             self.min_count,
             self.max_count,
-            self.event_types.join(", "),
-            self.object_type
+            self.related_types.join(", "),
+            self.root_type
         )
     }
 }
 
 impl From<&SimpleDiscoveredCountConstraints> for BindingBoxTree {
     fn from(val: &SimpleDiscoveredCountConstraints) -> Self {
+        let new_ob = match val.root_is {
+            EventOrObject::Event => vec![],
+            EventOrObject::Object => vec![(
+                ObjectVariable(0),
+                vec![val.root_type.clone()].into_iter().collect(),
+            )],
+        };
+        let new_ev = match val.root_is {
+            EventOrObject::Event => vec![(
+                EventVariable(0),
+                vec![val.root_type.clone()].into_iter().collect(),
+            )],
+            EventOrObject::Object => vec![],
+        };
+
         let bbox0 = BindingBoxTreeNode::Box(
             BindingBox {
-                new_event_vars: HashMap::new(),
-                new_object_vars: vec![(
-                    ObjectVariable(0),
-                    vec![val.object_type.clone()].into_iter().collect(),
-                )]
-                .into_iter()
-                .collect(),
+                new_event_vars: new_ev.into_iter().collect(),
+                new_object_vars: new_ob.into_iter().collect(),
                 filter_constraint: vec![],
             },
             vec![1],
         );
+
+        let new_ob1 = match val.related_types_are {
+            EventOrObject::Event => vec![],
+            EventOrObject::Object => {
+                vec![(
+                    ObjectVariable(1),
+                    val.related_types.clone().into_iter().collect(),
+                )]
+            }
+        };
+        let new_ev1 = match val.related_types_are {
+            EventOrObject::Event => {
+                vec![(
+                    EventVariable(1),
+                    val.related_types.clone().into_iter().collect(),
+                )]
+            }
+            EventOrObject::Object => vec![],
+        };
+
         let bbox1 = BindingBoxTreeNode::Box(
             BindingBox {
-                new_event_vars: vec![(
-                    EventVariable(0),
-                    vec![val.event_types.iter().cloned().collect()]
-                        .into_iter()
-                        .collect(),
-                )]
-                .into_iter()
-                .collect(),
-                new_object_vars: HashMap::new(),
-                filter_constraint: vec![FilterConstraint::ObjectAssociatedWithEvent(
-                    ObjectVariable(0),
-                    EventVariable(0),
-                    None,
-                )],
+                new_event_vars: new_ev1.into_iter().collect(),
+                new_object_vars: new_ob1.into_iter().collect(),
+                filter_constraint: vec![match val.root_is {
+                    // Must be event, as there are no E2E
+                    EventOrObject::Event => FilterConstraint::ObjectAssociatedWithEvent(
+                        ObjectVariable(1),
+                        EventVariable(0),
+                        None,
+                    ),
+
+                    EventOrObject::Object => match val.related_types_are {
+                        EventOrObject::Event => FilterConstraint::ObjectAssociatedWithEvent(
+                            ObjectVariable(0),
+                            EventVariable(1),
+                            None,
+                        ),
+                        EventOrObject::Object => FilterConstraint::ObjectAssociatedWithObject(
+                            ObjectVariable(0),
+                            ObjectVariable(1),
+                            None,
+                        ),
+                    },
+                }],
             },
             vec![],
         );
@@ -431,7 +482,7 @@ pub fn auto_discover_count_constraints(
     obj_types_per_ev_type: &HashMap<&String, HashSet<&String>>,
     linked_ocel: &LinkedOCEL,
     object_ids: Option<HashSet<String>>,
-    options: CountConstraintOptions,
+    options: &CountConstraintOptions,
     // Constraint + Supporting objects
 ) -> Vec<CountConstraintInfo> {
     let mut num_evs_per_obj_and_ev_type: HashMap<(String, String), Vec<(f32, String)>> =
@@ -536,8 +587,10 @@ pub fn auto_discover_count_constraints(
         let mut constraint = SimpleDiscoveredCountConstraints {
             min_count: mean.round() as usize,
             max_count: mean.round() as usize,
-            object_type,
-            event_types: vec![event_type],
+            root_type: object_type,
+            root_is: EventOrObject::Object,
+            related_types: vec![event_type],
+            related_types_are: EventOrObject::Event,
         };
 
         while get_count_constraint_fraction(linked_ocel, &constraint, &rel_object_ids, false).0
@@ -564,7 +617,7 @@ pub fn auto_discover_count_constraints(
     ret
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct AutoDiscoveredORConstraint(
     pub EventuallyFollowsConstraints,
     pub SimpleDiscoveredCountConstraints,
@@ -581,7 +634,7 @@ impl AutoDiscoveredORConstraint {
 }
 impl From<&AutoDiscoveredORConstraint> for BindingBoxTree {
     fn from(val: &AutoDiscoveredORConstraint) -> Self {
-        let object_type = val.1.object_type.clone();
+        let object_type = val.1.root_type.clone();
         if val.0.object_types.len() > 1 {
             println!("=== Multiple object types: {:?}", val.0.object_types);
         }
@@ -607,7 +660,7 @@ impl From<&AutoDiscoveredORConstraint> for BindingBoxTree {
             BindingBox {
                 new_event_vars: vec![(
                     EventVariable(0),
-                    val.1.event_types.iter().cloned().collect(),
+                    val.1.related_types.iter().cloned().collect(),
                 )]
                 .into_iter()
                 .collect(),
@@ -830,7 +883,7 @@ pub fn auto_discover_or_constraints(
                 obj_types_per_ev_type,
                 linked_ocel,
                 Some(other_objects_of_type),
-                CountConstraintOptions {
+                &CountConstraintOptions {
                     object_types: c.constraint.object_types.clone(),
                     cover_fraction: 0.8,
                 },
@@ -901,14 +954,14 @@ pub struct AutoDiscoverConstraintsResponse {
 }
 
 pub fn auto_discover_constraints_with_options(
-    ocel: &OCEL,
+    ocel: &IndexLinkedOCEL,
     options: AutoDiscoverConstraintsRequest,
 ) -> AutoDiscoverConstraintsResponse {
-    let linked_ocel = link_ocel_info(ocel);
+    let linked_ocel = link_ocel_info(&ocel.ocel);
     let obj_types_per_ev_type = get_obj_types_per_ev_type(&linked_ocel);
-    let count_constraints = match options.count_constraints {
+    let count_constraints = match &options.count_constraints {
         Some(count_options) => auto_discover_count_constraints(
-            ocel,
+            &ocel.ocel,
             &obj_types_per_ev_type,
             &linked_ocel,
             None,
@@ -924,7 +977,7 @@ pub fn auto_discover_constraints_with_options(
     };
     let or_constraints = match options.or_constraints {
         Some(or_constraint_option) => auto_discover_or_constraints(
-            ocel,
+            &ocel.ocel,
             &linked_ocel,
             &obj_types_per_ev_type,
             or_constraint_option,
@@ -937,6 +990,13 @@ pub fn auto_discover_constraints_with_options(
     for cc in &count_constraints {
         ret.constraints
             .push((cc.constraint.get_constraint_name(), (&cc.constraint).into()))
+    }
+    // TODO: Fully integrate
+    if let Some(count_opts) = &options.count_constraints {
+        for cc in build_frequencies_from_graph(&ocel, count_opts.cover_fraction) {
+            ret.constraints
+                .push((cc.get_constraint_name(), (&cc).into()))
+        }
     }
     for ef in &eventually_follows_constraints {
         ret.constraints

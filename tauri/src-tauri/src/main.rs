@@ -80,7 +80,7 @@ fn auto_discover_constraints(
     state: State<OCELStore>,
 ) -> Result<AutoDiscoverConstraintsResponse, String> {
     match state.lock().unwrap().as_ref() {
-        Some(ocel) => Ok(auto_discover_constraints_with_options(&ocel.ocel, options)),
+        Some(ocel) => Ok(auto_discover_constraints_with_options(&ocel, options)),
         None => Err("No OCEL loaded".to_string()),
     }
 }
