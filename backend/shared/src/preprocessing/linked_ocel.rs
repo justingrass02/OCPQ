@@ -198,8 +198,11 @@ pub struct IndexLinkedOCEL {
     pub event_index_map: HashMap<String, EventIndex>,
     pub object_index_map: HashMap<String, ObjectIndex>,
 
+    // Relations between Objects and Objects/Events; Not symmetric!
+    // String represents relation qualifier
     pub rels: HashMap<ObjectOrEventIndex, Vec<(ObjectIndex, String)>>,
-    pub symmetric_rels: HashMap<ObjectOrEventIndex, HashSet<ObjectOrEventIndex>>,
+    // Symmetric relations: Object/Event Index maps to set of associated Object/Event index; boolean flag is true if the relation is reversed
+    pub symmetric_rels: HashMap<ObjectOrEventIndex, HashSet<(ObjectOrEventIndex, bool)>>,
 }
 
 impl IndexLinkedOCEL {
@@ -226,13 +229,13 @@ impl IndexLinkedOCEL {
         self.event_index_map.get(ev_id)
     }
 
-    pub fn ob_or_ev_by_index<'a>(&'a self, index: ObjectOrEventIndex) -> Option<OCELNodeRef> {
+    pub fn ob_or_ev_by_index(&self, index: ObjectOrEventIndex) -> Option<OCELNodeRef> {
         match index {
             ObjectOrEventIndex::Object(ob_index) => {
-                self.ob_by_index(&ob_index).map(|o| OCELNodeRef::Object(o))
+                self.ob_by_index(&ob_index).map(OCELNodeRef::Object)
             }
             ObjectOrEventIndex::Event(ev_index) => {
-                self.ev_by_index(&ev_index).map(|e| OCELNodeRef::Event(e))
+                self.ev_by_index(&ev_index).map(OCELNodeRef::Event)
             }
         }
     }
@@ -292,15 +295,21 @@ pub fn link_ocel_info(ocel: OCEL) -> IndexLinkedOCEL {
     let object_events_map = get_object_events_map(&ocel, &object_index_map);
     let object_rels_per_type = get_object_rels_per_type(&ocel, &object_map);
     let mut rels: HashMap<ObjectOrEventIndex, Vec<(ObjectIndex, String)>> = HashMap::new();
-    let mut symmetric_rels: HashMap<ObjectOrEventIndex, HashSet<ObjectOrEventIndex>> =
+    let mut symmetric_rels: HashMap<ObjectOrEventIndex, HashSet<(ObjectOrEventIndex, bool)>> =
         HashMap::new();
     for (e_index_usize, e) in ocel.events.iter().enumerate() {
         let e_index = ObjectOrEventIndex::Event(EventIndex(e_index_usize));
         for r in e.relationships.iter().flatten() {
             if let Some(object_index) = object_index_map.get(&r.object_id) {
                 let o2_index = ObjectOrEventIndex::Object(*object_index);
-                symmetric_rels.entry(e_index).or_default().insert(o2_index);
-                symmetric_rels.entry(o2_index).or_default().insert(e_index);
+                symmetric_rels
+                    .entry(e_index)
+                    .or_default()
+                    .insert((o2_index, false));
+                symmetric_rels
+                    .entry(o2_index)
+                    .or_default()
+                    .insert((e_index, true));
                 rels.entry(e_index)
                     .or_default()
                     .push((*object_index, r.qualifier.clone()));
@@ -312,8 +321,14 @@ pub fn link_ocel_info(ocel: OCEL) -> IndexLinkedOCEL {
         for r in o.relationships.iter().flatten() {
             if let Some(object_index) = object_index_map.get(&r.object_id) {
                 let o2_index = ObjectOrEventIndex::Object(*object_index);
-                symmetric_rels.entry(o_index).or_default().insert(o2_index);
-                symmetric_rels.entry(o2_index).or_default().insert(o_index);
+                symmetric_rels
+                    .entry(o_index)
+                    .or_default()
+                    .insert((o2_index, false));
+                symmetric_rels
+                    .entry(o2_index)
+                    .or_default()
+                    .insert((o_index, true));
                 rels.entry(o_index)
                     .or_default()
                     .push((*object_index, r.qualifier.clone()));

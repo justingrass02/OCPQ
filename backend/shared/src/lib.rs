@@ -4,10 +4,10 @@ use serde::{Deserialize, Serialize};
 pub mod ocel_qualifiers {
     pub mod qualifiers;
 }
-pub mod ocel_graph;
 pub mod binding_box;
 pub mod constraints_2;
 pub mod discovery;
+pub mod ocel_graph;
 pub mod preprocessing {
     pub mod linked_ocel;
     pub mod preprocess;
@@ -32,7 +32,7 @@ impl From<&OCEL> for OCELInfo {
             object_types: val.object_types.clone(),
             event_types: val.event_types.clone(),
             event_ids: val.events.iter().map(|ev| ev.id.clone()).collect(),
-            object_ids: val.objects.iter().map(|ob| ob.id.clone()).collect()
+            object_ids: val.objects.iter().map(|ob| ob.id.clone()).collect(),
         }
     }
 }

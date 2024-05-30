@@ -663,7 +663,7 @@ impl From<&AutoDiscoveredORConstraint> for BindingBoxTree {
             vec![],
         );
 
-        let tree = BindingBoxTree {
+        BindingBoxTree {
             nodes: vec![root_node, or_node, count_node, ef_node1, ef_node2],
             size_constraints: vec![
                 ((1, 2), (Some(val.1.min_count), Some(val.1.max_count))),
@@ -671,9 +671,7 @@ impl From<&AutoDiscoveredORConstraint> for BindingBoxTree {
             ]
             .into_iter()
             .collect(),
-        };
-
-        tree
+        }
         // Previous code (might be useful for merging arbitrary trees)
         // let (tree1, tree2): (BindingBoxTree, BindingBoxTree) = match val {
         //     AutoDiscoveredORConstraint::EfOrCount(ef, cc) => {

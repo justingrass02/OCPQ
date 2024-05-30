@@ -35,26 +35,17 @@ pub struct OCELGraphOptions {
     spanning_tree: bool,
 }
 
-pub fn get_ocel_graph<'a>(
-    ocel: &'a IndexLinkedOCEL,
-    options: OCELGraphOptions,
-) -> Option<OCELGraph> {
+pub fn get_ocel_graph(ocel: &IndexLinkedOCEL, options: OCELGraphOptions) -> Option<OCELGraph> {
     let root_index_opt = match options.root_is_object {
-        true => {
-            if let Some(o_index) = ocel.object_index_map.get(&options.root) {
-                Some(ObjectOrEventIndex::Object(*o_index))
-            } else {
-                None
-            }
-        }
+        true => ocel
+            .object_index_map
+            .get(&options.root)
+            .map(|o_index| ObjectOrEventIndex::Object(*o_index)),
 
-        false => {
-            if let Some(e_index) = ocel.event_index_map.get(&options.root) {
-                Some(ObjectOrEventIndex::Event(*e_index))
-            } else {
-                None
-            }
-        }
+        false => ocel
+            .event_index_map
+            .get(&options.root)
+            .map(|e_index| ObjectOrEventIndex::Event(*e_index)),
     };
     if let Some(root_index) = root_index_opt {
         let mut queue = vec![(root_index, 0)];
@@ -62,23 +53,23 @@ pub fn get_ocel_graph<'a>(
         let mut expanded_arcs: Vec<(ObjectOrEventIndex, ObjectOrEventIndex)> = Vec::new();
         done_indices.push(root_index);
         let max_distance = options.max_distance;
-        while !queue.is_empty() {
-            let (index, distance) = queue.pop().unwrap();
+        while let Some((index, distance)) = queue.pop() {
             if distance < max_distance {
                 if let Some(rels) = ocel.symmetric_rels.get(&index) {
-                  // Check for rels_size_ignore_threshold but also continue if at the root node (root node always gets expanded)
-                  if root_index == index || rels.len() < options.rels_size_ignore_threshold {
-                      for r in rels {
-                        if !done_indices.contains(r) {
-                          expanded_arcs.push((index, *r));
-                          queue.push((*r, distance + 1));
-                          done_indices.push(*r);
-                        } else if !options.spanning_tree {
-                          expanded_arcs.push((index, *r));
+                    // Check for rels_size_ignore_threshold but also continue if at the root node (root node always gets expanded)
+                    if root_index == index || rels.len() < options.rels_size_ignore_threshold {
+                        for (r, reversed) in rels {
+                            let arc = if !reversed { (index, *r) } else { (*r, index) };
+                            if !done_indices.contains(r) {
+                                expanded_arcs.push(arc);
+                                queue.push((*r, distance + 1));
+                                done_indices.push(*r);
+                            } else if !options.spanning_tree {
+                                expanded_arcs.push(arc);
+                            }
                         }
-                      }
                     }
-                  }
+                }
             }
         }
         let nodes = done_indices
@@ -107,6 +98,6 @@ pub fn get_ocel_graph<'a>(
             .collect();
         Some(OCELGraph { nodes, links })
     } else {
-        return None;
+        None
     }
 }

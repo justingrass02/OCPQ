@@ -6,7 +6,7 @@ use axum::{
     Json, Router,
 };
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
+
 use std::{
     collections::{HashMap, HashSet},
     env,
@@ -23,17 +23,10 @@ use ocedeclare_shared::{
     ocel_qualifiers::qualifiers::{
         get_qualifiers_for_event_types, QualifierAndObjectType, QualifiersForEventType,
     },
-    preprocessing::{
-        linked_ocel::{IndexLinkedOCEL, ObjectIndex, ObjectOrEventIndex},
-        preprocess::link_ocel_info,
-    },
+    preprocessing::{linked_ocel::IndexLinkedOCEL, preprocess::link_ocel_info},
     OCELInfo,
 };
-use process_mining::{
-    event_log::ocel::ocel_struct::OCEL,
-    import_ocel_xml_slice,
-    ocel::ocel_struct::{OCELEvent, OCELObject},
-};
+use process_mining::{event_log::ocel::ocel_struct::OCEL, import_ocel_xml_slice};
 use tower_http::cors::CorsLayer;
 
 use crate::load_ocel::{
