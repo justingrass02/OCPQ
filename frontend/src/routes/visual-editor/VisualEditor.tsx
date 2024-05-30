@@ -852,11 +852,17 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
         24
     );
   }
-  const [mode, setMode] = useState<"violations" | "situations">("violations");
+  const [mode, setMode] = useState<
+    "violations" | "situations" | "satisfied-situations"
+  >("violations");
   const items =
     mode === "violations"
       ? violationDetails.situations.filter(
           ([_binding, reason]) => reason !== null,
+        )
+      : mode === "satisfied-situations"
+      ? violationDetails.situations.filter(
+          ([_binding, reason]) => reason === null,
         )
       : violationDetails.situations;
   const Row = ({ index, style }: ListChildComponentProps) => {
@@ -950,15 +956,29 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
         >
           <SheetHeader>
             <SheetTitle className="flex items-center justify-between pr-4">
-              {mode === "situations" ? "Situations" : "Violations"}{" "}
+              {mode === "situations"
+                ? "Situations"
+                : mode === "violations"
+                ? "Violations"
+                : "Satisfied Situations"}{" "}
               <Button
                 variant="outline"
-                onClick={() =>
-                  setMode(mode === "violations" ? "situations" : "violations")
-                }
+                onClick={() => {
+                  if (mode === "violations") {
+                    setMode("situations");
+                  } else if (mode === "situations") {
+                    setMode("satisfied-situations");
+                  } else {
+                    setMode("violations");
+                  }
+                }}
               >
                 Show{" "}
-                {mode !== "situations" ? "All Situations" : "Only Violations"}
+                {mode === "violations"
+                  ? "All Situations"
+                  : mode === "situations"
+                  ? "Satisfied Situations"
+                  : "Only Violations"}
               </Button>
             </SheetTitle>
             <SheetDescription>
