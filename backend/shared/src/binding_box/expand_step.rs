@@ -165,44 +165,7 @@ impl BindingBox {
                 BindingStep::Filter(f) => {
                     ret = ret
                         .into_par_iter()
-                        .filter(|b| match f {
-                            Filter::O2E { object, event, qualifier } => {
-                                let ob = b.get_ob(object, ocel).unwrap();
-                                let ev = b.get_ev(event, ocel).unwrap();
-                                ev.relationships.as_ref().is_some_and(|rels| {
-                                    rels.iter().any(|rel| {
-                                        rel.object_id == ob.id
-                                            && if let Some(q) = qualifier {
-                                                &rel.qualifier == q
-                                            } else {
-                                                true
-                                            }
-                                    })
-                                })
-                            }
-                            Filter::O2O { object, other_object , qualifier } => {
-                                let ob1 = b.get_ob(object, ocel).unwrap();
-                                let ob2 = b.get_ob(other_object, ocel).unwrap();
-                                ob1.relationships.as_ref().is_some_and(|rels| {
-                                    rels.iter().any(|rel| {
-                                        rel.object_id == ob2.id
-                                            && if let Some(q) = qualifier {
-                                                &rel.qualifier == q
-                                            } else {
-                                                true
-                                            }
-                                    })
-                                })
-                            }
-                            Filter::TimeBetweenEvents { from_event: ev_var_1, to_event: ev_var_2, min_seconds: min_sec, max_seconds: max_sec } => {
-                                let e1 = b.get_ev(ev_var_1, ocel).unwrap();
-                                let e2 = b.get_ev(ev_var_2, ocel).unwrap();
-                                let duration_diff =
-                                    (e2.time - e1.time).num_milliseconds() as f64 / 1000.0;
-                                !min_sec.is_some_and(|min_sec| duration_diff < min_sec)
-                                    && !max_sec.is_some_and(|max_sec| duration_diff > max_sec)
-                            }
-                        })
+                        .filter(|b| f.check_binding(b, ocel))
                         .collect()
                 }
             }

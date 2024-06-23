@@ -8,4 +8,5 @@ export type ViolationReason =
   | "RightChildOfANDUnsatisfied"
   | "BothChildrenOfANDUnsatisfied"
   | "ChildrenOfNOTSatisfied"
-  | "ChildNotSatisfied";
+  | "ChildNotSatisfied"
+  | { ConstraintNotSatisfied: number };

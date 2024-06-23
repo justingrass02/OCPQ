@@ -310,6 +310,7 @@ export default function FilterChooser({
                   const newBox = { ...box };
                   if(alertState.value !== undefined){
                     const index = alertState.mode === "edit" ? alertState.editIndex : (alertState.type === "filter" ? newBox.filters : alertState.type === "sizeFilter" ? newBox.sizeFilters : newBox.constraints).length;
+                    console.log({newBox,index,alertState},alertState.type)
                     if(alertState.type === "filter"){
                       newBox.filters[index] = alertState.value as Filter;
                     }else if(alertState.type === "sizeFilter"){
@@ -317,10 +318,12 @@ export default function FilterChooser({
                     }else if(alertState.type === "constraint"){
                       if(alertState.value.type === "NumChilds"){
                         newBox.constraints[index] = {type: "SizeFilter", filter: alertState.value}
-                      }else if(["SAT","NOT","AND","OR"].includes(alertState.value.type)){
+                      }else if(["SAT","NOT","AND","OR","Filter","SizeFilter"].includes(alertState.value.type)){
                         newBox.constraints[index] = alertState.value as Constraint;
-                      }else{
+                      }else if(["O2E","O2O","TimeBetweenEvents"].includes(alertState.value.type)){
                         newBox.constraints[index] = {type: "Filter", filter: alertState.value as Filter};
+                      }else{
+                        newBox.constraints[index] = alertState.value as Constraint;
                       }
                     }
                   }

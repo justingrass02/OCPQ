@@ -882,6 +882,9 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                 {typeof reason === "object" &&
                   "TooManyMatchingEvents" in reason &&
                   `TooManyMatchingEvents (#${reason.TooManyMatchingEvents})`}
+                  {typeof reason === "object" &&
+                    "ConstraintNotSatisfied" in reason &&
+                    `ConstraintNotSatisfied (at index ${reason.ConstraintNotSatisfied})`}
               </p>
             )}
             <span className="text-emerald-700 font-bold h-6 block">

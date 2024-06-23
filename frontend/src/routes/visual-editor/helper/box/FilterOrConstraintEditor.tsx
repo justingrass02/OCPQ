@@ -8,7 +8,8 @@ import TimeDurationInput, {
 } from "@/components/TimeDurationInput";
 import { Combobox } from "@/components/ui/combobox";
 import { EvVarName, ObVarName } from "./variable-names";
-import { LuArrowRight, LuLink } from "react-icons/lu";
+import { LuArrowRight, LuLink, LuTrash } from "react-icons/lu";
+import { Button } from "@/components/ui/button";
 
 export default function FilterOrConstraintEditor<
   T extends Filter | SizeFilter | Constraint,
@@ -139,7 +140,7 @@ export default function FilterOrConstraintEditor<
               }
             }}
           />
-           <TimeDurationInput
+          <TimeDurationInput
             durationSeconds={value.max_seconds ?? Infinity}
             onChange={(newVal) => {
               if (isFinite(newVal)) {
@@ -157,7 +158,7 @@ export default function FilterOrConstraintEditor<
       return (
         <>
           <ChildSetSelector
-            availableChildSets={[0, 1, 2, 3]}
+            availableChildSets={[0, 1, 2, 3, 4, 5, 6,7,8,9,10,11,12,13,14]}
             value={value.child_index}
             onChange={(v) => {
               if (v !== undefined) {
@@ -228,7 +229,36 @@ export default function FilterOrConstraintEditor<
     case "NOT":
       return <></>;
     case "OR":
-      return <></>;
+      return (
+        <>
+          {value.child_indices.map((c, i) => (
+            <div key={i} className="flex gap-0.5 mr-2">
+              <ChildSetSelector
+                availableChildSets={[0, 1, 2, 3, 4, 5, 6,7,8,9,10,11,12,13,14]}
+                value={c}
+                onChange={(v) => {
+                  if (v !== undefined) {
+                    value.child_indices[i] = v;
+                    updateValue({ ...value });
+                  }
+                }}
+              />
+            <Button size="icon" variant="outline" onClick={() => {
+              value.child_indices.splice(i,1);
+              updateValue({...value});
+            }}><LuTrash/></Button>
+            </div>
+          ))}
+          <Button
+            onClick={() => {
+              value.child_indices.push(0);
+              updateValue({ ...value });
+            }}
+          >
+            Add
+          </Button>
+        </>
+      );
     case "AND":
       return <></>;
   }
@@ -320,14 +350,14 @@ function ChildSetSelector({
       }))}
       onChange={(val) => {
         const newVar = parseInt(val.split(" --- ")[0]);
-        if (!isNaN(newVar)) {
+        if (isFinite(newVar)) {
           onChange(newVar);
         } else {
           onChange(undefined);
         }
       }}
       name={"Child Set"}
-      value={`${value} --- ${value !== undefined ? "A" + value : ""}`}
+      value={value !== undefined ? `${value} --- A${value}}` : ""}
     />
   );
 }

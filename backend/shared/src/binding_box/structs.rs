@@ -172,6 +172,7 @@ pub enum ViolationReason {
     BothChildrenOfANDUnsatisfied,
     ChildrenOfNOTSatisfied,
     ChildNotSatisfied,
+    ConstraintNotSatisfied(usize),
 }
 
 pub type EvaluationResult = (usize, Binding, Option<ViolationReason>);
@@ -240,17 +241,24 @@ impl BindingBoxTreeNode {
                             child_res.insert(*c, violations);
                             all_res.extend(c_res);
                         }
-                        for constr in &bbox.constraints {
+                        for (constr_index,constr) in bbox.constraints.iter().enumerate() {
                             let viol = match constr {
-                                Constraint::Filter { filter } => todo!(),
+                                Constraint::Filter { filter } => {
+                                    if filter.check_binding(&b, ocel) {
+                                        None
+                                    }else {
+                                        Some(ViolationReason::ConstraintNotSatisfied(constr_index))
+                                    }
+                                },
                                 Constraint::SizeFilter { filter } => match filter {
                                     SizeFilter::NumChilds {
                                         child_index,
                                         min,
                                         max,
                                     } => {
+                                        println!("Children: {:?}; Child Index: {:?} Min: {:?} Max: {:?}", children,child_index, min, max);
                                         if let Some(len) =
-                                            child_res.get(&child_index).map(|r| r.len())
+                                        child_res.get(&child_index).map(|r| r.len())
                                         {
                                             if min.is_some_and(|min| len < min) {
                                                 Some(ViolationReason::TooFewMatchingEvents(len))
@@ -283,7 +291,25 @@ impl BindingBoxTreeNode {
                                     }
                                 }
                                 Constraint::NOT { child_indices } => todo!(),
-                                Constraint::OR { child_indices } => todo!(),
+                                Constraint::OR { child_indices } => {
+                                    println!("Child indices: {:?}, Children: {:?}", child_indices, children);
+                                    let any_sat = child_indices.iter().any(|child_index| {
+                                        if let Some(c_res) = child_res.get(&child_index) {
+                                            if c_res.iter().all(|v| v.is_none()) {
+                                                true
+                                            } else {
+                                                false
+                                            }
+                                        } else {
+                                            false
+                                        }
+                                    });
+                                    if any_sat {
+                                        None
+                                    }else {
+                                        Some(ViolationReason::NoChildrenOfORSatisfied)
+                                    }
+                                },
                                 Constraint::AND { child_indices } => todo!(),
                             };
                             if let Some(vr) = viol {
@@ -447,6 +473,63 @@ pub enum Filter {
     },
 }
 
+impl Filter {
+    pub fn check_binding(&self, b: &Binding, ocel: &IndexLinkedOCEL) -> bool {
+        match self {
+            Filter::O2E {
+                object,
+                event,
+                qualifier,
+            } => {
+                let ob = b.get_ob(object, ocel).unwrap();
+                let ev = b.get_ev(event, ocel).unwrap();
+                ev.relationships.as_ref().is_some_and(
+                    |rels: &Vec<process_mining::ocel::ocel_struct::OCELRelationship>| {
+                        rels.iter().any(|rel| {
+                            rel.object_id == ob.id
+                                && if let Some(q) = qualifier {
+                                    &rel.qualifier == q
+                                } else {
+                                    true
+                                }
+                        })
+                    },
+                )
+            }
+            Filter::O2O {
+                object,
+                other_object,
+                qualifier,
+            } => {
+                let ob1 = b.get_ob(object, ocel).unwrap();
+                let ob2 = b.get_ob(other_object, ocel).unwrap();
+                ob1.relationships.as_ref().is_some_and(|rels| {
+                    rels.iter().any(|rel| {
+                        rel.object_id == ob2.id
+                            && if let Some(q) = qualifier {
+                                &rel.qualifier == q
+                            } else {
+                                true
+                            }
+                    })
+                })
+            }
+            Filter::TimeBetweenEvents {
+                from_event: ev_var_1,
+                to_event: ev_var_2,
+                min_seconds: min_sec,
+                max_seconds: max_sec,
+            } => {
+                let e1 = b.get_ev(ev_var_1, ocel).unwrap();
+                let e2 = b.get_ev(ev_var_2, ocel).unwrap();
+                let duration_diff = (e2.time - e1.time).num_milliseconds() as f64 / 1000.0;
+                !min_sec.is_some_and(|min_sec| duration_diff < min_sec)
+                    && !max_sec.is_some_and(|max_sec| duration_diff > max_sec)
+            }
+        }
+    }
+}
+
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -480,30 +563,24 @@ impl Filter {
                 object,
                 event,
                 qualifier,
-            } => {
-                vec![Variable::Object(*object), Variable::Event(*event)]
-                    .into_iter()
-                    .collect()
-            },
+            } => vec![Variable::Object(*object), Variable::Event(*event)]
+                .into_iter()
+                .collect(),
             Filter::O2O {
                 object,
                 other_object,
                 qualifier,
-            } => {
-                vec![Variable::Object(*object), Variable::Object(*other_object)]
+            } => vec![Variable::Object(*object), Variable::Object(*other_object)]
                 .into_iter()
-                .collect()
-            },
+                .collect(),
             Filter::TimeBetweenEvents {
                 from_event,
                 to_event,
                 min_seconds,
                 max_seconds,
-            } => {
-                vec![Variable::Event(*from_event), Variable::Event(*to_event)]
+            } => vec![Variable::Event(*from_event), Variable::Event(*to_event)]
                 .into_iter()
-                .collect()
-            },
+                .collect(),
             // Filter::ObjectAssociatedWithEvent(ov, ev, _) => {
             // }
             // Filter::ObjectAssociatedWithOtherObject(ov1, ov2, _) => {
