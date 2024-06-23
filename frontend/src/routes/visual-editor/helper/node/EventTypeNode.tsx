@@ -4,7 +4,7 @@ import { memo, useContext } from "react";
 import { TbTrash } from "react-icons/tb";
 import { Handle, Position, type NodeProps } from "reactflow";
 import { VisualEditorContext } from "../VisualEditorContext";
-import FilterConstraintChooser from "../box/FilterConstraintChooser";
+import FilterChooser from "../box/FilterChooser";
 import NewVariableChooser from "../box/NewVariablesChooser";
 import type { EventTypeNodeData } from "../types";
 import MiscNodeConstraints from "./MiscNodeConstraints";
@@ -81,7 +81,12 @@ function EventTypeNode({ data, id, selected }: NodeProps<EventTypeNodeData>) {
           box={data.box}
           updateBox={(box) => onNodeDataChange(id, { box })}
         />
-        <FilterConstraintChooser
+        <FilterChooser type="filter"
+          id={id}
+          box={data.box}
+          updateBox={(box) => onNodeDataChange(id, { box })}
+        />
+        <FilterChooser type="constraint"
           id={id}
           box={data.box}
           updateBox={(box) => onNodeDataChange(id, { box })}

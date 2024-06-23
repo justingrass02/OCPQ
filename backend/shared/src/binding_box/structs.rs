@@ -98,7 +98,9 @@ pub type NewEventVariables = HashMap<EventVariable, HashSet<String>>;
 pub struct BindingBox {
     pub new_event_vars: NewEventVariables,
     pub new_object_vars: NewObjectVariables,
-    pub filter_constraint: Vec<FilterConstraint>,
+    pub filters: Vec<Filter>,
+    pub size_filters: Vec<SizeFilter>,
+    pub constraints: Vec<Constraint>,
 }
 
 #[derive(TS)]
@@ -108,16 +110,16 @@ pub struct BindingBox {
 #[serde(rename_all = "camelCase")]
 pub struct BindingBoxTree {
     pub nodes: Vec<BindingBoxTreeNode>,
-    #[serde_as(as = "Vec<(_, _)>")]
-    #[ts(as = "Vec<((usize, usize), (Option<usize>, Option<usize>))>")]
-    pub size_constraints: HashMap<(usize, usize), (Option<usize>, Option<usize>)>,
+    // #[serde_as(as = "Vec<(_, _)>")]
+    // #[ts(as = "Vec<((usize, usize), (Option<usize>, Option<usize>))>")]
+    // pub size_constraints: HashMap<(usize, usize), (Option<usize>, Option<usize>)>,
 }
 
 impl BindingBoxTree {
     pub fn evaluate(&self, ocel: &IndexLinkedOCEL) -> EvaluationResults {
         if let Some(root) = self.nodes.first() {
             let (mut ret, violation) = root.evaluate(0, 0, Binding::default(), self, ocel);
-            ret.push((0, Binding::default(), violation));
+            // ret.push((0, Binding::default(), violation));
             ret
         } else {
             vec![]
@@ -184,116 +186,237 @@ impl BindingBoxTreeNode {
         parent_binding: Binding,
         tree: &BindingBoxTree,
         ocel: &IndexLinkedOCEL,
-    ) -> (EvaluationResults, Option<ViolationReason>) {
+    ) -> (EvaluationResults, Vec<Option<ViolationReason>>) {
         match self {
             BindingBoxTreeNode::Box(bbox, children) => {
                 let expanded: Vec<Binding> = bbox.expand(vec![parent_binding.clone()], ocel);
-                let (min_size, max_size) = tree
-                    .size_constraints
-                    .get(&(parent_index, own_index))
-                    .cloned()
-                    .unwrap_or_default();
-                let mut vio = None;
-                if min_size.is_some_and(|min| expanded.len() < min) {
-                    vio = Some(ViolationReason::TooFewMatchingEvents(expanded.len()));
-                    // return (vec![], Some(ViolationReason::TooFewMatchingEvents));
-                    // return vec![(own_index, parent_binding,Some(ViolationReason::TooFewMatchingEvents))];
+                enum BindingResult {
+                    FilteredOutBySizeFilter,
+                    Sat(EvaluationResults),
+                    Viol(ViolationReason, EvaluationResults),
                 }
-                if vio.is_none() && max_size.is_some_and(|max| expanded.len() > max) {
-                    vio = Some(ViolationReason::TooManyMatchingEvents(expanded.len()));
-                    // return (vec![], Some(ViolationReason::TooManyMatchingEvents));
-                    // return vec![(own_index, parent_binding,Some(ViolationReason::TooManyMatchingEvents))];
-                }
-
-                let (child_not_sat, ret) = expanded
+                let re: Vec<_> = expanded
                     .into_par_iter()
-                    .flat_map_iter(|b| {
-                        children.iter().map(move |c| {
-                            let (mut c_res, violation) =
-                                tree.nodes[*c].evaluate(*c, own_index, b.clone(), tree, ocel);
-                            c_res.push((*c, b.clone(), violation));
-                            if let Some(_x) = violation {
-                                (true, c_res)
-                            } else {
-                                (false, c_res)
+                    .map(|b| {
+                        let mut passed_size_filter = true;
+                        let mut all_res: EvaluationResults = Vec::new();
+                        let mut child_res: HashMap<usize, Vec<Option<ViolationReason>>> =
+                            HashMap::new();
+                        // let mut child_res = Vec::with_capacity(children.len());
+                        for c in children {
+                            let (mut c_res, violations) =
+                        // Evaluate Child
+                            tree.nodes[*c].evaluate(*c, own_index, b.clone(), tree, ocel);
+                            // Check if size binding count is passes size filters
+                            passed_size_filter =
+                                bbox.size_filters
+                                    .iter()
+                                    .all(|size_filter| match size_filter {
+                                        SizeFilter::NumChilds {
+                                            child_index,
+                                            min,
+                                            max,
+                                        } => {
+                                            // println!("{child_index} {c} Min: {:?} Max: {:?} Len: {}",min,max,violations.len());
+                                            if child_index != c {
+                                                true
+                                            } else {
+                                                if min.is_some_and(|min| violations.len() < min) {
+                                                    false
+                                                } else if max
+                                                    .is_some_and(|max| violations.len() > max)
+                                                {
+                                                    false
+                                                } else {
+                                                    true
+                                                }
+                                            }
+                                        }
+                                    });
+                            if !passed_size_filter {
+                                // println!("Did not pass size filter");
+                                return BindingResult::FilteredOutBySizeFilter;
                             }
-                        })
+                            child_res.insert(*c, violations);
+                            all_res.extend(c_res);
+                        }
+                        for constr in &bbox.constraints {
+                            let viol = match constr {
+                                Constraint::Filter { filter } => todo!(),
+                                Constraint::SizeFilter { filter } => match filter {
+                                    SizeFilter::NumChilds {
+                                        child_index,
+                                        min,
+                                        max,
+                                    } => {
+                                        if let Some(len) =
+                                            child_res.get(&child_index).map(|r| r.len())
+                                        {
+                                            if min.is_some_and(|min| len < min) {
+                                                Some(ViolationReason::TooFewMatchingEvents(len))
+                                            } else if max.is_some_and(|max| len > max) {
+                                                Some(ViolationReason::TooManyMatchingEvents(len))
+                                            } else {
+                                                None
+                                            }
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                },
+                                Constraint::SAT { child_indices } => {
+                                    let violated = child_indices.iter().all(|child_index| {
+                                        if let Some(c_res) = child_res.get(&child_index) {
+                                            if c_res.iter().any(|v| v.is_some()) {
+                                                true
+                                            } else {
+                                                true
+                                            }
+                                        } else {
+                                            false
+                                        }
+                                    });
+                                    if violated {
+                                        Some(ViolationReason::ChildNotSatisfied)
+                                    } else {
+                                        None
+                                    }
+                                }
+                                Constraint::NOT { child_indices } => todo!(),
+                                Constraint::OR { child_indices } => todo!(),
+                                Constraint::AND { child_indices } => todo!(),
+                            };
+                            if let Some(vr) = viol {
+                                all_res.push((own_index, b, Some(vr)));
+                                return BindingResult::Viol(vr, all_res);
+                            }
+                        }
+                        all_res.push((own_index, b, None));
+                        return BindingResult::Sat(all_res);
                     })
+                    .collect();
+
+                let res = re
+                    .into_par_iter()
+                    .fold(
+                        || (EvaluationResults::new(), Vec::new()),
+                        |(mut a, mut b), x| match x {
+                            BindingResult::FilteredOutBySizeFilter => (a, b),
+                            BindingResult::Sat(r) => {
+                                a.extend(r);
+                                b.push(None);
+                                (a, b)
+                            }
+                            BindingResult::Viol(v, r) => {
+                                a.extend(r);
+                                b.push(Some(v));
+                                (a, b)
+                            }
+                        },
+                    )
                     .reduce(
-                        || (false, vec![]),
-                        |(violated1, res1), (violated2, res2)| {
-                            (
-                                violated1 || violated2,
-                                res1.iter().chain(res2.iter()).cloned().collect(),
-                            )
+                        || (EvaluationResults::new(), Vec::new()),
+                        |(mut a, mut b), (x, y)| {
+                            a.extend(x);
+                            b.extend(y);
+                            (a, b)
                         },
                     );
-                if vio.is_none() && child_not_sat {
-                    vio = Some(ViolationReason::ChildNotSatisfied)
-                }
-                (ret, vio)
+
+                res
+
+                // let (passed_size_filter, sat, ret) = expanded
+                //     .into_par_iter()
+                //     .flat_map_iter(|b| {
+                //         let mut passed_size_filter = true;
+                //         children.iter().map(move |c| {
+                //             let (mut c_res, violation) =
+                //                 tree.nodes[*c].evaluate(*c, own_index, b.clone(), tree, ocel);
+                //             c_res.push((*c, b.clone(), violation));
+                //             passed_size_filter = if let Some(_x) = violation {
+                //                 (true, c_res)
+                //             } else {
+                //                 (false, c_res)
+                //             }
+                //         })
+                //     })
+                //     .reduce(
+                //         || (false, vec![]),
+                //         |(violated1, res1), (violated2, res2)| {
+                //             (
+                //                 violated1 || violated2,
+                //                 res1.iter().chain(res2.iter()).cloned().collect(),
+                //             )
+                //         },
+                //     );
+
+                // if vio.is_none() && sat {
+                //     vio = Some(ViolationReason::ChildNotSatisfied)
+                // }
+                // (ret, vio)
             }
-            BindingBoxTreeNode::OR(i1, i2) => {
-                let node1 = &tree.nodes[*i1];
-                let node2 = &tree.nodes[*i2];
+            // BindingBoxTreeNode::OR(i1, i2) => {
+            //     let node1 = &tree.nodes[*i1];
+            //     let node2 = &tree.nodes[*i2];
 
-                let mut ret = vec![];
+            //     let mut ret = vec![];
 
-                let (res_1, violation_1) =
-                    node1.evaluate(*i1, own_index, parent_binding.clone(), tree, ocel);
+            //     let (res_1, violation_1) =
+            //         node1.evaluate(*i1, own_index, parent_binding.clone(), tree, ocel);
 
-                ret.extend(res_1);
-                ret.push((*i1, parent_binding.clone(), violation_1));
+            //     ret.extend(res_1);
+            //     ret.push((*i1, parent_binding.clone(), violation_1));
 
-                let (res_2, violation_2) =
-                    node2.evaluate(*i2, own_index, parent_binding.clone(), tree, ocel);
+            //     let (res_2, violation_2) =
+            //         node2.evaluate(*i2, own_index, parent_binding.clone(), tree, ocel);
 
-                ret.extend(res_2);
-                ret.push((*i2, parent_binding.clone(), violation_2));
+            //     ret.extend(res_2);
+            //     ret.push((*i2, parent_binding.clone(), violation_2));
 
-                if violation_1.is_some() && violation_2.is_some() {
-                    return (ret, Some(ViolationReason::NoChildrenOfORSatisfied));
-                }
-                (ret, None)
-            }
-            BindingBoxTreeNode::AND(i1, i2) => {
-                let node1 = &tree.nodes[*i1];
-                let node2 = &tree.nodes[*i2];
+            //     if violation_1.is_some() && violation_2.is_some() {
+            //         return (ret, Some(ViolationReason::NoChildrenOfORSatisfied));
+            //     }
+            //     (ret, None)
+            // }
+            // BindingBoxTreeNode::AND(i1, i2) => {
+            //     let node1 = &tree.nodes[*i1];
+            //     let node2 = &tree.nodes[*i2];
 
-                let mut ret = vec![];
+            //     let mut ret = vec![];
 
-                let (res_1, violation_1) =
-                    node1.evaluate(*i1, own_index, parent_binding.clone(), tree, ocel);
+            //     let (res_1, violation_1) =
+            //         node1.evaluate(*i1, own_index, parent_binding.clone(), tree, ocel);
 
-                ret.push((*i1, parent_binding.clone(), violation_1));
-                ret.extend(res_1);
-                let (res_2, violation_2) =
-                    node2.evaluate(*i2, own_index, parent_binding.clone(), tree, ocel);
-                ret.push((*i2, parent_binding.clone(), violation_2));
-                ret.extend(res_2);
+            //     ret.push((*i1, parent_binding.clone(), violation_1));
+            //     ret.extend(res_1);
+            //     let (res_2, violation_2) =
+            //         node2.evaluate(*i2, own_index, parent_binding.clone(), tree, ocel);
+            //     ret.push((*i2, parent_binding.clone(), violation_2));
+            //     ret.extend(res_2);
 
-                if violation_1.is_some() {
-                    return (ret, Some(ViolationReason::LeftChildOfANDUnsatisfied));
-                } else if violation_2.is_some() {
-                    return (ret, Some(ViolationReason::RightChildOfANDUnsatisfied));
-                }
-                (ret, None)
-            }
-            BindingBoxTreeNode::NOT(i) => {
-                let mut ret = vec![];
-                let node = &tree.nodes[*i];
+            //     if violation_1.is_some() {
+            //         return (ret, Some(ViolationReason::LeftChildOfANDUnsatisfied));
+            //     } else if violation_2.is_some() {
+            //         return (ret, Some(ViolationReason::RightChildOfANDUnsatisfied));
+            //     }
+            //     (ret, None)
+            // }
+            // BindingBoxTreeNode::NOT(i) => {
+            //     let mut ret = vec![];
+            //     let node = &tree.nodes[*i];
 
-                let (res_c, violation_c) =
-                    node.evaluate(*i, own_index, parent_binding.clone(), tree, ocel);
-                ret.extend(res_c);
-                ret.push((*i, parent_binding.clone(), violation_c));
-                if violation_c.is_some() {
-                    // NOT satisfied
-                    (ret, None)
-                } else {
-                    (ret, Some(ViolationReason::ChildrenOfNOTSatisfied))
-                }
-            }
+            //     let (res_c, violation_c) =
+            //         node.evaluate(*i, own_index, parent_binding.clone(), tree, ocel);
+            //     ret.extend(res_c);
+            //     ret.push((*i, parent_binding.clone(), violation_c));
+            //     if violation_c.is_some() {
+            //         // NOT satisfied
+            //         (ret, None)
+            //     } else {
+            //         (ret, Some(ViolationReason::ChildrenOfNOTSatisfied))
+            //     }
+            // }
+            _ => todo!(),
         }
     }
 }
@@ -301,33 +424,98 @@ impl BindingBoxTreeNode {
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum FilterConstraint {
+#[serde(tag = "type")]
+pub enum Filter {
     /// Object is associated with event (optionally through a qualifier)
-    ObjectAssociatedWithEvent(ObjectVariable, EventVariable, Qualifier),
+    O2E {
+        object: ObjectVariable,
+        event: EventVariable,
+        qualifier: Qualifier,
+    },
     /// Object1 is associated with object2 (optionally through a qualifier)
-    ObjectAssociatedWithObject(ObjectVariable, ObjectVariable, Qualifier),
+    O2O {
+        object: ObjectVariable,
+        other_object: ObjectVariable,
+        qualifier: Qualifier,
+    },
     /// Time duration betweeen event1 and event2 is in the specified interval (min,max) (given in Some(seconds); where None represents no restriction)
-    TimeBetweenEvents(EventVariable, EventVariable, (Option<f64>, Option<f64>)),
+    TimeBetweenEvents {
+        from_event: EventVariable,
+        to_event: EventVariable,
+        min_seconds: Option<f64>,
+        max_seconds: Option<f64>,
+    },
 }
 
-impl FilterConstraint {
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum SizeFilter {
+    // The nth child should be between (min,max) interval, where None represent no bound
+    NumChilds {
+        child_index: usize,
+        min: Option<usize>,
+        max: Option<usize>,
+    },
+}
+
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum Constraint {
+    Filter { filter: Filter },
+    SizeFilter { filter: SizeFilter },
+    SAT { child_indices: Vec<usize> },
+    NOT { child_indices: Vec<usize> },
+    OR { child_indices: Vec<usize> },
+    AND { child_indices: Vec<usize> },
+}
+
+impl Filter {
     pub fn get_involved_variables(&self) -> HashSet<Variable> {
         match self {
-            FilterConstraint::ObjectAssociatedWithEvent(ov, ev, _) => {
-                vec![Variable::Object(*ov), Variable::Event(*ev)]
+            Filter::O2E {
+                object,
+                event,
+                qualifier,
+            } => {
+                vec![Variable::Object(*object), Variable::Event(*event)]
                     .into_iter()
                     .collect()
-            }
-            FilterConstraint::ObjectAssociatedWithObject(ov1, ov2, _) => {
-                vec![Variable::Object(*ov1), Variable::Object(*ov2)]
-                    .into_iter()
-                    .collect()
-            }
-            FilterConstraint::TimeBetweenEvents(ev1, ev2, _) => {
-                vec![Variable::Event(*ev1), Variable::Event(*ev2)]
-                    .into_iter()
-                    .collect()
-            }
+            },
+            Filter::O2O {
+                object,
+                other_object,
+                qualifier,
+            } => {
+                vec![Variable::Object(*object), Variable::Object(*other_object)]
+                .into_iter()
+                .collect()
+            },
+            Filter::TimeBetweenEvents {
+                from_event,
+                to_event,
+                min_seconds,
+                max_seconds,
+            } => {
+                vec![Variable::Event(*from_event), Variable::Event(*to_event)]
+                .into_iter()
+                .collect()
+            },
+            // Filter::ObjectAssociatedWithEvent(ov, ev, _) => {
+            // }
+            // Filter::ObjectAssociatedWithOtherObject(ov1, ov2, _) => {
+            //     vec![Variable::Object(*ov1), Variable::Object(*ov2)]
+            //         .into_iter()
+            //         .collect()
+            // }
+            // Filter::TimeBetweenEvents(ev1, ev2, _) => {
+            //     vec![Variable::Event(*ev1), Variable::Event(*ev2)]
+            //         .into_iter()
+            //         .collect()
+            // }
         }
     }
 }
@@ -345,7 +533,7 @@ pub enum BindingStep {
     BindObFromEv(ObjectVariable, EventVariable, Qualifier),
     BindObFromOb(ObjectVariable, ObjectVariable, Qualifier),
     BindEvFromOb(EventVariable, ObjectVariable, Qualifier),
-    Filter(FilterConstraint),
+    Filter(Filter),
 }
 
 //

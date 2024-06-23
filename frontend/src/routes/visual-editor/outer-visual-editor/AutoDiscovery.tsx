@@ -65,16 +65,16 @@ export default function AutoDiscoveryButton({
         {
           countConstraints: {
             coverFraction: 0.9,
-            objectTypes: ocelInfo.object_types.map((ot) => ot.name),
+            objectTypes: [],
             enabled: true,
           },
           eventuallyFollowsConstraints: {
-            objectTypes: ocelInfo.object_types.map((ot) => ot.name),
+            objectTypes: [],
             coverFraction: 0.9,
             enabled: true,
           },
           orConstraints: {
-            objectTypes: ocelInfo.object_types.map((ot) => ot.name),
+            objectTypes: [],
             enabled: true,
           },
         } satisfies DiscoverConstraintsRequestWrapper as DiscoverConstraintsRequestWrapper

@@ -4,7 +4,7 @@ use crate::preprocessing::linked_ocel::{
     get_events_of_type_associated_with_objects, IndexLinkedOCEL,
 };
 
-use super::structs::{Binding, BindingBox, BindingStep, FilterConstraint};
+use super::structs::{Binding, BindingBox, BindingStep, Filter};
 
 impl BindingBox {
     pub fn expand_empty(&self, ocel: &IndexLinkedOCEL) -> Vec<Binding> {
@@ -166,13 +166,9 @@ impl BindingBox {
                     ret = ret
                         .into_par_iter()
                         .filter(|b| match f {
-                            FilterConstraint::ObjectAssociatedWithEvent(
-                                obj_var,
-                                ev_var,
-                                qualifier,
-                            ) => {
-                                let ob = b.get_ob(obj_var, ocel).unwrap();
-                                let ev = b.get_ev(ev_var, ocel).unwrap();
+                            Filter::O2E { object, event, qualifier } => {
+                                let ob = b.get_ob(object, ocel).unwrap();
+                                let ev = b.get_ev(event, ocel).unwrap();
                                 ev.relationships.as_ref().is_some_and(|rels| {
                                     rels.iter().any(|rel| {
                                         rel.object_id == ob.id
@@ -184,13 +180,9 @@ impl BindingBox {
                                     })
                                 })
                             }
-                            FilterConstraint::ObjectAssociatedWithObject(
-                                obj_var_1,
-                                obj_var_2,
-                                qualifier,
-                            ) => {
-                                let ob1 = b.get_ob(obj_var_1, ocel).unwrap();
-                                let ob2 = b.get_ob(obj_var_2, ocel).unwrap();
+                            Filter::O2O { object, other_object , qualifier } => {
+                                let ob1 = b.get_ob(object, ocel).unwrap();
+                                let ob2 = b.get_ob(other_object, ocel).unwrap();
                                 ob1.relationships.as_ref().is_some_and(|rels| {
                                     rels.iter().any(|rel| {
                                         rel.object_id == ob2.id
@@ -202,11 +194,7 @@ impl BindingBox {
                                     })
                                 })
                             }
-                            FilterConstraint::TimeBetweenEvents(
-                                ev_var_1,
-                                ev_var_2,
-                                (min_sec, max_sec),
-                            ) => {
+                            Filter::TimeBetweenEvents { from_event: ev_var_1, to_event: ev_var_2, min_seconds: min_sec, max_seconds: max_sec } => {
                                 let e1 = b.get_ev(ev_var_1, ocel).unwrap();
                                 let e2 = b.get_ev(ev_var_2, ocel).unwrap();
                                 let duration_diff =

@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     binding_box::{
-        structs::{BindingBoxTreeNode, EventVariable, FilterConstraint, ObjectVariable},
+        structs::{BindingBoxTreeNode, EventVariable, Filter, ObjectVariable},
         BindingBox, BindingBoxTree,
     },
     preprocessing::{
@@ -69,11 +69,13 @@ impl From<&EventuallyFollowsConstraints> for BindingBoxTree {
                 )]
                 .into_iter()
                 .collect(),
-                filter_constraint: vec![FilterConstraint::ObjectAssociatedWithEvent(
-                    ObjectVariable(0),
-                    EventVariable(0),
-                    None,
-                )],
+                filters: vec![Filter::O2E {
+                    object: ObjectVariable(0),
+                    event: EventVariable(0),
+                    qualifier: None,
+                }],
+                size_filters: vec![],
+                constraints: vec![],
             },
             vec![1],
         );
@@ -86,24 +88,27 @@ impl From<&EventuallyFollowsConstraints> for BindingBoxTree {
                 .into_iter()
                 .collect(),
                 new_object_vars: HashMap::new(),
-                filter_constraint: vec![
-                    FilterConstraint::ObjectAssociatedWithEvent(
-                        ObjectVariable(0),
-                        EventVariable(1),
-                        None,
-                    ),
-                    FilterConstraint::TimeBetweenEvents(
-                        EventVariable(0),
-                        EventVariable(1),
-                        (Some(val.min_seconds), Some(val.max_seconds)),
-                    ),
+                filters: vec![
+                    Filter::O2E {
+                        object: ObjectVariable(0),
+                        event: EventVariable(1),
+                        qualifier: None,
+                    },
+                    Filter::TimeBetweenEvents {
+                        from_event: EventVariable(0),
+                        to_event: EventVariable(1),
+                        min_seconds: Some(val.min_seconds),
+                        max_seconds: Some(val.max_seconds),
+                    },
                 ],
+                size_filters: vec![],
+                constraints: vec![],
             },
             vec![],
         );
         BindingBoxTree {
             nodes: vec![bbox0, bbox1],
-            size_constraints: vec![((0, 1), (Some(1), None))].into_iter().collect(),
+            // size_constraints: vec![((0, 1), (Some(1), None))].into_iter().collect(),
         }
     }
 }
@@ -386,7 +391,9 @@ impl From<&SimpleDiscoveredCountConstraints> for BindingBoxTree {
             BindingBox {
                 new_event_vars: new_ev.into_iter().collect(),
                 new_object_vars: new_ob.into_iter().collect(),
-                filter_constraint: vec![],
+                filters: vec![],
+                size_filters: vec![],
+                constraints: vec![],
             },
             vec![1],
         );
@@ -414,35 +421,29 @@ impl From<&SimpleDiscoveredCountConstraints> for BindingBoxTree {
             BindingBox {
                 new_event_vars: new_ev1.into_iter().collect(),
                 new_object_vars: new_ob1.into_iter().collect(),
-                filter_constraint: vec![match val.root_is {
+                filters: vec![match val.root_is {
                     // Must be event, as there are no E2E
-                    EventOrObject::Event => FilterConstraint::ObjectAssociatedWithEvent(
-                        ObjectVariable(1),
-                        EventVariable(0),
-                        None,
-                    ),
+                    EventOrObject::Event => Filter::O2E{ object: ObjectVariable(1), event: EventVariable(0), qualifier: None},
 
                     EventOrObject::Object => match val.related_types_are {
-                        EventOrObject::Event => FilterConstraint::ObjectAssociatedWithEvent(
-                            ObjectVariable(0),
-                            EventVariable(1),
-                            None,
-                        ),
-                        EventOrObject::Object => FilterConstraint::ObjectAssociatedWithObject(
-                            ObjectVariable(0),
-                            ObjectVariable(1),
-                            None,
-                        ),
+                        EventOrObject::Event => {
+                            Filter::O2E { object: ObjectVariable(0), event: EventVariable(1), qualifier: None }
+                        }
+                        EventOrObject::Object => {
+                            Filter::O2O { object: ObjectVariable(0), other_object: ObjectVariable(1), qualifier: None }
+                        }
                     },
                 }],
+                size_filters: vec![],
+                constraints: vec![],
             },
             vec![],
         );
         BindingBoxTree {
             nodes: vec![bbox0, bbox1],
-            size_constraints: vec![((0, 1), (Some(val.min_count), Some(val.max_count)))]
-                .into_iter()
-                .collect(),
+            // size_constraints: vec![((0, 1), (Some(val.min_count), Some(val.max_count)))]
+            //     .into_iter()
+            //     .collect(),
         }
     }
 }
@@ -651,7 +652,9 @@ impl From<&AutoDiscoveredORConstraint> for BindingBoxTree {
                     .enumerate()
                     .map(|(i, ot)| (ObjectVariable(i), vec![ot.clone()].into_iter().collect()))
                     .collect(),
-                filter_constraint: Vec::default(),
+                filters: Vec::default(),
+                size_filters: vec![],
+                constraints: vec![],
             },
             vec![1],
         );
@@ -665,11 +668,11 @@ impl From<&AutoDiscoveredORConstraint> for BindingBoxTree {
                 .into_iter()
                 .collect(),
                 new_object_vars: HashMap::default(),
-                filter_constraint: vec![FilterConstraint::ObjectAssociatedWithEvent(
-                    ObjectVariable(0),
-                    EventVariable(0),
-                    None,
-                )],
+                filters: vec![
+                    Filter::O2E { object: ObjectVariable(0), event: EventVariable(0), qualifier: None }
+                    ],
+                size_filters: vec![],
+                constraints: vec![],
             },
             vec![],
         );
@@ -682,11 +685,11 @@ impl From<&AutoDiscoveredORConstraint> for BindingBoxTree {
                 .into_iter()
                 .collect(),
                 new_object_vars: HashMap::default(),
-                filter_constraint: vec![FilterConstraint::ObjectAssociatedWithEvent(
-                    ObjectVariable(0),
-                    EventVariable(1),
-                    None,
-                )],
+                filters: vec![
+                Filter::O2E { object: ObjectVariable(0), event: EventVariable(1), qualifier: None }
+                ],
+                size_filters: vec![],
+                constraints: vec![],
             },
             vec![4],
         );
@@ -700,30 +703,25 @@ impl From<&AutoDiscoveredORConstraint> for BindingBoxTree {
                 .into_iter()
                 .collect(),
                 new_object_vars: HashMap::default(),
-                filter_constraint: vec![
-                    FilterConstraint::ObjectAssociatedWithEvent(
-                        ObjectVariable(0),
-                        EventVariable(2),
-                        None,
-                    ),
-                    FilterConstraint::TimeBetweenEvents(
-                        EventVariable(1),
-                        EventVariable(2),
-                        (Some(val.0.min_seconds), Some(val.0.max_seconds)),
-                    ),
+                filters: vec![
+
+                Filter::O2E { object: ObjectVariable(0), event: EventVariable(2), qualifier: None },
+                    Filter::TimeBetweenEvents { from_event: EventVariable(1), to_event: EventVariable(2), min_seconds: Some(val.0.min_seconds), max_seconds: Some(val.0.max_seconds) }
                 ],
+                size_filters: vec![],
+                constraints: vec![],
             },
             vec![],
         );
 
         BindingBoxTree {
             nodes: vec![root_node, or_node, count_node, ef_node1, ef_node2],
-            size_constraints: vec![
-                ((1, 2), (Some(val.1.min_count), Some(val.1.max_count))),
-                ((3, 4), (Some(1), None)),
-            ]
-            .into_iter()
-            .collect(),
+            // size_constraints: vec![
+            //     ((1, 2), (Some(val.1.min_count), Some(val.1.max_count))),
+            //     ((3, 4), (Some(1), None)),
+            // ]
+            // .into_iter()
+            // .collect(),
         }
         // Previous code (might be useful for merging arbitrary trees)
         // let (tree1, tree2): (BindingBoxTree, BindingBoxTree) = match val {
@@ -993,7 +991,9 @@ pub fn auto_discover_constraints_with_options(
     }
     // TODO: Fully integrate
     if let Some(count_opts) = &options.count_constraints {
-        for cc in build_frequencies_from_graph(&ocel, count_opts.cover_fraction) {
+        for cc in
+            build_frequencies_from_graph(&ocel, count_opts.cover_fraction, &count_opts.object_types)
+        {
             ret.constraints
                 .push((cc.get_constraint_name(), (&cc).into()))
         }

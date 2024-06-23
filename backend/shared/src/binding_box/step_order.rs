@@ -5,7 +5,7 @@ use std::{
 
 use itertools::Itertools;
 
-use super::structs::{BindingBox, BindingStep, FilterConstraint, Qualifier, Variable};
+use super::structs::{BindingBox, BindingStep, Filter, Qualifier, Variable};
 
 impl BindingStep {
     /// Get a binding order from a binding box
@@ -44,36 +44,44 @@ impl BindingStep {
         }
 
         // First count how many other variables depend on a variable (gather them in a set)
-        for (i, f) in bbox.filter_constraint.iter().enumerate() {
+        for (i, f) in bbox.filters.iter().enumerate() {
             match f {
-                FilterConstraint::ObjectAssociatedWithEvent(ob_var, ev_var, qualifier) => {
+                Filter::O2E {
+                    object,
+                    event,
+                    qualifier,
+                } => {
                     var_can_bind
-                        .entry(Variable::Object(*ob_var))
+                        .entry(Variable::Object(*object))
                         .or_default()
-                        .insert(Variable::Event(*ev_var));
+                        .insert(Variable::Event(*event));
                     var_can_bind_with_qualifier
-                        .entry(Variable::Object(*ob_var))
+                        .entry(Variable::Object(*object))
                         .or_default()
-                        .insert((Variable::Event(*ev_var), qualifier.clone(), i));
+                        .insert((Variable::Event(*event), qualifier.clone(), i));
 
                     var_can_bind
-                        .entry(Variable::Event(*ev_var))
+                        .entry(Variable::Event(*event))
                         .or_default()
-                        .insert(Variable::Object(*ob_var));
+                        .insert(Variable::Object(*object));
                     var_can_bind_with_qualifier
-                        .entry(Variable::Event(*ev_var))
+                        .entry(Variable::Event(*event))
                         .or_default()
-                        .insert((Variable::Object(*ob_var), qualifier.clone(), i));
+                        .insert((Variable::Object(*object), qualifier.clone(), i));
                 }
-                FilterConstraint::ObjectAssociatedWithObject(ob_var_1, ob_var_2, qualifier) => {
+                Filter::O2O {
+                    object,
+                    other_object,
+                    qualifier,
+                } => {
                     var_can_bind
-                        .entry(Variable::Object(*ob_var_1))
+                        .entry(Variable::Object(*object))
                         .or_default()
-                        .insert(Variable::Object(*ob_var_2));
+                        .insert(Variable::Object(*other_object));
                     var_can_bind_with_qualifier
-                        .entry(Variable::Object(*ob_var_1))
+                        .entry(Variable::Object(*object))
                         .or_default()
-                        .insert((Variable::Object(*ob_var_2), qualifier.clone(), i));
+                        .insert((Variable::Object(*other_object), qualifier.clone(), i));
                 }
                 _ => {}
             }
@@ -86,7 +94,7 @@ impl BindingStep {
             var_requiring_bindings: &mut HashSet<Variable>,
             ret: &mut Vec<BindingStep>,
         ) {
-            bbox.filter_constraint
+            bbox.filters
                 .iter()
                 .enumerate()
                 .filter(|(index, filter_constraint)| {
@@ -182,22 +190,18 @@ impl BindingStep {
                             // Try to get a time filter by looking for filter constraints which impose a restriction in relation to an already bound event variable
                             // Also, if successfull, emit the underlying time filter from the list (as it is already covered)
                             let time_filter = bbox
-                                .filter_constraint
+                                .filters
                                 .iter()
                                 .enumerate()
                                 .filter_map(|(index, c)| match c {
-                                    FilterConstraint::TimeBetweenEvents(
-                                        ev_var_0,
-                                        ev_var_1,
-                                        time,
-                                    ) => {
+                                    Filter::TimeBetweenEvents { from_event: ev_var_0, to_event: ev_var_1, min_seconds, max_seconds } => {
                                         if ev_var_1 == &ev_var
                                             && !var_requiring_bindings
                                                 .contains(&Variable::Event(*ev_var_0))
                                         {
                                             // ...also mark the time filter as already incoporated (it holds automatically, if the incoporated into the event binding step)
                                             filter_indices_incoporated.insert(index);
-                                            return Some((*ev_var_0, *time));
+                                            return Some((*ev_var_0, (min_seconds.clone(),max_seconds.clone())));
                                         } else if ev_var_0 == &ev_var
                                             && !var_requiring_bindings
                                                 .contains(&Variable::Event(*ev_var_1))
@@ -208,8 +212,8 @@ impl BindingStep {
                                             // But we can invert the time constraint to get a valid time filter for ev_var_0
                                             return Some((
                                                 *ev_var_1,
-                                                (time.1.map(|s| -s), time.0.map(|s| -s)),
-                                            ));
+                                                (max_seconds.map(|s| -s), min_seconds.map(|s| -s))),
+                                            );
                                         }
                                         None
                                     }
@@ -265,7 +269,7 @@ impl BindingStep {
             );
         }
         ret.extend(
-            bbox.filter_constraint
+            bbox.filters
                 .iter()
                 .enumerate()
                 .filter(|(i, _)| !filter_indices_incoporated.contains(i))

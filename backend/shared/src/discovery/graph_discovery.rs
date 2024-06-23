@@ -21,11 +21,12 @@ pub enum RefType {
 }
 pub fn build_frequencies_from_graph(
     ocel: &IndexLinkedOCEL,
-    coverage: f32
+    coverage: f32,
+    object_types: &[String]
 ) -> Vec<SimpleDiscoveredCountConstraints> {
     let mut ret = Vec::new();
-    for ot in &ocel.ocel.object_types {
-        if let Some(o_indices) = ocel.objects_of_type.get(&ot.name) {
+    for ot in object_types {
+        if let Some(o_indices) = ocel.objects_of_type.get(ot) {
             let mut total_map: HashMap<_, Vec<usize>> = HashMap::new();
             for o_index in o_indices {
                 let mut map: HashMap<_, usize> = ocel
@@ -60,7 +61,7 @@ pub fn build_frequencies_from_graph(
                     total_map.entry(k).or_default().push(val);
                 }
             }
-            println!("\n=== {} ===", ot.name);
+            println!("\n=== {} ===", ot);
             total_map
                 .iter()
                 .for_each(|((ref_type, ocel_type), counts)| {
@@ -84,9 +85,9 @@ pub fn build_frequencies_from_graph(
                                     // For that, we need to modify SimpleDiscoveredCountConstraints further
                                     ret.push(SimpleDiscoveredCountConstraints {
                                         min_count: min,
-                                        max_count: max, root_type: if *ref_type == RefType::ObjectReversed { ocel_type.clone() } else {ot.name.clone()} ,
+                                        max_count: max, root_type: if *ref_type == RefType::ObjectReversed { ocel_type.clone() } else {ot.clone()} ,
                                         root_is: crate::discovery::EventOrObject::Object,
-                                        related_types: vec![if *ref_type == RefType::ObjectReversed {ot.name.clone()} else  {ocel_type.clone()}],
+                                        related_types: vec![if *ref_type == RefType::ObjectReversed {ot.clone()} else  {ocel_type.clone()}],
                                         related_types_are: if *ref_type == RefType::Event { EventOrObject::Event } else { EventOrObject::Object}
                                     });
                                 }
@@ -167,7 +168,7 @@ mod tests {
         let index_ocel = link_ocel_info(ocel);
         println!("Linked OCEL in {:?}\n", now.elapsed());
         let now = Instant::now();
-        build_frequencies_from_graph(&index_ocel,0.7);
+        build_frequencies_from_graph(&index_ocel,0.7,&index_ocel.ocel.object_types.iter().map(|ot| ot.name.clone()).collect::<Vec<_>>());
         println!("\nBuild Frequencies from Graph in {:?}", now.elapsed());
     }
 }

@@ -460,9 +460,11 @@ export default function VisualEditor(props: VisualEditorProps) {
               box: {
                 newEventVars: {},
                 newObjectVars: {},
-                filterConstraint: [],
+                filters: [],
+                sizeFilters: [],
+                constraints: []
               },
-            },
+            } satisfies EventTypeNodeData,
           },
         ];
       });
