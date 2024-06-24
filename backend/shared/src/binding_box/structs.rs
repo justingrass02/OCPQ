@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     fmt::Display,
 };
 
@@ -19,7 +19,7 @@ pub enum Variable {
 
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct EventVariable(pub usize);
 impl From<usize> for EventVariable {
     fn from(value: usize) -> Self {
@@ -28,7 +28,7 @@ impl From<usize> for EventVariable {
 }
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct ObjectVariable(pub usize);
 impl From<usize> for ObjectVariable {
     fn from(value: usize) -> Self {
@@ -40,11 +40,11 @@ pub type Qualifier = Option<String>;
 
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "camelCase")]
 pub struct Binding {
-    pub event_map: HashMap<EventVariable, EventIndex>,
-    pub object_map: HashMap<ObjectVariable, ObjectIndex>,
+    pub event_map: BTreeMap<EventVariable, EventIndex>,
+    pub object_map: BTreeMap<ObjectVariable, ObjectIndex>,
 }
 
 impl Binding {
@@ -112,10 +112,9 @@ pub struct BindingBoxTree {
     pub nodes: Vec<BindingBoxTreeNode>,
     #[serde_as(as = "Vec<(_, _)>")]
     #[ts(as = "Vec<((usize, usize), String)>")]
-    pub edge_names: HashMap<(usize, usize), String>
-    // #[serde_as(as = "Vec<(_, _)>")]
-    // #[ts(as = "Vec<((usize, usize), (Option<usize>, Option<usize>))>")]
-    // pub size_constraints: HashMap<(usize, usize), (Option<usize>, Option<usize>)>,
+    pub edge_names: HashMap<(usize, usize), String>, // #[serde_as(as = "Vec<(_, _)>")]
+                                                     // #[ts(as = "Vec<((usize, usize), (Option<usize>, Option<usize>))>")]
+                                                     // pub size_constraints: HashMap<(usize, usize), (Option<usize>, Option<usize>)>,
 }
 
 impl BindingBoxTree {
@@ -175,7 +174,9 @@ pub enum ViolationReason {
     BothChildrenOfANDUnsatisfied,
     ChildrenOfNOTSatisfied,
     ChildNotSatisfied,
+
     ConstraintNotSatisfied(usize),
+    UnknownChildSet,
 }
 
 pub type EvaluationResult = (usize, Binding, Option<ViolationReason>);
@@ -190,13 +191,13 @@ impl BindingBoxTreeNode {
         parent_binding: Binding,
         tree: &BindingBoxTree,
         ocel: &IndexLinkedOCEL,
-    ) -> (EvaluationResults, Vec<(Binding,Option<ViolationReason>)>) {
+    ) -> (EvaluationResults, Vec<(Binding, Option<ViolationReason>)>) {
         match self {
             BindingBoxTreeNode::Box(bbox, children) => {
                 let expanded: Vec<Binding> = bbox.expand(vec![parent_binding.clone()], ocel);
                 enum BindingResult {
                     FilteredOutBySizeFilter,
-                    Sat(Binding,EvaluationResults),
+                    Sat(Binding, EvaluationResults),
                     Viol(Binding, ViolationReason, EvaluationResults),
                 }
                 let re: Vec<_> = expanded
@@ -204,82 +205,78 @@ impl BindingBoxTreeNode {
                     .map(|b| {
                         let mut passed_size_filter = true;
                         let mut all_res: EvaluationResults = Vec::new();
-                        let mut child_res: HashMap<String, Vec<(Binding,Option<ViolationReason>)>> =
-                            HashMap::new();
+                        let mut child_res: HashMap<
+                            String,
+                            Vec<(Binding, Option<ViolationReason>)>,
+                        > = HashMap::new();
                         // let mut child_res = Vec::with_capacity(children.len());
                         for c in children {
-                            let c_name = tree.edge_names.get(&(own_index,*c)).cloned().unwrap_or(format!("NO NAME PROVIDED - {c}"));
+                            let c_name = tree
+                                .edge_names
+                                .get(&(own_index, *c))
+                                .cloned()
+                                .unwrap_or(format!("NO NAME PROVIDED - {c}"));
                             let (mut c_res, violations) =
                         // Evaluate Child
                             tree.nodes[*c].evaluate(*c, own_index, b.clone(), tree, ocel);
                             // Check if size binding count is passes size filters
-                            passed_size_filter =
-                                bbox.size_filters
-                                    .iter()
-                                    .all(|size_filter| match size_filter {
-                                        SizeFilter::NumChilds {
-                                            child_name,
-                                            min,
-                                            max,
-                                        } => {
-                                            // println!("{child_index} {c} Min: {:?} Max: {:?} Len: {}",min,max,violations.len());
-                                            if child_name != &c_name {
-                                                true
-                                            } else {
-                                                if min.is_some_and(|min| violations.len() < min) {
-                                                    false
-                                                } else if max
-                                                    .is_some_and(|max| violations.len() > max)
-                                                {
-                                                    false
-                                                } else {
-                                                    true
-                                                }
-                                            }
-                                        }
-                                    });
-                            if !passed_size_filter {
-                                // println!("Did not pass size filter");
-                                return BindingResult::FilteredOutBySizeFilter;
-                            }
+                            // passed_size_filter =
+                            //     bbox.size_filters
+                            //         .iter()
+                            //         .all(|size_filter| match size_filter {
+                            //             SizeFilter::NumChilds {
+                            //                 child_name,
+                            //                 min,
+                            //                 max,
+                            //             } => {
+                            //                 // println!("{child_index} {c} Min: {:?} Max: {:?} Len: {}",min,max,violations.len());
+                            //                 if child_name != &c_name {
+                            //                     true
+                            //                 } else {
+                            //                     if min.is_some_and(|min| violations.len() < min) {
+                            //                         false
+                            //                     } else if max
+                            //                         .is_some_and(|max| violations.len() > max)
+                            //                     {
+                            //                         false
+                            //                     } else {
+                            //                         true
+                            //                     }
+                            //                 }
+                            //             }
+                            //         });
+                            // if !passed_size_filter {
+                            //     // println!("Did not pass size filter");
+                            //     return BindingResult::FilteredOutBySizeFilter;
+                            // }
                             child_res.insert(c_name, violations);
                             all_res.extend(c_res);
                         }
-                        for (constr_index,constr) in bbox.constraints.iter().enumerate() {
+                        for sf in &bbox.size_filters {
+                            if !sf.check(&child_res) {
+                                return BindingResult::FilteredOutBySizeFilter;
+                            }
+                        }
+                        for (constr_index, constr) in bbox.constraints.iter().enumerate() {
                             let viol = match constr {
                                 Constraint::Filter { filter } => {
                                     if filter.check_binding(&b, ocel) {
                                         None
-                                    }else {
+                                    } else {
                                         Some(ViolationReason::ConstraintNotSatisfied(constr_index))
                                     }
-                                },
-                                Constraint::SizeFilter { filter } => match filter {
-                                    SizeFilter::NumChilds {
-                                        child_name,
-                                        min,
-                                        max,
-                                    } => {
-                                        println!("Children: {:?}; Child Name: {:?} Min: {:?} Max: {:?}", children,child_name, min, max);
-                                        if let Some(len) =
-                                        child_res.get(child_name).map(|r| r.len())
-                                        {
-                                            if min.is_some_and(|min| len < min) {
-                                                Some(ViolationReason::TooFewMatchingEvents(len))
-                                            } else if max.is_some_and(|max| len > max) {
-                                                Some(ViolationReason::TooManyMatchingEvents(len))
-                                            } else {
-                                                None
-                                            }
-                                        } else {
-                                            None
-                                        }
+                                }
+                                Constraint::SizeFilter { filter } => {
+                                    if filter.check(&child_res) {
+                                        None
+                                    } else {
+                                        Some(ViolationReason::ConstraintNotSatisfied(constr_index))
                                     }
-                                },
+                                }
                                 Constraint::SAT { child_names } => {
                                     let violated = child_names.iter().all(|child_name| {
                                         if let Some(c_res) = child_res.get(child_name) {
-                                            if c_res.iter().any(|(b,v)| v.is_some()) {
+                                            if c_res.iter().any(|(b, v)| v.is_some()) {
                                                 true
                                             } else {
                                                 false
@@ -296,10 +293,10 @@ impl BindingBoxTreeNode {
                                 }
                                 Constraint::NOT { child_names } => todo!(),
                                 Constraint::OR { child_names } => {
-                                    println!("Child indices: {:?}, Children: {:?}", child_names, children);
+                                    // println!("Child indices: {:?}, Children: {:?}", child_names, children);
                                     let any_sat = child_names.iter().any(|child_name| {
                                         if let Some(c_res) = child_res.get(child_name) {
-                                            if c_res.iter().all(|(b,v)| v.is_none()) {
+                                            if c_res.iter().all(|(b, v)| v.is_none()) {
                                                 true
                                             } else {
                                                 false
@@ -310,19 +307,19 @@ impl BindingBoxTreeNode {
                                     });
                                     if any_sat {
                                         None
-                                    }else {
+                                    } else {
                                         Some(ViolationReason::NoChildrenOfORSatisfied)
                                     }
-                                },
+                                }
                                 Constraint::AND { child_names } => todo!(),
                             };
                             if let Some(vr) = viol {
                                 all_res.push((own_index, b.clone(), Some(vr)));
-                                return BindingResult::Viol(b,vr, all_res);
+                                return BindingResult::Viol(b, vr, all_res);
                             }
                         }
                         all_res.push((own_index, b.clone(), None));
-                        return BindingResult::Sat(b,all_res);
+                        return BindingResult::Sat(b, all_res);
                     })
                     .collect();
 
@@ -332,14 +329,14 @@ impl BindingBoxTreeNode {
                         || (EvaluationResults::new(), Vec::new()),
                         |(mut a, mut b), x| match x {
                             BindingResult::FilteredOutBySizeFilter => (a, b),
-                            BindingResult::Sat(binding,r) => {
+                            BindingResult::Sat(binding, r) => {
                                 a.extend(r);
-                                b.push((binding,None));
+                                b.push((binding, None));
                                 (a, b)
                             }
-                            BindingResult::Viol(binding,v, r) => {
+                            BindingResult::Viol(binding, v, r) => {
                                 a.extend(r);
-                                b.push((binding,Some(v)));
+                                b.push((binding, Some(v)));
                                 (a, b)
                             }
                         },
@@ -545,6 +542,105 @@ pub enum SizeFilter {
         min: Option<usize>,
         max: Option<usize>,
     },
+    BindingSetEqual {
+        child_names: Vec<NodeEdgeName>,
+    },
+    BindingSetProjectionEqual {
+        child_name_with_var_name: Vec<(NodeEdgeName, Variable)>,
+    },
+}
+
+impl SizeFilter {
+    pub fn check(
+        &self,
+        child_res: &HashMap<String, Vec<(Binding, Option<ViolationReason>)>>,
+    ) -> bool {
+        match self {
+            SizeFilter::NumChilds {
+                child_name,
+                min,
+                max,
+            } => {
+                // println!("{child_index} {c} Min: {:?} Max: {:?} Len: {}",min,max,violations.len());
+                if let Some(c_res) = child_res.get(child_name) {
+                    if min.is_some_and(|min| c_res.len() < min) {
+                        false
+                    } else if max.is_some_and(|max| c_res.len() > max) {
+                        false
+                    } else {
+                        true
+                    }
+                } else {
+                    false
+                }
+            }
+            SizeFilter::BindingSetEqual { child_names } => {
+                if child_names.is_empty() {
+                    return true;
+                } else {
+                    if let Some(c_res) = child_res.get(&child_names[0]) {
+                        let set: HashSet<_> = c_res.iter().map(|(binding, _)| binding).collect();
+                        for other_c in child_names.iter().skip(1) {
+                            if let Some(c2_res) = child_res.get(other_c) {
+                                let set2: HashSet<_> =
+                                    c2_res.iter().map(|(binding, _)| binding).collect();
+                                if set != set2 {
+                                    return false;
+                                }
+                            } else {
+                                return false;
+                            }
+                        }
+                        return true;
+                    } else {
+                        return false;
+                    }
+                }
+            }
+            SizeFilter::BindingSetProjectionEqual {
+                child_name_with_var_name,
+            } => {
+                if child_name_with_var_name.is_empty() {
+                    return true;
+                } else {
+                    if let Some(c_res) = child_res.get(&child_name_with_var_name[0].0) {
+                        let set: HashSet<_> = c_res
+                            .iter()
+                            .map(|(binding, _)| match child_name_with_var_name[0].1 {
+                                Variable::Event(e_var) => binding.get_ev_index(&e_var).map(|e| e.0),
+                                Variable::Object(o_var) => {
+                                    binding.get_ob_index(&o_var).map(|o| o.0)
+                                }
+                            })
+                            .collect();
+                        for (other_c, var) in child_name_with_var_name.iter().skip(1) {
+                            if let Some(c2_res) = child_res.get(other_c) {
+                                let set2: HashSet<_> = c2_res
+                                    .iter()
+                                    .map(|(binding, _)| match var {
+                                        Variable::Event(e_var) => {
+                                            binding.get_ev_index(&e_var).map(|e| e.0)
+                                        }
+                                        Variable::Object(o_var) => {
+                                            binding.get_ob_index(&o_var).map(|o| o.0)
+                                        }
+                                    })
+                                    .collect();
+                                if set != set2 {
+                                    return false;
+                                }
+                            } else {
+                                return false;
+                            }
+                        }
+                        return true;
+                    } else {
+                        return false;
+                    }
+                }
+            }
+        }
+    }
 }
 
 type NodeEdgeName = String;

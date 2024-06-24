@@ -72,41 +72,41 @@ export default function VisualEditorOuter() {
 
   const backend = useContext(BackendProviderContext);
   useEffect(() => {
-    toast
-      .promise(
-        backend["ocel/event-qualifiers"](),
-        {
-          loading: "Fetching qualifier info...",
-          success: "Loaded qualifier info",
-          error: "Failed to fetch qualifier info",
-        },
-        { id: "fetch-event-qualifiers" },
-      )
-      .then(async (res) => {
-        setQualifiers(res);
-      })
-      .catch((e) => {
-        console.error(e);
-      });
+    // toast
+    //   .promise(
+    //     backend["ocel/event-qualifiers"](),
+    //     {
+    //       loading: "Fetching qualifier info...",
+    //       success: "Loaded qualifier info",
+    //       error: "Failed to fetch qualifier info",
+    //     },
+    //     { id: "fetch-event-qualifiers" },
+    //   )
+    //   .then(async (res) => {
+    //     setQualifiers(res);
+    //   })
+    //   .catch((e) => {
+    //     console.error(e);
+    //   });
   }, []);
 
   useEffect(() => {
-    toast
-      .promise(
-        backend["ocel/object-qualifiers"](),
-        {
-          loading: "Fetching object qualifier info...",
-          success: "Loaded object qualifier info",
-          error: "Failed to fetch object qualifier info",
-        },
-        { id: "fetch-object-qualifiers" },
-      )
-      .then((res) => {
-        setObjectQualifiers(res);
-      })
-      .catch((e) => {
-        console.error(e);
-      });
+    // toast
+    //   .promise(
+    //     backend["ocel/object-qualifiers"](),
+    //     {
+    //       loading: "Fetching object qualifier info...",
+    //       success: "Loaded object qualifier info",
+    //       error: "Failed to fetch object qualifier info",
+    //     },
+    //     { id: "fetch-object-qualifiers" },
+    //   )
+    //   .then((res) => {
+    //     setObjectQualifiers(res);
+    //   })
+    //   .catch((e) => {
+    //     console.error(e);
+    //   });
   }, []);
 
   const prevDataRef = useRef<FlowAndViolationData[]>([]);

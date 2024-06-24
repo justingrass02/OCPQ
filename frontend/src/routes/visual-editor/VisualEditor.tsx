@@ -223,6 +223,20 @@ export default function VisualEditor(props: VisualEditorProps) {
     [instance],
   );
 
+  const getNodeIDByName = useCallback(
+    (name: string): string | undefined => {
+      const edge = (instance.getEdges() as Edge<EventTypeLinkData>[]).find(
+        (e) => e.data?.name === name,
+      );
+      if (edge !== undefined) {
+        return edge.target;
+      } else {
+        return undefined;
+      }
+    },
+    [instance],
+  );
+
   const autoLayout = useCallback(async () => {
     const origEdges = [...instance.getEdges()];
     const origNodes = [...instance.getNodes()];
@@ -517,6 +531,7 @@ export default function VisualEditor(props: VisualEditorProps) {
         showViolationsFor: (d) => setViolationDetails(d),
         getAvailableVars,
         getAvailableChildNames,
+        getNodeIDByName,
         getVarName: (variable, type) => {
           return {
             name: type.substring(0, 2) + "_" + variable,

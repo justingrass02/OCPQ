@@ -19,11 +19,10 @@ import type { SizeFilter } from "@/types/generated/SizeFilter";
 import { useContext, useState } from "react";
 import { LuPlus } from "react-icons/lu";
 import { VisualEditorContext } from "../VisualEditorContext";
-import FilterOrConstraintEditor, { FilterOrConstraintDisplay } from "./FilterOrConstraintEditor";
-import {
-  getEvVarName,
-  getObVarName
-} from "./variable-names";
+import FilterOrConstraintEditor, {
+  FilterOrConstraintDisplay,
+} from "./FilterOrConstraintEditor";
+import { getEvVarName, getObVarName } from "./variable-names";
 
 export default function FilterChooser({
   id,
@@ -36,7 +35,8 @@ export default function FilterChooser({
   updateBox: (box: BindingBox) => unknown;
   type: "filter" | "constraint";
 }) {
-  const { getAvailableVars, getAvailableChildNames } = useContext(VisualEditorContext);
+  const { getAvailableVars, getAvailableChildNames } =
+    useContext(VisualEditorContext);
   const availableObjectVars = getAvailableVars(id, "object");
   const availableEventVars = getAvailableVars(id, "event");
   const availableChildSets = getAvailableChildNames(id);
@@ -44,9 +44,9 @@ export default function FilterChooser({
     (
       | {
           type: "filter";
-          value?: Filter| SizeFilter | Constraint;
+          value?: Filter | SizeFilter | Constraint;
         }
-        | {type: "sizeFilter", value?: Filter| SizeFilter | Constraint}
+      | { type: "sizeFilter"; value?: Filter | SizeFilter | Constraint }
       | { type: "constraint"; value?: Filter | SizeFilter | Constraint }
     ) &
       (
@@ -178,6 +178,14 @@ export default function FilterChooser({
                             label: "Number of Child Bindings",
                             value: "NumChilds",
                           },
+                          {
+                            label: "Child Binding Sets Equal",
+                            value: "BindingSetEqual",
+                          },
+                          {
+                            label: "Child Binding Set Projects Equal",
+                            value: "BindingSetProjectionEqual",
+                          },
                         ]
                       : []),
 
@@ -232,6 +240,22 @@ export default function FilterChooser({
                           max: null,
                         },
                       });
+                    } else if (val === "BindingSetEqual") {
+                      setAlertState({
+                        ...alertState,
+                        value: {
+                          type: "BindingSetEqual",
+                          child_names: ["A"],
+                        },
+                      });
+                    } else if (val === "BindingSetProjectionEqual") {
+                      setAlertState({
+                        ...alertState,
+                        value: {
+                          type: "BindingSetProjectionEqual",
+                          child_name_with_var_name: [["A", { Object: 0 }]],
+                        },
+                      });
                     } else if (
                       alertState.type === "constraint" &&
                       val === "SAT"
@@ -254,7 +278,7 @@ export default function FilterChooser({
                     ) {
                       setAlertState({
                         ...alertState,
-                        value: { type: "AND", child_names: ["A","B"] },
+                        value: { type: "AND", child_names: ["A", "B"] },
                       });
                     } else if (
                       alertState.type === "constraint" &&
@@ -262,7 +286,7 @@ export default function FilterChooser({
                     ) {
                       setAlertState({
                         ...alertState,
-                        value: { type: "OR", child_names: ["A","B"] },
+                        value: { type: "OR", child_names: ["A", "B"] },
                       });
                     }
                   }}
@@ -272,15 +296,15 @@ export default function FilterChooser({
             {alertState.value !== undefined && (
               <div className="flex gap-x-2">
                 <FilterOrConstraintEditor
-                value={alertState.value}
-                updateValue={(val) => {
-                  setAlertState({ ...alertState, value: val as any });
-                }}
-                availableEventVars={availableEventVars}
-                availableObjectVars={availableObjectVars}
-                availableChildSets={availableChildSets}
+                  value={alertState.value}
+                  updateValue={(val) => {
+                    setAlertState({ ...alertState, value: val as any });
+                  }}
+                  availableEventVars={availableEventVars}
+                  availableObjectVars={availableObjectVars}
+                  availableChildSets={availableChildSets}
                 />
-                </div>
+              </div>
             )}
             <AlertDialogFooter>
               {" "}
@@ -310,27 +334,73 @@ export default function FilterChooser({
               <AlertDialogAction
                 onClick={() => {
                   const newBox = { ...box };
-                  if(alertState.value !== undefined){
-                    const index = alertState.mode === "edit" ? alertState.editIndex : (alertState.type === "filter" ? newBox.filters : alertState.type === "sizeFilter" ? newBox.sizeFilters : newBox.constraints).length;
-                    console.log({newBox,index,alertState},alertState.type)
-                    if(alertState.type === "filter"){
+                  if (alertState.value !== undefined) {
+                    if (
+                      alertState.type !== "constraint" &&
+                      [
+                        "NumChilds",
+                        "BindingSetEqual",
+                        "BindingSetProjectionEqual",
+                      ].includes(alertState.value.type)
+                    ) {
+                      alertState.type = "sizeFilter";
+                    }
+                    const index =
+                      alertState.mode === "edit"
+                        ? alertState.editIndex
+                        : (alertState.type === "filter"
+                            ? newBox.filters
+                            : alertState.type === "sizeFilter"
+                            ? newBox.sizeFilters
+                            : newBox.constraints
+                          ).length;
+                    console.log({ newBox, index, alertState }, alertState.type);
+                    if (alertState.type === "filter") {
                       newBox.filters[index] = alertState.value as Filter;
-                    }else if(alertState.type === "sizeFilter"){
-                      newBox.sizeFilters[index] = alertState.value as SizeFilter;
-                    }else if(alertState.type === "constraint"){
-                      if(alertState.value.type === "NumChilds"){
-                        newBox.constraints[index] = {type: "SizeFilter", filter: alertState.value}
-                      }else if(["SAT","NOT","AND","OR","Filter","SizeFilter"].includes(alertState.value.type)){
-                        newBox.constraints[index] = alertState.value as Constraint;
-                      }else if(["O2E","O2O","TimeBetweenEvents"].includes(alertState.value.type)){
-                        newBox.constraints[index] = {type: "Filter", filter: alertState.value as Filter};
-                      }else{
-                        newBox.constraints[index] = alertState.value as Constraint;
+                    } else if (alertState.type === "sizeFilter") {
+                      newBox.sizeFilters[index] =
+                        alertState.value as SizeFilter;
+                    } else if (alertState.type === "constraint") {
+                      if (
+                        [
+                          "NumChilds",
+                          "BindingSetEqual",
+                          "BindingSetProjectionEqual",
+                        ].includes(alertState.value.type)
+                      ) {
+                        newBox.constraints[index] = {
+                          type: "SizeFilter",
+                          filter: alertState.value as SizeFilter,
+                        };
+                      } else if (
+                        [
+                          "SAT",
+                          "NOT",
+                          "AND",
+                          "OR",
+                          "Filter",
+                          "SizeFilter",
+                        ].includes(alertState.value.type)
+                      ) {
+                        newBox.constraints[index] =
+                          alertState.value as Constraint;
+                      } else if (
+                        ["O2E", "O2O", "TimeBetweenEvents"].includes(
+                          alertState.value.type,
+                        )
+                      ) {
+                        newBox.constraints[index] = {
+                          type: "Filter",
+                          filter: alertState.value as Filter,
+                        };
+                      } else {
+                        newBox.constraints[index] =
+                          alertState.value as Constraint;
                       }
                     }
                   }
                   updateBox(newBox);
-                  setAlertState(undefined)
+                  setAlertState(undefined);
 
                   // if (alertState.mode === "edit") {
                   //   if (alertState.value !== undefined) {
@@ -392,6 +462,58 @@ export default function FilterChooser({
   );
 }
 
+export function ObjectOrEventVarSelector({
+  objectVars,
+  eventVars,
+  value,
+  onChange,
+}: {
+  objectVars: ObjectVariable[];
+  eventVars: EventVariable[];
+  value:
+    | { type: "object"; value: ObjectVariable }
+    | { type: "event"; value: EventVariable }
+    | undefined;
+  onChange: (
+    value:
+      | { type: "object"; value: ObjectVariable }
+      | { type: "event"; value: EventVariable }
+      | undefined,
+  ) => unknown;
+}) {
+  const { getVarName } = useContext(VisualEditorContext);
+  return (
+    <Combobox
+      options={[
+        ...objectVars.map((v) => ({
+          label: getObVarName(v),
+          value: `${v} --- object --- ${getVarName(v, "object").name}`,
+        })),
+        ...eventVars.map((v) => ({
+          label: getEvVarName(v),
+          value: `${v} --- event --- ${getVarName(v, "event").name}`,
+        })),
+      ]}
+      onChange={(val) => {
+        const [newVarString, type] = val.split(" --- ");
+        const newVar = parseInt(newVarString);
+        if (!isNaN(newVar)) {
+          onChange({ type: type as "object" | "event", value: newVar });
+        } else {
+          onChange(undefined);
+        }
+      }}
+      name={"Object/Event Variable"}
+      value={
+        value !== undefined
+          ? `${value.value} --- ${value.type} --- ${
+              getVarName(value.value, value.type).name
+            }`
+          : ""
+      }
+    />
+  );
+}
 
 export function ObjectVarSelector({
   objectVars,

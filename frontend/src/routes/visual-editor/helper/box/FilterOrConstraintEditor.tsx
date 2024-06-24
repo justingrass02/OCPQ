@@ -1,15 +1,26 @@
 import type { Constraint } from "@/types/generated/Constraint";
 import type { Filter } from "@/types/generated/Filter";
 import type { SizeFilter } from "@/types/generated/SizeFilter";
-import { EventVarSelector, ObjectVarSelector } from "./FilterChooser";
+import {
+  EventVarSelector,
+  ObjectOrEventVarSelector,
+  ObjectVarSelector,
+} from "./FilterChooser";
 import { Input } from "@/components/ui/input";
 import TimeDurationInput, {
   formatSeconds,
 } from "@/components/TimeDurationInput";
 import { Combobox } from "@/components/ui/combobox";
-import { EvVarName, ObVarName } from "./variable-names";
+import {
+  EvVarName,
+  ObVarName,
+  getEvVarName,
+  getObVarName,
+} from "./variable-names";
 import { LuArrowRight, LuLink, LuTrash } from "react-icons/lu";
 import { Button } from "@/components/ui/button";
+import { VisualEditorContext } from "../VisualEditorContext";
+import { useContext } from "react";
 
 export default function FilterOrConstraintEditor<
   T extends Filter | SizeFilter | Constraint,
@@ -24,8 +35,10 @@ export default function FilterOrConstraintEditor<
   updateValue: (value: T) => unknown;
   availableObjectVars: number[];
   availableEventVars: number[];
-  availableChildSets: string[]
+  availableChildSets: string[];
 }) {
+  const { getAvailableVars, getNodeIDByName } = useContext(VisualEditorContext);
+
   switch (value.type) {
     case "O2E":
       return (
@@ -198,6 +211,101 @@ export default function FilterOrConstraintEditor<
           />
         </>
       );
+    case "BindingSetEqual":
+      return (
+        <>
+          {value.child_names.map((c, i) => (
+            <div key={i} className="flex gap-0.5 mr-2">
+              <ChildSetSelector
+                availableChildSets={availableChildSets}
+                value={c}
+                onChange={(v) => {
+                  if (v !== undefined) {
+                    value.child_names[i] = v;
+                    updateValue({ ...value });
+                  }
+                }}
+              />
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={() => {
+                  value.child_names.splice(i, 1);
+                  updateValue({ ...value });
+                }}
+              >
+                <LuTrash />
+              </Button>
+            </div>
+          ))}
+          <Button
+            onClick={() => {
+              value.child_names.push("A");
+              updateValue({ ...value });
+            }}
+          >
+            Add
+          </Button>
+        </>
+      );
+    case "BindingSetProjectionEqual":
+      return (
+        <>
+          {value.child_name_with_var_name.map(([c, variable], i) => (
+            <div key={i} className="flex gap-0.5 mr-2">
+              <ChildSetSelector
+                availableChildSets={availableChildSets}
+                value={c[0]}
+                onChange={(v) => {
+                  if (v !== undefined) {
+                    value.child_name_with_var_name[i][0] = v;
+                    updateValue({ ...value });
+                  }
+                }}
+              />
+              <ObjectOrEventVarSelector
+                objectVars={getAvailableVars(
+                  getNodeIDByName(c) ?? "-",
+                  "object",
+                )}
+                eventVars={getAvailableVars(getNodeIDByName(c) ?? "-", "event")}
+                value={
+                  "Event" in variable
+                    ? { type: "event", value: variable.Event }
+                    : { type: "object", value: variable.Object }
+                }
+                onChange={(v) => {
+                  if (v !== undefined) {
+                    value.child_name_with_var_name[i][1] =
+                      v.type === "event"
+                        ? { Event: v.value }
+                        : { Object: v.value };
+                    updateValue({ ...value });
+                  }
+                }}
+              />
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={() => {
+                  value.child_name_with_var_name.splice(i, 1);
+                  updateValue({ ...value });
+                }}
+              >
+                <LuTrash />
+              </Button>
+            </div>
+          ))}
+          <Button
+            onClick={() => {
+              value.child_name_with_var_name.push(["A", { Object: 0 }]);
+              updateValue({ ...value });
+            }}
+          >
+            Add
+          </Button>
+        </>
+      );
     case "Filter":
       return (
         <FilterOrConstraintEditor
@@ -229,34 +337,42 @@ export default function FilterOrConstraintEditor<
         />
       );
     case "SAT":
-      return  <>
-      {value.child_names.map((c, i) => (
-        <div key={i} className="flex gap-0.5 mr-2">
-          <ChildSetSelector
-            availableChildSets={availableChildSets}
-            value={c}
-            onChange={(v) => {
-              if (v !== undefined) {
-                value.child_names[i] = v;
-                updateValue({ ...value });
-              }
+      return (
+        <>
+          {value.child_names.map((c, i) => (
+            <div key={i} className="flex gap-0.5 mr-2">
+              <ChildSetSelector
+                availableChildSets={availableChildSets}
+                value={c}
+                onChange={(v) => {
+                  if (v !== undefined) {
+                    value.child_names[i] = v;
+                    updateValue({ ...value });
+                  }
+                }}
+              />
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={() => {
+                  value.child_names.splice(i, 1);
+                  updateValue({ ...value });
+                }}
+              >
+                <LuTrash />
+              </Button>
+            </div>
+          ))}
+          <Button
+            onClick={() => {
+              value.child_names.push("A");
+              updateValue({ ...value });
             }}
-          />
-        <Button size="icon" variant="outline" onClick={() => {
-          value.child_names.splice(i,1);
-          updateValue({...value});
-        }}><LuTrash/></Button>
-        </div>
-      ))}
-      <Button
-        onClick={() => {
-          value.child_names.push("A");
-          updateValue({ ...value });
-        }}
-      >
-        Add
-      </Button>
-    </>;
+          >
+            Add
+          </Button>
+        </>
+      );
     case "NOT":
       return <></>;
     case "OR":
@@ -274,10 +390,16 @@ export default function FilterOrConstraintEditor<
                   }
                 }}
               />
-            <Button size="icon" variant="outline" onClick={() => {
-              value.child_names.splice(i,1);
-              updateValue({...value});
-            }}><LuTrash/></Button>
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={() => {
+                  value.child_names.splice(i, 1);
+                  updateValue({ ...value });
+                }}
+              >
+                <LuTrash />
+              </Button>
             </div>
           ))}
           <Button
@@ -333,6 +455,32 @@ export function FilterOrConstraintDisplay<
           {value.min ?? 0} ≤ |{value.child_name}| ≤ {value.max ?? "∞"}
         </div>
       );
+    case "BindingSetEqual":
+      return (
+        <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
+          {value.child_names.join(" = ") ?? 0}
+        </div>
+      );
+    case "BindingSetProjectionEqual":
+      return (
+        <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
+          {value.child_name_with_var_name.map(([n, v], i) => (
+            <div key={i}>
+              {n}
+              <span className="">
+                {"["}
+              {"Event" in v ? (
+                <EvVarName eventVar={v.Event} />
+              ) : (
+                <ObVarName obVar={v.Object} />
+              )}
+                {"]"}
+              </span>
+              {i < value.child_name_with_var_name.length - 1 ? "=" : ""}
+            </div>
+          ))}
+        </div>
+      );
     case "Filter":
       return <FilterOrConstraintDisplay value={value.filter} />;
     case "SizeFilter":
@@ -340,25 +488,25 @@ export function FilterOrConstraintDisplay<
     case "SAT":
       return (
         <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
-          SAT({value.child_names.map((i) => "A" + i).join(",")})
+          SAT({value.child_names.map((i) => i).join(",")})
         </div>
       );
     case "NOT":
       return (
         <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
-          NOT({value.child_names.map((i) => "A" + i).join(",")})
+          NOT({value.child_names.map((i) => i).join(",")})
         </div>
       );
     case "OR":
       return (
         <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
-          OR({value.child_names.map((i) => "A" + i).join(",")})
+          OR({value.child_names.map((i) => i).join(",")})
         </div>
       );
     case "AND":
       return (
         <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
-          AND({value.child_names.map((i) => "A" + i).join(",")})
+          AND({value.child_names.map((i) => i).join(",")})
         </div>
       );
   }
