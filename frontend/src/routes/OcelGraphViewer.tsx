@@ -198,9 +198,9 @@ export default function OcelGraphViewer() {
                 }
                 onNodeHover={handleNodeHover}
                 onLinkHover={handleLinkHover}
-                linkLabel={x => `<div style="color: #3f3f3f; font-weight: 500; font-size: 12pt; background: #fef4f4b5; padding: 4px; border-radius: 8px;display: block; text-align: center;width: fit-content; white-space:nowrap; font-style: italic">${
-                  x.qualifier
-                }</div>`}
+                linkLabel={(x) =>
+                  `<div style="color: #3f3f3f; font-weight: 500; font-size: 12pt; background: #fef4f4b5; padding: 4px; border-radius: 8px;display: block; text-align: center;width: fit-content; white-space:nowrap; font-style: italic">${x.qualifier}</div>`
+                }
                 nodeLabel={(x) =>
                   `<div style="color: #3f3f3f; font-weight: bold; font-size: 12pt; background: #fef4f4b5; padding: 4px; border-radius: 8px;display: block; text-align: center;width: fit-content;white-space:nowrap">${
                     x.id

@@ -5,4 +5,10 @@ import type { Filter } from "./Filter";
 import type { ObjectVariable } from "./ObjectVariable";
 import type { SizeFilter } from "./SizeFilter";
 
-export type BindingBox = { newEventVars: { [key: EventVariable]: Array<string> }, newObjectVars: { [key: ObjectVariable]: Array<string> }, filters: Array<Filter>, sizeFilters: Array<SizeFilter>, constraints: Array<Constraint>, };
+export type BindingBox = {
+  newEventVars: { [key: EventVariable]: Array<string> };
+  newObjectVars: { [key: ObjectVariable]: Array<string> };
+  filters: Array<Filter>;
+  sizeFilters: Array<SizeFilter>;
+  constraints: Array<Constraint>;
+};

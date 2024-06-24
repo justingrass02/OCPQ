@@ -469,11 +469,11 @@ export function FilterOrConstraintDisplay<
               {n}
               <span className="">
                 {"["}
-              {"Event" in v ? (
-                <EvVarName eventVar={v.Event} />
-              ) : (
-                <ObVarName obVar={v.Object} />
-              )}
+                {"Event" in v ? (
+                  <EvVarName eventVar={v.Event} />
+                ) : (
+                  <ObVarName obVar={v.Object} />
+                )}
                 {"]"}
               </span>
               {i < value.child_name_with_var_name.length - 1 ? "=" : ""}

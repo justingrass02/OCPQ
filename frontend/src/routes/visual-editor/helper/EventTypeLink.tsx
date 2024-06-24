@@ -71,10 +71,12 @@ export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
             >
               <MdRemoveCircleOutline />
             </button>
-            <NameChangeDialog data={data}
+            <NameChangeDialog
+              data={data}
               onChange={(name) => {
-                onEdgeDataChange(id, {name});
-              }}/>
+                onEdgeDataChange(id, { name });
+              }}
+            />
           </div>
         </EdgeLabelRenderer>
       )}
@@ -170,13 +172,12 @@ function CountChangeDialog({
   );
 }
 
-
 function NameChangeDialog({
   data,
   onChange,
 }: {
   data: EventTypeLinkData;
-  onChange: (newName: string|undefined) => unknown;
+  onChange: (newName: string | undefined) => unknown;
 }) {
   const [name, setName] = useState(data.name);
   return (
@@ -193,9 +194,7 @@ function NameChangeDialog({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Update Name</DialogTitle>
-            <DialogDescription>
-              Update the name of the edge.
-            </DialogDescription>
+            <DialogDescription>Update the name of the edge.</DialogDescription>
           </DialogHeader>
           <h3>Name</h3>
           <Input
@@ -204,9 +203,9 @@ function NameChangeDialog({
             placeholder="Name"
             value={name ?? ""}
             onChange={(ev) => {
-              if(ev.currentTarget.value === ""){
-                setName(undefined)
-              }else{
+              if (ev.currentTarget.value === "") {
+                setName(undefined);
+              } else {
                 setName(ev.currentTarget.value);
               }
             }}

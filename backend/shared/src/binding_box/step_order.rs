@@ -194,14 +194,22 @@ impl BindingStep {
                                 .iter()
                                 .enumerate()
                                 .filter_map(|(index, c)| match c {
-                                    Filter::TimeBetweenEvents { from_event: ev_var_0, to_event: ev_var_1, min_seconds, max_seconds } => {
+                                    Filter::TimeBetweenEvents {
+                                        from_event: ev_var_0,
+                                        to_event: ev_var_1,
+                                        min_seconds,
+                                        max_seconds,
+                                    } => {
                                         if ev_var_1 == &ev_var
                                             && !var_requiring_bindings
                                                 .contains(&Variable::Event(*ev_var_0))
                                         {
                                             // ...also mark the time filter as already incoporated (it holds automatically, if the incoporated into the event binding step)
                                             filter_indices_incoporated.insert(index);
-                                            return Some((*ev_var_0, (min_seconds.clone(),max_seconds.clone())));
+                                            return Some((
+                                                *ev_var_0,
+                                                (*min_seconds, *max_seconds),
+                                            ));
                                         } else if ev_var_0 == &ev_var
                                             && !var_requiring_bindings
                                                 .contains(&Variable::Event(*ev_var_1))
@@ -212,8 +220,8 @@ impl BindingStep {
                                             // But we can invert the time constraint to get a valid time filter for ev_var_0
                                             return Some((
                                                 *ev_var_1,
-                                                (max_seconds.map(|s| -s), min_seconds.map(|s| -s))),
-                                            );
+                                                (max_seconds.map(|s| -s), min_seconds.map(|s| -s)),
+                                            ));
                                         }
                                         None
                                     }

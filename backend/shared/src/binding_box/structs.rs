@@ -120,7 +120,7 @@ pub struct BindingBoxTree {
 impl BindingBoxTree {
     pub fn evaluate(&self, ocel: &IndexLinkedOCEL) -> EvaluationResults {
         if let Some(root) = self.nodes.first() {
-            let (mut ret, violation) = root.evaluate(0, 0, Binding::default(), self, ocel);
+            let (ret, _violation) = root.evaluate(0, 0, Binding::default(), self, ocel);
             // ret.push((0, Binding::default(), violation));
             ret
         } else {
@@ -187,7 +187,7 @@ impl BindingBoxTreeNode {
     pub fn evaluate(
         &self,
         own_index: usize,
-        parent_index: usize,
+        _parent_index: usize,
         parent_binding: Binding,
         tree: &BindingBoxTree,
         ocel: &IndexLinkedOCEL,
@@ -203,7 +203,7 @@ impl BindingBoxTreeNode {
                 let re: Vec<_> = expanded
                     .into_par_iter()
                     .map(|b| {
-                        let mut passed_size_filter = true;
+                        let _passed_size_filter = true;
                         let mut all_res: EvaluationResults = Vec::new();
                         let mut child_res: HashMap<
                             String,
@@ -216,7 +216,7 @@ impl BindingBoxTreeNode {
                                 .get(&(own_index, *c))
                                 .cloned()
                                 .unwrap_or(format!("NO NAME PROVIDED - {c}"));
-                            let (mut c_res, violations) =
+                            let (c_res, violations) =
                         // Evaluate Child
                             tree.nodes[*c].evaluate(*c, own_index, b.clone(), tree, ocel);
                             // Check if size binding count is passes size filters
@@ -276,11 +276,7 @@ impl BindingBoxTreeNode {
                                 Constraint::SAT { child_names } => {
                                     let violated = child_names.iter().all(|child_name| {
                                         if let Some(c_res) = child_res.get(child_name) {
-                                            if c_res.iter().any(|(b, v)| v.is_some()) {
-                                                true
-                                            } else {
-                                                false
-                                            }
+                                            c_res.iter().any(|(_b, v)| v.is_some())
                                         } else {
                                             false
                                         }
@@ -291,16 +287,12 @@ impl BindingBoxTreeNode {
                                         None
                                     }
                                 }
-                                Constraint::NOT { child_names } => todo!(),
+                                Constraint::NOT { child_names: _ } => todo!(),
                                 Constraint::OR { child_names } => {
                                     // println!("Child indices: {:?}, Children: {:?}", child_names, children);
                                     let any_sat = child_names.iter().any(|child_name| {
                                         if let Some(c_res) = child_res.get(child_name) {
-                                            if c_res.iter().all(|(b, v)| v.is_none()) {
-                                                true
-                                            } else {
-                                                false
-                                            }
+                                            c_res.iter().all(|(_b, v)| v.is_none())
                                         } else {
                                             false
                                         }
@@ -311,7 +303,7 @@ impl BindingBoxTreeNode {
                                         Some(ViolationReason::NoChildrenOfORSatisfied)
                                     }
                                 }
-                                Constraint::AND { child_names } => todo!(),
+                                Constraint::AND { child_names: _ } => todo!(),
                             };
                             if let Some(vr) = viol {
                                 all_res.push((own_index, b.clone(), Some(vr)));
@@ -319,11 +311,13 @@ impl BindingBoxTreeNode {
                             }
                         }
                         all_res.push((own_index, b.clone(), None));
-                        return BindingResult::Sat(b, all_res);
+                        BindingResult::Sat(b, all_res)
                     })
                     .collect();
 
-                let res = re
+                
+
+                re
                     .into_par_iter()
                     .fold(
                         || (EvaluationResults::new(), Vec::new()),
@@ -348,9 +342,7 @@ impl BindingBoxTreeNode {
                             b.extend(y);
                             (a, b)
                         },
-                    );
-
-                res
+                    )
 
                 // let (passed_size_filter, sat, ret) = expanded
                 //     .into_par_iter()
@@ -565,78 +557,70 @@ impl SizeFilter {
                 if let Some(c_res) = child_res.get(child_name) {
                     if min.is_some_and(|min| c_res.len() < min) {
                         false
-                    } else if max.is_some_and(|max| c_res.len() > max) {
-                        false
-                    } else {
-                        true
-                    }
+                    } else { !max.is_some_and(|max| c_res.len() > max) }
                 } else {
                     false
                 }
             }
             SizeFilter::BindingSetEqual { child_names } => {
                 if child_names.is_empty() {
-                    return true;
-                } else {
-                    if let Some(c_res) = child_res.get(&child_names[0]) {
-                        let set: HashSet<_> = c_res.iter().map(|(binding, _)| binding).collect();
-                        for other_c in child_names.iter().skip(1) {
-                            if let Some(c2_res) = child_res.get(other_c) {
-                                let set2: HashSet<_> =
-                                    c2_res.iter().map(|(binding, _)| binding).collect();
-                                if set != set2 {
-                                    return false;
-                                }
-                            } else {
+                    true
+                } else if let Some(c_res) = child_res.get(&child_names[0]) {
+                    let set: HashSet<_> = c_res.iter().map(|(binding, _)| binding).collect();
+                    for other_c in child_names.iter().skip(1) {
+                        if let Some(c2_res) = child_res.get(other_c) {
+                            let set2: HashSet<_> =
+                                c2_res.iter().map(|(binding, _)| binding).collect();
+                            if set != set2 {
                                 return false;
                             }
+                        } else {
+                            return false;
                         }
-                        return true;
-                    } else {
-                        return false;
                     }
+                    true
+                } else {
+                    false
                 }
             }
             SizeFilter::BindingSetProjectionEqual {
                 child_name_with_var_name,
             } => {
                 if child_name_with_var_name.is_empty() {
-                    return true;
-                } else {
-                    if let Some(c_res) = child_res.get(&child_name_with_var_name[0].0) {
-                        let set: HashSet<_> = c_res
-                            .iter()
-                            .map(|(binding, _)| match child_name_with_var_name[0].1 {
-                                Variable::Event(e_var) => binding.get_ev_index(&e_var).map(|e| e.0),
-                                Variable::Object(o_var) => {
-                                    binding.get_ob_index(&o_var).map(|o| o.0)
-                                }
-                            })
-                            .collect();
-                        for (other_c, var) in child_name_with_var_name.iter().skip(1) {
-                            if let Some(c2_res) = child_res.get(other_c) {
-                                let set2: HashSet<_> = c2_res
-                                    .iter()
-                                    .map(|(binding, _)| match var {
-                                        Variable::Event(e_var) => {
-                                            binding.get_ev_index(&e_var).map(|e| e.0)
-                                        }
-                                        Variable::Object(o_var) => {
-                                            binding.get_ob_index(&o_var).map(|o| o.0)
-                                        }
-                                    })
-                                    .collect();
-                                if set != set2 {
-                                    return false;
-                                }
-                            } else {
+                    true
+                } else if let Some(c_res) = child_res.get(&child_name_with_var_name[0].0) {
+                    let set: HashSet<_> = c_res
+                        .iter()
+                        .map(|(binding, _)| match child_name_with_var_name[0].1 {
+                            Variable::Event(e_var) => binding.get_ev_index(&e_var).map(|e| e.0),
+                            Variable::Object(o_var) => {
+                                binding.get_ob_index(&o_var).map(|o| o.0)
+                            }
+                        })
+                        .collect();
+                    for (other_c, var) in child_name_with_var_name.iter().skip(1) {
+                        if let Some(c2_res) = child_res.get(other_c) {
+                            let set2: HashSet<_> = c2_res
+                                .iter()
+                                .map(|(binding, _)| match var {
+                                    Variable::Event(e_var) => {
+                                        binding.get_ev_index(e_var).map(|e| e.0)
+                                    }
+                                    Variable::Object(o_var) => {
+                                        binding.get_ob_index(o_var).map(|o| o.0)
+                                    }
+                                })
+                                .collect();
+                            if set != set2 {
                                 return false;
                             }
+                        } else {
+                            return false;
                         }
-                        return true;
-                    } else {
-                        return false;
                     }
+                    true
+                } else {
+                    false
                 }
             }
         }
@@ -664,22 +648,22 @@ impl Filter {
             Filter::O2E {
                 object,
                 event,
-                qualifier,
+                qualifier: _,
             } => vec![Variable::Object(*object), Variable::Event(*event)]
                 .into_iter()
                 .collect(),
             Filter::O2O {
                 object,
                 other_object,
-                qualifier,
+                qualifier: _,
             } => vec![Variable::Object(*object), Variable::Object(*other_object)]
                 .into_iter()
                 .collect(),
             Filter::TimeBetweenEvents {
                 from_event,
                 to_event,
-                min_seconds,
-                max_seconds,
+                min_seconds: _,
+                max_seconds: _,
             } => vec![Variable::Event(*from_event), Variable::Event(*to_event)]
                 .into_iter()
                 .collect(),

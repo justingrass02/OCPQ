@@ -2,4 +2,23 @@
 import type { EventVariable } from "./EventVariable";
 import type { ObjectVariable } from "./ObjectVariable";
 
-export type Filter = { "type": "O2E", object: ObjectVariable, event: EventVariable, qualifier: string | null, } | { "type": "O2O", object: ObjectVariable, other_object: ObjectVariable, qualifier: string | null, } | { "type": "TimeBetweenEvents", from_event: EventVariable, to_event: EventVariable, min_seconds: number | null, max_seconds: number | null, };
+export type Filter =
+  | {
+      type: "O2E";
+      object: ObjectVariable;
+      event: EventVariable;
+      qualifier: string | null;
+    }
+  | {
+      type: "O2O";
+      object: ObjectVariable;
+      other_object: ObjectVariable;
+      qualifier: string | null;
+    }
+  | {
+      type: "TimeBetweenEvents";
+      from_event: EventVariable;
+      to_event: EventVariable;
+      min_seconds: number | null;
+      max_seconds: number | null;
+    };

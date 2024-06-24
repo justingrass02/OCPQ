@@ -4,7 +4,7 @@ use crate::preprocessing::linked_ocel::{
     get_events_of_type_associated_with_objects, IndexLinkedOCEL,
 };
 
-use super::structs::{Binding, BindingBox, BindingStep, Filter};
+use super::structs::{Binding, BindingBox, BindingStep};
 
 impl BindingBox {
     pub fn expand_empty(&self, ocel: &IndexLinkedOCEL) -> Vec<Binding> {

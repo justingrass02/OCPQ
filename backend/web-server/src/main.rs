@@ -192,6 +192,6 @@ pub async fn auto_discover_constraints_handler<'a>(
     Json(req): Json<AutoDiscoverConstraintsRequest>,
 ) -> Json<Option<AutoDiscoverConstraintsResponse>> {
     Json(with_ocel_from_state(&state, |ocel| {
-        auto_discover_constraints_with_options(&ocel, req)
+        auto_discover_constraints_with_options(ocel, req)
     }))
 }

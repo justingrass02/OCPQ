@@ -26,7 +26,7 @@ export type VisualEditorContextValue = {
     nodeID: string,
     type: "object" | "event",
   ) => (ObjectVariable | EventVariable)[];
-  getNodeIDByName: (name: string) => string|undefined;
+  getNodeIDByName: (name: string) => string | undefined;
   getAvailableChildNames: (nodeID: string) => string[];
   getVarName: (
     variable: EventVariable | ObjectVariable,

@@ -1,10 +1,6 @@
 use std::collections::HashMap;
 
-use plotly::{
-    common::Title,
-    layout::Axis,
-    Histogram, Layout, Plot,
-};
+use plotly::{common::Title, layout::Axis, Histogram, Layout, Plot};
 
 use crate::{
     discovery::EventOrObject,
@@ -22,7 +18,7 @@ pub enum RefType {
 pub fn build_frequencies_from_graph(
     ocel: &IndexLinkedOCEL,
     coverage: f32,
-    object_types: &[String]
+    object_types: &[String],
 ) -> Vec<SimpleDiscoveredCountConstraints> {
     let mut ret = Vec::new();
     for ot in object_types {
@@ -168,7 +164,16 @@ mod tests {
         let index_ocel = link_ocel_info(ocel);
         println!("Linked OCEL in {:?}\n", now.elapsed());
         let now = Instant::now();
-        build_frequencies_from_graph(&index_ocel,0.7,&index_ocel.ocel.object_types.iter().map(|ot| ot.name.clone()).collect::<Vec<_>>());
+        build_frequencies_from_graph(
+            &index_ocel,
+            0.7,
+            &index_ocel
+                .ocel
+                .object_types
+                .iter()
+                .map(|ot| ot.name.clone())
+                .collect::<Vec<_>>(),
+        );
         println!("\nBuild Frequencies from Graph in {:?}", now.elapsed());
     }
 }

@@ -81,12 +81,14 @@ function EventTypeNode({ data, id, selected }: NodeProps<EventTypeNodeData>) {
           box={data.box}
           updateBox={(box) => onNodeDataChange(id, { box })}
         />
-        <FilterChooser type="filter"
+        <FilterChooser
+          type="filter"
           id={id}
           box={data.box}
           updateBox={(box) => onNodeDataChange(id, { box })}
         />
-        <FilterChooser type="constraint"
+        <FilterChooser
+          type="constraint"
           id={id}
           box={data.box}
           updateBox={(box) => onNodeDataChange(id, { box })}

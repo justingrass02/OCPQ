@@ -424,15 +424,23 @@ impl From<&SimpleDiscoveredCountConstraints> for BindingBoxTree {
                 new_object_vars: new_ob1.into_iter().collect(),
                 filters: vec![match val.root_is {
                     // Must be event, as there are no E2E
-                    EventOrObject::Event => Filter::O2E{ object: ObjectVariable(1), event: EventVariable(0), qualifier: None},
+                    EventOrObject::Event => Filter::O2E {
+                        object: ObjectVariable(1),
+                        event: EventVariable(0),
+                        qualifier: None,
+                    },
 
                     EventOrObject::Object => match val.related_types_are {
-                        EventOrObject::Event => {
-                            Filter::O2E { object: ObjectVariable(0), event: EventVariable(1), qualifier: None }
-                        }
-                        EventOrObject::Object => {
-                            Filter::O2O { object: ObjectVariable(0), other_object: ObjectVariable(1), qualifier: None }
-                        }
+                        EventOrObject::Event => Filter::O2E {
+                            object: ObjectVariable(0),
+                            event: EventVariable(1),
+                            qualifier: None,
+                        },
+                        EventOrObject::Object => Filter::O2O {
+                            object: ObjectVariable(0),
+                            other_object: ObjectVariable(1),
+                            qualifier: None,
+                        },
                     },
                 }],
                 size_filters: vec![],
@@ -670,9 +678,11 @@ impl From<&AutoDiscoveredORConstraint> for BindingBoxTree {
                 .into_iter()
                 .collect(),
                 new_object_vars: HashMap::default(),
-                filters: vec![
-                    Filter::O2E { object: ObjectVariable(0), event: EventVariable(0), qualifier: None }
-                    ],
+                filters: vec![Filter::O2E {
+                    object: ObjectVariable(0),
+                    event: EventVariable(0),
+                    qualifier: None,
+                }],
                 size_filters: vec![],
                 constraints: vec![],
             },
@@ -687,9 +697,11 @@ impl From<&AutoDiscoveredORConstraint> for BindingBoxTree {
                 .into_iter()
                 .collect(),
                 new_object_vars: HashMap::default(),
-                filters: vec![
-                Filter::O2E { object: ObjectVariable(0), event: EventVariable(1), qualifier: None }
-                ],
+                filters: vec![Filter::O2E {
+                    object: ObjectVariable(0),
+                    event: EventVariable(1),
+                    qualifier: None,
+                }],
                 size_filters: vec![],
                 constraints: vec![],
             },
@@ -706,9 +718,17 @@ impl From<&AutoDiscoveredORConstraint> for BindingBoxTree {
                 .collect(),
                 new_object_vars: HashMap::default(),
                 filters: vec![
-
-                Filter::O2E { object: ObjectVariable(0), event: EventVariable(2), qualifier: None },
-                    Filter::TimeBetweenEvents { from_event: EventVariable(1), to_event: EventVariable(2), min_seconds: Some(val.0.min_seconds), max_seconds: Some(val.0.max_seconds) }
+                    Filter::O2E {
+                        object: ObjectVariable(0),
+                        event: EventVariable(2),
+                        qualifier: None,
+                    },
+                    Filter::TimeBetweenEvents {
+                        from_event: EventVariable(1),
+                        to_event: EventVariable(2),
+                        min_seconds: Some(val.0.min_seconds),
+                        max_seconds: Some(val.0.max_seconds),
+                    },
                 ],
                 size_filters: vec![],
                 constraints: vec![],
@@ -995,7 +1015,7 @@ pub fn auto_discover_constraints_with_options(
     // TODO: Fully integrate
     if let Some(count_opts) = &options.count_constraints {
         for cc in
-            build_frequencies_from_graph(&ocel, count_opts.cover_fraction, &count_opts.object_types)
+            build_frequencies_from_graph(ocel, count_opts.cover_fraction, &count_opts.object_types)
         {
             ret.constraints
                 .push((cc.get_constraint_name(), (&cc).into()))
