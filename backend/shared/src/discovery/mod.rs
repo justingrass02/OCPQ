@@ -108,6 +108,7 @@ impl From<&EventuallyFollowsConstraints> for BindingBoxTree {
         );
         BindingBoxTree {
             nodes: vec![bbox0, bbox1],
+            edge_names: HashMap::new(),
             // size_constraints: vec![((0, 1), (Some(1), None))].into_iter().collect(),
         }
     }
@@ -441,6 +442,7 @@ impl From<&SimpleDiscoveredCountConstraints> for BindingBoxTree {
         );
         BindingBoxTree {
             nodes: vec![bbox0, bbox1],
+            edge_names: HashMap::new(),
             // size_constraints: vec![((0, 1), (Some(val.min_count), Some(val.max_count)))]
             //     .into_iter()
             //     .collect(),
@@ -716,6 +718,7 @@ impl From<&AutoDiscoveredORConstraint> for BindingBoxTree {
 
         BindingBoxTree {
             nodes: vec![root_node, or_node, count_node, ef_node1, ef_node2],
+            edge_names: HashMap::new(),
             // size_constraints: vec![
             //     ((1, 2), (Some(val.1.min_count), Some(val.1.max_count))),
             //     ((3, 4), (Some(1), None)),

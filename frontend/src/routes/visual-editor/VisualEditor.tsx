@@ -77,6 +77,7 @@ import {
   type GateNodeData,
 } from "./helper/types";
 import { downloadURL } from "@/lib/download-url";
+import EventTypeLink from "./helper/EventTypeLink";
 function isEditorElementTarget(el: HTMLElement | EventTarget | null) {
   return (
     el === document.body ||
@@ -208,6 +209,16 @@ export default function VisualEditor(props: VisualEditorProps) {
       }
       ret.sort((a, b) => a - b);
       return ret;
+    },
+    [instance],
+  );
+
+  const getAvailableChildNames = useCallback(
+    (nodeID: string): string[] => {
+      return (instance.getEdges() as Edge<EventTypeLinkData>[])
+        .filter((e) => e.source === nodeID)
+        .map((e) => e.data?.name)
+        .filter((e) => e) as string[];
     },
     [instance],
   );
@@ -462,7 +473,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                 newObjectVars: {},
                 filters: [],
                 sizeFilters: [],
-                constraints: []
+                constraints: [],
               },
             } satisfies EventTypeNodeData,
           },
@@ -505,6 +516,7 @@ export default function VisualEditor(props: VisualEditorProps) {
         violationsPerNode: violationInfo.violationsPerNode,
         showViolationsFor: (d) => setViolationDetails(d),
         getAvailableVars,
+        getAvailableChildNames,
         getVarName: (variable, type) => {
           return {
             name: type.substring(0, 2) + "_" + variable,
@@ -882,9 +894,9 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                 {typeof reason === "object" &&
                   "TooManyMatchingEvents" in reason &&
                   `TooManyMatchingEvents (#${reason.TooManyMatchingEvents})`}
-                  {typeof reason === "object" &&
-                    "ConstraintNotSatisfied" in reason &&
-                    `ConstraintNotSatisfied (at index ${reason.ConstraintNotSatisfied})`}
+                {typeof reason === "object" &&
+                  "ConstraintNotSatisfied" in reason &&
+                  `ConstraintNotSatisfied (at index ${reason.ConstraintNotSatisfied})`}
               </p>
             )}
             <span className="text-emerald-700 font-bold h-6 block">

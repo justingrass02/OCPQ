@@ -61,7 +61,7 @@ export function evaluateConstraints(
 }[] {
   const nodeIDMap = new Map(nodes.map((node) => [node.id, node]));
   if (nodes.length === 0) {
-    return [{ tree: { nodes: [], sizeConstraints: [] }, nodesOrder: nodes }];
+    return [{ tree: { nodes: [], edgeNames: [] }, nodesOrder: nodes }];
   }
   const roots: Node<EventTypeNodeData | GateNodeData>[] = [];
   for (const node of nodes) {
@@ -91,15 +91,22 @@ export function evaluateConstraints(
     const edgeMap = new Map(
       edges.map((edge) => [edge.source + "---" + edge.target, edge]),
     );
-    const tree: BindingBoxTree = { nodes: [], sizeConstraints: [] };
+    const tree: BindingBoxTree = { nodes: [], edgeNames: [] };
     tree.nodes = nodesOrder.map((node) => {
       const children = getChildrenNodeIDs(node.id, edges);
       for (const c of children) {
         const e = edgeMap.get(node.id + "---" + c)!;
-        tree.sizeConstraints.push([
-          [nodesIndexMap.get(node.id)!, nodesIndexMap.get(c)!],
-          [e.data?.minCount ?? null, e.data?.maxCount ?? null],
-        ]);
+        const name = e.data?.name;
+        if (name != null) {
+          tree.edgeNames.push([
+            [nodesIndexMap.get(node.id)!, nodesIndexMap.get(c)!],
+            name,
+          ]);
+        }
+        // tree.sizeConstraints.push([
+        //   [nodesIndexMap.get(node.id)!, nodesIndexMap.get(c)!],
+        //   [e.data?.minCount ?? null, e.data?.maxCount ?? null],
+        // ]);
       }
       if ("box" in node.data) {
         return {
@@ -121,7 +128,13 @@ export function evaluateConstraints(
       console.warn("Returning default box");
       return {
         Box: [
-          { newEventVars: {}, newObjectVars: {}, filterConstraint: [] },
+          {
+            newEventVars: {},
+            newObjectVars: {},
+            filters: [],
+            constraints: [],
+            sizeFilters: [],
+          },
           [],
         ],
       };

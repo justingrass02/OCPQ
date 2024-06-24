@@ -110,6 +110,9 @@ pub struct BindingBox {
 #[serde(rename_all = "camelCase")]
 pub struct BindingBoxTree {
     pub nodes: Vec<BindingBoxTreeNode>,
+    #[serde_as(as = "Vec<(_, _)>")]
+    #[ts(as = "Vec<((usize, usize), String)>")]
+    pub edge_names: HashMap<(usize, usize), String>
     // #[serde_as(as = "Vec<(_, _)>")]
     // #[ts(as = "Vec<((usize, usize), (Option<usize>, Option<usize>))>")]
     // pub size_constraints: HashMap<(usize, usize), (Option<usize>, Option<usize>)>,
@@ -187,24 +190,25 @@ impl BindingBoxTreeNode {
         parent_binding: Binding,
         tree: &BindingBoxTree,
         ocel: &IndexLinkedOCEL,
-    ) -> (EvaluationResults, Vec<Option<ViolationReason>>) {
+    ) -> (EvaluationResults, Vec<(Binding,Option<ViolationReason>)>) {
         match self {
             BindingBoxTreeNode::Box(bbox, children) => {
                 let expanded: Vec<Binding> = bbox.expand(vec![parent_binding.clone()], ocel);
                 enum BindingResult {
                     FilteredOutBySizeFilter,
-                    Sat(EvaluationResults),
-                    Viol(ViolationReason, EvaluationResults),
+                    Sat(Binding,EvaluationResults),
+                    Viol(Binding, ViolationReason, EvaluationResults),
                 }
                 let re: Vec<_> = expanded
                     .into_par_iter()
                     .map(|b| {
                         let mut passed_size_filter = true;
                         let mut all_res: EvaluationResults = Vec::new();
-                        let mut child_res: HashMap<usize, Vec<Option<ViolationReason>>> =
+                        let mut child_res: HashMap<String, Vec<(Binding,Option<ViolationReason>)>> =
                             HashMap::new();
                         // let mut child_res = Vec::with_capacity(children.len());
                         for c in children {
+                            let c_name = tree.edge_names.get(&(own_index,*c)).cloned().unwrap_or(format!("NO NAME PROVIDED - {c}"));
                             let (mut c_res, violations) =
                         // Evaluate Child
                             tree.nodes[*c].evaluate(*c, own_index, b.clone(), tree, ocel);
@@ -214,12 +218,12 @@ impl BindingBoxTreeNode {
                                     .iter()
                                     .all(|size_filter| match size_filter {
                                         SizeFilter::NumChilds {
-                                            child_index,
+                                            child_name,
                                             min,
                                             max,
                                         } => {
                                             // println!("{child_index} {c} Min: {:?} Max: {:?} Len: {}",min,max,violations.len());
-                                            if child_index != c {
+                                            if child_name != &c_name {
                                                 true
                                             } else {
                                                 if min.is_some_and(|min| violations.len() < min) {
@@ -238,7 +242,7 @@ impl BindingBoxTreeNode {
                                 // println!("Did not pass size filter");
                                 return BindingResult::FilteredOutBySizeFilter;
                             }
-                            child_res.insert(*c, violations);
+                            child_res.insert(c_name, violations);
                             all_res.extend(c_res);
                         }
                         for (constr_index,constr) in bbox.constraints.iter().enumerate() {
@@ -252,13 +256,13 @@ impl BindingBoxTreeNode {
                                 },
                                 Constraint::SizeFilter { filter } => match filter {
                                     SizeFilter::NumChilds {
-                                        child_index,
+                                        child_name,
                                         min,
                                         max,
                                     } => {
-                                        println!("Children: {:?}; Child Index: {:?} Min: {:?} Max: {:?}", children,child_index, min, max);
+                                        println!("Children: {:?}; Child Name: {:?} Min: {:?} Max: {:?}", children,child_name, min, max);
                                         if let Some(len) =
-                                        child_res.get(&child_index).map(|r| r.len())
+                                        child_res.get(child_name).map(|r| r.len())
                                         {
                                             if min.is_some_and(|min| len < min) {
                                                 Some(ViolationReason::TooFewMatchingEvents(len))
@@ -272,13 +276,13 @@ impl BindingBoxTreeNode {
                                         }
                                     }
                                 },
-                                Constraint::SAT { child_indices } => {
-                                    let violated = child_indices.iter().all(|child_index| {
-                                        if let Some(c_res) = child_res.get(&child_index) {
-                                            if c_res.iter().any(|v| v.is_some()) {
+                                Constraint::SAT { child_names } => {
+                                    let violated = child_names.iter().all(|child_name| {
+                                        if let Some(c_res) = child_res.get(child_name) {
+                                            if c_res.iter().any(|(b,v)| v.is_some()) {
                                                 true
                                             } else {
-                                                true
+                                                false
                                             }
                                         } else {
                                             false
@@ -290,12 +294,12 @@ impl BindingBoxTreeNode {
                                         None
                                     }
                                 }
-                                Constraint::NOT { child_indices } => todo!(),
-                                Constraint::OR { child_indices } => {
-                                    println!("Child indices: {:?}, Children: {:?}", child_indices, children);
-                                    let any_sat = child_indices.iter().any(|child_index| {
-                                        if let Some(c_res) = child_res.get(&child_index) {
-                                            if c_res.iter().all(|v| v.is_none()) {
+                                Constraint::NOT { child_names } => todo!(),
+                                Constraint::OR { child_names } => {
+                                    println!("Child indices: {:?}, Children: {:?}", child_names, children);
+                                    let any_sat = child_names.iter().any(|child_name| {
+                                        if let Some(c_res) = child_res.get(child_name) {
+                                            if c_res.iter().all(|(b,v)| v.is_none()) {
                                                 true
                                             } else {
                                                 false
@@ -310,15 +314,15 @@ impl BindingBoxTreeNode {
                                         Some(ViolationReason::NoChildrenOfORSatisfied)
                                     }
                                 },
-                                Constraint::AND { child_indices } => todo!(),
+                                Constraint::AND { child_names } => todo!(),
                             };
                             if let Some(vr) = viol {
-                                all_res.push((own_index, b, Some(vr)));
-                                return BindingResult::Viol(vr, all_res);
+                                all_res.push((own_index, b.clone(), Some(vr)));
+                                return BindingResult::Viol(b,vr, all_res);
                             }
                         }
-                        all_res.push((own_index, b, None));
-                        return BindingResult::Sat(all_res);
+                        all_res.push((own_index, b.clone(), None));
+                        return BindingResult::Sat(b,all_res);
                     })
                     .collect();
 
@@ -328,14 +332,14 @@ impl BindingBoxTreeNode {
                         || (EvaluationResults::new(), Vec::new()),
                         |(mut a, mut b), x| match x {
                             BindingResult::FilteredOutBySizeFilter => (a, b),
-                            BindingResult::Sat(r) => {
+                            BindingResult::Sat(binding,r) => {
                                 a.extend(r);
-                                b.push(None);
+                                b.push((binding,None));
                                 (a, b)
                             }
-                            BindingResult::Viol(v, r) => {
+                            BindingResult::Viol(binding,v, r) => {
                                 a.extend(r);
-                                b.push(Some(v));
+                                b.push((binding,Some(v)));
                                 (a, b)
                             }
                         },
@@ -537,11 +541,13 @@ impl Filter {
 pub enum SizeFilter {
     // The nth child should be between (min,max) interval, where None represent no bound
     NumChilds {
-        child_index: usize,
+        child_name: NodeEdgeName,
         min: Option<usize>,
         max: Option<usize>,
     },
 }
+
+type NodeEdgeName = String;
 
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
@@ -550,10 +556,10 @@ pub enum SizeFilter {
 pub enum Constraint {
     Filter { filter: Filter },
     SizeFilter { filter: SizeFilter },
-    SAT { child_indices: Vec<usize> },
-    NOT { child_indices: Vec<usize> },
-    OR { child_indices: Vec<usize> },
-    AND { child_indices: Vec<usize> },
+    SAT { child_names: Vec<NodeEdgeName> },
+    NOT { child_names: Vec<NodeEdgeName> },
+    OR { child_names: Vec<NodeEdgeName> },
+    AND { child_names: Vec<NodeEdgeName> },
 }
 
 impl Filter {

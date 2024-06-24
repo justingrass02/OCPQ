@@ -1,19 +1,23 @@
 import clsx from "clsx";
-import type { EvaluationResPerNodes } from "./helper/types";
+import type { EvaluationResPerNodes, EventTypeLinkData, EventTypeNodeData, GateNodeData } from "./helper/types";
 import {
   getViolationStyles,
   getViolationTextColor,
 } from "./helper/violation-styles";
 import { PiPlayFill } from "react-icons/pi";
+import type { ReactFlowJsonObject } from "reactflow";
 
 export default function TotalViolationInfo({
   violations,
+  flowJSON
 }: {
   violations: EvaluationResPerNodes | undefined;
+  flowJSON: ReactFlowJsonObject<EventTypeNodeData | GateNodeData, EventTypeLinkData>|undefined
 }) {
-  const [situationViolatedCount, situationCount] = Object.values(
+  const rootNodes = flowJSON === undefined ? [] : flowJSON.nodes.filter(n => flowJSON.edges.find((e) => e.target === n.id) === undefined ).map((n) => n.id);
+  const [situationViolatedCount, situationCount] = Object.entries(
     violations?.evalRes ?? {},
-  ).reduce(
+  ).filter(([id,_val])=> rootNodes.includes(id)).map(([_id,val]) => val).reduce(
     ([violationCount, situationCount], val) => [
       violationCount + val.situationViolatedCount,
       situationCount + val.situationCount,

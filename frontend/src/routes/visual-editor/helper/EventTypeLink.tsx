@@ -71,12 +71,10 @@ export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
             >
               <MdRemoveCircleOutline />
             </button>
-            <CountChangeDialog
-              data={data}
-              onChange={(newCountConstraint) => {
-                onEdgeDataChange(id, { ...newCountConstraint });
-              }}
-            />
+            <NameChangeDialog data={data}
+              onChange={(name) => {
+                onEdgeDataChange(id, {name});
+              }}/>
           </div>
         </EdgeLabelRenderer>
       )}
@@ -161,6 +159,64 @@ function CountChangeDialog({
               variant="secondary"
               onClick={() => {
                 onChange(countConstraint);
+              }}
+            >
+              Save
+            </Button>
+          </DialogClose>
+        </DialogContent>
+      </DialogPortal>
+    </Dialog>
+  );
+}
+
+
+function NameChangeDialog({
+  data,
+  onChange,
+}: {
+  data: EventTypeLinkData;
+  onChange: (newName: string|undefined) => unknown;
+}) {
+  const [name, setName] = useState(data.name);
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button
+          className="flex flex-col items-center my-1 py-0.5 px-2 font-bold text-sm rounded-md bg-blue-50/60 hover:bg-blue-200/70"
+          title="Update Name..."
+        >
+          {name ?? "-"}
+        </button>
+      </DialogTrigger>
+      <DialogPortal>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Name</DialogTitle>
+            <DialogDescription>
+              Update the name of the edge.
+            </DialogDescription>
+          </DialogHeader>
+          <h3>Name</h3>
+          <Input
+            type="text"
+            className="w-full"
+            placeholder="Name"
+            value={name ?? ""}
+            onChange={(ev) => {
+              if(ev.currentTarget.value === ""){
+                setName(undefined)
+              }else{
+                setName(ev.currentTarget.value);
+              }
+            }}
+          />
+          <DialogClose asChild>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                onChange(name);
               }}
             >
               Save

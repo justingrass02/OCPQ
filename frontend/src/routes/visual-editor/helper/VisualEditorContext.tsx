@@ -26,6 +26,7 @@ export type VisualEditorContextValue = {
     nodeID: string,
     type: "object" | "event",
   ) => (ObjectVariable | EventVariable)[];
+  getAvailableChildNames: (nodeID: string) => string[];
   getVarName: (
     variable: EventVariable | ObjectVariable,
     type: "object" | "event",
@@ -36,6 +37,7 @@ export const VisualEditorContext = createContext<VisualEditorContextValue>({
   onNodeDataChange: () => {},
   onEdgeDataChange: () => {},
   getAvailableVars: () => [],
+  getAvailableChildNames: () => [],
   getVarName: (variable, type) => ({
     name: type.substring(0, 2) + "_" + variable,
     color: "black",

@@ -36,9 +36,10 @@ export default function FilterChooser({
   updateBox: (box: BindingBox) => unknown;
   type: "filter" | "constraint";
 }) {
-  const { getAvailableVars } = useContext(VisualEditorContext);
+  const { getAvailableVars, getAvailableChildNames } = useContext(VisualEditorContext);
   const availableObjectVars = getAvailableVars(id, "object");
   const availableEventVars = getAvailableVars(id, "event");
+  const availableChildSets = getAvailableChildNames(id);
   const [alertState, setAlertState] = useState<
     (
       | {
@@ -226,7 +227,7 @@ export default function FilterChooser({
                         ...alertState,
                         value: {
                           type: "NumChilds",
-                          child_index: 0,
+                          child_name: "A",
                           min: null,
                           max: null,
                         },
@@ -237,7 +238,7 @@ export default function FilterChooser({
                     ) {
                       setAlertState({
                         ...alertState,
-                        value: { type: "SAT", child_indices: [0] },
+                        value: { type: "SAT", child_names: ["A"] },
                       });
                     } else if (
                       alertState.type === "constraint" &&
@@ -245,7 +246,7 @@ export default function FilterChooser({
                     ) {
                       setAlertState({
                         ...alertState,
-                        value: { type: "NOT", child_indices: [0] },
+                        value: { type: "NOT", child_names: ["A"] },
                       });
                     } else if (
                       alertState.type === "constraint" &&
@@ -253,7 +254,7 @@ export default function FilterChooser({
                     ) {
                       setAlertState({
                         ...alertState,
-                        value: { type: "AND", child_indices: [0, 1] },
+                        value: { type: "AND", child_names: ["A","B"] },
                       });
                     } else if (
                       alertState.type === "constraint" &&
@@ -261,7 +262,7 @@ export default function FilterChooser({
                     ) {
                       setAlertState({
                         ...alertState,
-                        value: { type: "OR", child_indices: [0, 1] },
+                        value: { type: "OR", child_names: ["A","B"] },
                       });
                     }
                   }}
@@ -277,6 +278,7 @@ export default function FilterChooser({
                 }}
                 availableEventVars={availableEventVars}
                 availableObjectVars={availableObjectVars}
+                availableChildSets={availableChildSets}
                 />
                 </div>
             )}

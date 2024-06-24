@@ -18,11 +18,13 @@ export default function FilterOrConstraintEditor<
   updateValue,
   availableObjectVars,
   availableEventVars,
+  availableChildSets,
 }: {
   value: T;
   updateValue: (value: T) => unknown;
   availableObjectVars: number[];
   availableEventVars: number[];
+  availableChildSets: string[]
 }) {
   switch (value.type) {
     case "O2E":
@@ -158,11 +160,11 @@ export default function FilterOrConstraintEditor<
       return (
         <>
           <ChildSetSelector
-            availableChildSets={[0, 1, 2, 3, 4, 5, 6,7,8,9,10,11,12,13,14]}
-            value={value.child_index}
+            availableChildSets={availableChildSets}
+            value={value.child_name}
             onChange={(v) => {
               if (v !== undefined) {
-                value.child_index = v;
+                value.child_name = v;
                 updateValue({ ...value });
               }
             }}
@@ -208,6 +210,7 @@ export default function FilterOrConstraintEditor<
           }
           availableEventVars={availableEventVars}
           availableObjectVars={availableObjectVars}
+          availableChildSets={availableChildSets}
         />
       );
     case "SizeFilter":
@@ -222,36 +225,64 @@ export default function FilterOrConstraintEditor<
           }
           availableEventVars={availableEventVars}
           availableObjectVars={availableObjectVars}
+          availableChildSets={availableChildSets}
         />
       );
     case "SAT":
-      return <></>;
+      return  <>
+      {value.child_names.map((c, i) => (
+        <div key={i} className="flex gap-0.5 mr-2">
+          <ChildSetSelector
+            availableChildSets={availableChildSets}
+            value={c}
+            onChange={(v) => {
+              if (v !== undefined) {
+                value.child_names[i] = v;
+                updateValue({ ...value });
+              }
+            }}
+          />
+        <Button size="icon" variant="outline" onClick={() => {
+          value.child_names.splice(i,1);
+          updateValue({...value});
+        }}><LuTrash/></Button>
+        </div>
+      ))}
+      <Button
+        onClick={() => {
+          value.child_names.push("A");
+          updateValue({ ...value });
+        }}
+      >
+        Add
+      </Button>
+    </>;
     case "NOT":
       return <></>;
     case "OR":
       return (
         <>
-          {value.child_indices.map((c, i) => (
+          {value.child_names.map((c, i) => (
             <div key={i} className="flex gap-0.5 mr-2">
               <ChildSetSelector
-                availableChildSets={[0, 1, 2, 3, 4, 5, 6,7,8,9,10,11,12,13,14]}
+                availableChildSets={availableChildSets}
                 value={c}
                 onChange={(v) => {
                   if (v !== undefined) {
-                    value.child_indices[i] = v;
+                    value.child_names[i] = v;
                     updateValue({ ...value });
                   }
                 }}
               />
             <Button size="icon" variant="outline" onClick={() => {
-              value.child_indices.splice(i,1);
+              value.child_names.splice(i,1);
               updateValue({...value});
             }}><LuTrash/></Button>
             </div>
           ))}
           <Button
             onClick={() => {
-              value.child_indices.push(0);
+              value.child_names.push("A");
               updateValue({ ...value });
             }}
           >
@@ -299,7 +330,7 @@ export function FilterOrConstraintDisplay<
     case "NumChilds":
       return (
         <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
-          {value.min ?? 0} ≤ |A{value.child_index}| ≤ {value.max ?? "∞"}
+          {value.min ?? 0} ≤ |{value.child_name}| ≤ {value.max ?? "∞"}
         </div>
       );
     case "Filter":
@@ -309,25 +340,25 @@ export function FilterOrConstraintDisplay<
     case "SAT":
       return (
         <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
-          SAT({value.child_indices.map((i) => "A" + i).join(",")})
+          SAT({value.child_names.map((i) => "A" + i).join(",")})
         </div>
       );
     case "NOT":
       return (
         <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
-          NOT({value.child_indices.map((i) => "A" + i).join(",")})
+          NOT({value.child_names.map((i) => "A" + i).join(",")})
         </div>
       );
     case "OR":
       return (
         <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
-          OR({value.child_indices.map((i) => "A" + i).join(",")})
+          OR({value.child_names.map((i) => "A" + i).join(",")})
         </div>
       );
     case "AND":
       return (
         <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
-          AND({value.child_indices.map((i) => "A" + i).join(",")})
+          AND({value.child_names.map((i) => "A" + i).join(",")})
         </div>
       );
   }
@@ -338,26 +369,25 @@ function ChildSetSelector({
   onChange,
   availableChildSets,
 }: {
-  value: number | undefined;
-  onChange: (value: number | undefined) => unknown;
-  availableChildSets: number[];
+  value: string | undefined;
+  onChange: (value: string | undefined) => unknown;
+  availableChildSets: string[];
 }) {
   return (
     <Combobox
       options={availableChildSets.map((v) => ({
-        label: "A" + v,
-        value: `${v} --- A${v}}`,
+        label: v,
+        value: v,
       }))}
       onChange={(val) => {
-        const newVar = parseInt(val.split(" --- ")[0]);
-        if (isFinite(newVar)) {
-          onChange(newVar);
+        if (val !== "") {
+          onChange(val);
         } else {
           onChange(undefined);
         }
       }}
       name={"Child Set"}
-      value={value !== undefined ? `${value} --- A${value}}` : ""}
+      value={value ?? ""}
     />
   );
 }

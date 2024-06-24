@@ -24,6 +24,7 @@ export type EventTypeLinkData = {
   color: string;
   minCount: number | null;
   maxCount: number | null;
+  name?: string;
 };
 
 export type DiscoverConstraintsRequest = {

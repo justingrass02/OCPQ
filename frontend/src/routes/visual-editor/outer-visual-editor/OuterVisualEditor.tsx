@@ -595,6 +595,7 @@ export default function VisualEditorOuter() {
                                 violations={
                                   prevDataRef.current[activeIndex]?.violations
                                 }
+                                flowJSON={prevDataRef.current[activeIndex]?.flowJson}
                               />
                             </div>
                           </div>
