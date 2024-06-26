@@ -282,12 +282,26 @@ impl BindingBoxTreeNode {
                                         }
                                     });
                                     if violated {
-                                        Some(ViolationReason::ChildNotSatisfied)
+                                        Some(ViolationReason::ConstraintNotSatisfied(constr_index))
                                     } else {
                                         None
                                     }
                                 }
-                                Constraint::NOT { child_names: _ } => todo!(),
+                                Constraint::NOT { child_names } => {
+
+                                    let violated = !child_names.iter().all(|child_name| {
+                                        if let Some(c_res) = child_res.get(child_name) {
+                                            c_res.iter().any(|(_b, v)| v.is_some())
+                                        } else {
+                                            false
+                                        }
+                                    });
+                                    if violated {
+                                        Some(ViolationReason::ConstraintNotSatisfied(constr_index))
+                                    } else {
+                                        None
+                                    }
+                                },
                                 Constraint::OR { child_names } => {
                                     // println!("Child indices: {:?}, Children: {:?}", child_names, children);
                                     let any_sat = child_names.iter().any(|child_name| {
@@ -300,10 +314,25 @@ impl BindingBoxTreeNode {
                                     if any_sat {
                                         None
                                     } else {
-                                        Some(ViolationReason::NoChildrenOfORSatisfied)
+                                        Some(ViolationReason::ConstraintNotSatisfied(constr_index))
                                     }
                                 }
-                                Constraint::AND { child_names: _ } => todo!(),
+                                Constraint::AND { child_names } => {
+
+                                    // println!("Child indices: {:?}, Children: {:?}", child_names, children);
+                                    let any_sat = child_names.iter().all(|child_name| {
+                                        if let Some(c_res) = child_res.get(child_name) {
+                                            c_res.iter().all(|(_b, v)| v.is_none())
+                                        } else {
+                                            false
+                                        }
+                                    });
+                                    if any_sat {
+                                        None
+                                    } else {
+                                        Some(ViolationReason::ConstraintNotSatisfied(constr_index))
+                                    }
+                                },
                             };
                             if let Some(vr) = viol {
                                 all_res.push((own_index, b.clone(), Some(vr)));
