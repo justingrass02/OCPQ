@@ -196,7 +196,7 @@ impl BindingBoxTreeNode {
             BindingBoxTreeNode::Box(bbox, children) => {
                 let expanded: Vec<Binding> = bbox.expand(vec![parent_binding.clone()], ocel);
                 enum BindingResult {
-                    FilteredOutBySizeFilter,
+                    FilteredOutBySizeFilter(Binding,EvaluationResults),
                     Sat(Binding, EvaluationResults),
                     Viol(Binding, ViolationReason, EvaluationResults),
                 }
@@ -254,7 +254,7 @@ impl BindingBoxTreeNode {
                         }
                         for sf in &bbox.size_filters {
                             if !sf.check(&child_res) {
-                                return BindingResult::FilteredOutBySizeFilter;
+                                return BindingResult::FilteredOutBySizeFilter(b.clone(),all_res);
                             }
                         }
                         for (constr_index, constr) in bbox.constraints.iter().enumerate() {
@@ -351,7 +351,10 @@ impl BindingBoxTreeNode {
                     .fold(
                         || (EvaluationResults::new(), Vec::new()),
                         |(mut a, mut b), x| match x {
-                            BindingResult::FilteredOutBySizeFilter => (a, b),
+                            BindingResult::FilteredOutBySizeFilter(_binding,r) => {
+                                a.extend(r);
+                                (a,b)
+                            },
                             BindingResult::Sat(binding, r) => {
                                 a.extend(r);
                                 b.push((binding, None));
