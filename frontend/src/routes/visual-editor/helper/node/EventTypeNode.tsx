@@ -54,7 +54,7 @@ function EventTypeNode({ data, id, selected }: NodeProps<EventTypeNodeData>) {
       <AlertHelper
         trigger={
           <button
-            className="absolute -top-3.5 right-1 opacity-10 hover:opacity-100 hover:text-red-500"
+            className="absolute -top-3.5 right-1 opacity-10 hover:opacity-100 hover:text-red-500 hide-in-image"
             title="Delete node"
           >
             <TbTrash size={12} />

@@ -649,6 +649,7 @@ export default function VisualEditor(props: VisualEditorProps) {
               void (useSVG ? toSvg : toPng)(viewPort, {
                 canvasHeight: viewPort.clientHeight * scaleFactor,
                 canvasWidth: viewPort.clientWidth * scaleFactor,
+                filter: (node) => node.classList === undefined || !node.classList.contains("hide-in-image")
               })
                 .then((dataURL) => {
                   downloadURL(

@@ -65,7 +65,7 @@ export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
             className="nodrag nopan flex flex-col items-center -mt-1"
           >
             <button
-              className="hover:text-red-500 text-red-400/30  rounded-lg text-sm"
+              className="hover:text-red-500 text-red-400/30  rounded-lg text-sm hide-in-image"
               title="Delete edge"
               onClick={() => onEdgeDataChange(id, undefined)}
             >
