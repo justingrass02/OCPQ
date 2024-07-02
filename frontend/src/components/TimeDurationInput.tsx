@@ -34,9 +34,9 @@ export function getFittingUnit(seconds: number) {
   return "seconds";
 }
 
-export function formatSeconds(seconds: number) {
-  if (seconds === Infinity) return "∞";
-  if (seconds === -Infinity) return "-∞";
+export function formatSeconds(seconds: number,inftysymbol = "∞",minusinftysymbol = "-∞") {
+  if (seconds === Infinity) return inftysymbol;
+  if (seconds === -Infinity) return minusinftysymbol;
   if (seconds === 0) return "0";
   const reversedUnits = [...TIME_DURATION_UNITS];
   reversedUnits.reverse();
