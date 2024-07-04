@@ -57,7 +57,7 @@ export default function TimeDurationInput({
   onChange,
 }: {
   durationSeconds: number;
-  onChange: (newSeconds: number) => unknown;
+  onChange: (newSeconds: number|undefined) => unknown;
 }) {
   const [unit, setUnit] = useState<(typeof TIME_DURATION_UNITS)[number]>(
     getFittingUnit(durationSeconds),
@@ -104,6 +104,9 @@ export default function TimeDurationInput({
       setValue(val);
       onChange(val * unitFactorFromSeconds(unit));
       setValueString(val.toString());
+    }else{
+      setValueString("")
+      onChange(undefined);
     }
   }
 
