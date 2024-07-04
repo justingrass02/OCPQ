@@ -6,7 +6,7 @@ import type {
   EventTypeNodeData,
   GateNodeData,
 } from "./types";
-import type { OCELInfo } from "@/types/ocel";
+import type { OCELInfo, OCELType } from "@/types/ocel";
 import type { EventVariable } from "@/types/generated/EventVariable";
 import type { ObjectVariable } from "@/types/generated/ObjectVariable";
 
@@ -32,6 +32,11 @@ export type VisualEditorContextValue = {
     variable: EventVariable | ObjectVariable,
     type: "object" | "event",
   ) => { name: string; color: string };
+  getTypesForVariable: (
+    nodeID: string,
+    variable: number,
+    type: "object" | "event",
+  ) => OCELType[];
 };
 
 export const VisualEditorContext = createContext<VisualEditorContextValue>({
@@ -39,6 +44,7 @@ export const VisualEditorContext = createContext<VisualEditorContextValue>({
   onEdgeDataChange: () => {},
   getAvailableVars: () => [],
   getNodeIDByName: () => undefined,
+  getTypesForVariable: () => [],
   getAvailableChildNames: () => [],
   getVarName: (variable, type) => ({
     name: type.substring(0, 2) + "_" + variable,

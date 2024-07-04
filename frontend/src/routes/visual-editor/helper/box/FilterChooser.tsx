@@ -170,6 +170,14 @@ export default function FilterChooser({
                       label: "Time between Events",
                       value: "TimeBetweenEvents",
                     },
+                    {
+                      label: "Event Attribute Value",
+                      value: "EventAttributeValueFilter",
+                    },
+                    {
+                      label: "Object Attribute Value",
+                      value: "ObjectAttributeValueFilter",
+                    },
                     ...(alertState.type !== "filter" ||
                     alertState.mode !== "edit" ||
                     alertState.wasSizeFilter
@@ -288,6 +296,27 @@ export default function FilterChooser({
                         ...alertState,
                         value: { type: "OR", child_names: ["A", "B"] },
                       });
+                    } else if (val === "EventAttributeValueFilter") {
+                      setAlertState({
+                        ...alertState,
+                        value: {
+                          type: "EventAttributeValueFilter",
+                          event: 0,
+                          attribute_name: "",
+                          value_filter: { type: "String", is_in: [""] },
+                        },
+                      });
+                    } else if (val === "ObjectAttributeValueFilter") {
+                      setAlertState({
+                        ...alertState,
+                        value: {
+                          type: "ObjectAttributeValueFilter",
+                          object: 0,
+                          attribute_name: "",
+                          value_filter: { type: "String", is_in: [""] },
+                          at_time: { type: "Sometime" },
+                        },
+                      });
                     }
                   }}
                 />
@@ -303,6 +332,7 @@ export default function FilterChooser({
                   availableEventVars={availableEventVars}
                   availableObjectVars={availableObjectVars}
                   availableChildSets={availableChildSets}
+                  nodeID={id}
                 />
               </div>
             )}

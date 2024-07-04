@@ -49,7 +49,7 @@ import { TbLogicAnd, TbPlus, TbSquare } from "react-icons/tb";
 import AutoSizer from "react-virtualized-auto-sizer";
 import { VariableSizeList, type ListChildComponentProps } from "react-window";
 import "reactflow/dist/style.css";
-import type { EventTypeQualifiers, OCELInfo } from "../../types/ocel";
+import type { EventTypeQualifiers, OCELInfo, OCELType } from "../../types/ocel";
 import { FlowContext } from "./helper/FlowContext";
 import { applyLayoutToNodes } from "./helper/LayoutFlow";
 import { VisualEditorContext } from "./helper/VisualEditorContext";
@@ -78,6 +78,7 @@ import {
 } from "./helper/types";
 import { downloadURL } from "@/lib/download-url";
 import EventTypeLink from "./helper/EventTypeLink";
+import { OcelInfoContext } from "@/App";
 function isEditorElementTarget(el: HTMLElement | EventTarget | null) {
   return (
     el === document.body ||
@@ -219,6 +220,45 @@ export default function VisualEditor(props: VisualEditorProps) {
         .filter((e) => e.source === nodeID)
         .map((e) => e.data?.name)
         .filter((e) => e) as string[];
+    },
+    [instance],
+  );
+
+  const getTypesForVariable = useCallback(
+    (
+      nodeID: string,
+      variable: number,
+      type: "event" | "object",
+    ): OCELType[] => {
+      const edges = instance.getEdges();
+      let node = instance.getNode(nodeID) as
+        | Node<EventTypeNodeData>
+        | undefined;
+      while (
+        node != null &&
+        !(
+          variable in
+            (type === "event"
+              ? node.data.box.newEventVars
+              : node.data.box.newObjectVars)
+        )
+      ) {
+        node = instance.getNode(getParentNodeID(node.id, edges) ?? "-");
+      }
+      if (node != null) {
+        if (type === "event") {
+          const etypes = node.data.box.newEventVars[variable];
+          return props.ocelInfo.event_types.filter((et) =>
+            etypes.includes(et.name),
+          );
+        } else {
+          const otypes = node.data.box.newObjectVars[variable];
+          return props.ocelInfo.object_types.filter((et) =>
+            otypes.includes(et.name),
+          );
+        }
+      }
+      return [];
     },
     [instance],
   );
@@ -531,6 +571,7 @@ export default function VisualEditor(props: VisualEditorProps) {
         showViolationsFor: (d) => setViolationDetails(d),
         getAvailableVars,
         getAvailableChildNames,
+        getTypesForVariable,
         getNodeIDByName,
         getVarName: (variable, type) => {
           return {
@@ -649,7 +690,9 @@ export default function VisualEditor(props: VisualEditorProps) {
               void (useSVG ? toSvg : toPng)(viewPort, {
                 canvasHeight: viewPort.clientHeight * scaleFactor,
                 canvasWidth: viewPort.clientWidth * scaleFactor,
-                filter: (node) => node.classList === undefined || !node.classList.contains("hide-in-image")
+                filter: (node) =>
+                  node.classList === undefined ||
+                  !node.classList.contains("hide-in-image"),
               })
                 .then((dataURL) => {
                   downloadURL(

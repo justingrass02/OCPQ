@@ -1,26 +1,24 @@
+import TimeDurationInput, {
+  formatSeconds,
+} from "@/components/TimeDurationInput";
+import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
+import { Input } from "@/components/ui/input";
 import type { Constraint } from "@/types/generated/Constraint";
 import type { Filter } from "@/types/generated/Filter";
 import type { SizeFilter } from "@/types/generated/SizeFilter";
+import { useContext } from "react";
+import { LuArrowRight, LuDelete, LuLink, LuTrash } from "react-icons/lu";
+import { VisualEditorContext } from "../VisualEditorContext";
 import {
   EventVarSelector,
   ObjectOrEventVarSelector,
   ObjectVarSelector,
 } from "./FilterChooser";
-import { Input } from "@/components/ui/input";
-import TimeDurationInput, {
-  formatSeconds,
-} from "@/components/TimeDurationInput";
-import { Combobox } from "@/components/ui/combobox";
-import {
-  EvVarName,
-  ObVarName,
-  getEvVarName,
-  getObVarName,
-} from "./variable-names";
-import { LuArrowRight, LuLink, LuTrash } from "react-icons/lu";
-import { Button } from "@/components/ui/button";
-import { VisualEditorContext } from "../VisualEditorContext";
-import { useContext } from "react";
+import { EvVarName, ObVarName } from "./variable-names";
+import type { ValueFilter } from "@/types/generated/ValueFilter";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 export default function FilterOrConstraintEditor<
   T extends Filter | SizeFilter | Constraint,
@@ -30,14 +28,17 @@ export default function FilterOrConstraintEditor<
   availableObjectVars,
   availableEventVars,
   availableChildSets,
+  nodeID,
 }: {
   value: T;
   updateValue: (value: T) => unknown;
   availableObjectVars: number[];
   availableEventVars: number[];
   availableChildSets: string[];
+  nodeID: string;
 }) {
-  const { getAvailableVars, getNodeIDByName } = useContext(VisualEditorContext);
+  const { getAvailableVars, getNodeIDByName, getTypesForVariable } =
+    useContext(VisualEditorContext);
 
   switch (value.type) {
     case "O2E":
@@ -319,6 +320,7 @@ export default function FilterOrConstraintEditor<
           availableEventVars={availableEventVars}
           availableObjectVars={availableObjectVars}
           availableChildSets={availableChildSets}
+          nodeID={nodeID}
         />
       );
     case "SizeFilter":
@@ -334,6 +336,7 @@ export default function FilterOrConstraintEditor<
           availableEventVars={availableEventVars}
           availableObjectVars={availableObjectVars}
           availableChildSets={availableChildSets}
+          nodeID={nodeID}
         />
       );
     case "SAT":
@@ -374,7 +377,42 @@ export default function FilterOrConstraintEditor<
         </>
       );
     case "NOT":
-      return <></>;
+      return (
+        <>
+          {value.child_names.map((c, i) => (
+            <div key={i} className="flex gap-0.5 mr-2">
+              <ChildSetSelector
+                availableChildSets={availableChildSets}
+                value={c}
+                onChange={(v) => {
+                  if (v !== undefined) {
+                    value.child_names[i] = v;
+                    updateValue({ ...value });
+                  }
+                }}
+              />
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={() => {
+                  value.child_names.splice(i, 1);
+                  updateValue({ ...value });
+                }}
+              >
+                <LuTrash />
+              </Button>
+            </div>
+          ))}
+          <Button
+            onClick={() => {
+              value.child_names.push("A");
+              updateValue({ ...value });
+            }}
+          >
+            Add
+          </Button>
+        </>
+      );
     case "OR":
       return (
         <>
@@ -413,7 +451,139 @@ export default function FilterOrConstraintEditor<
         </>
       );
     case "AND":
-      return <></>;
+      return (
+        <>
+          {value.child_names.map((c, i) => (
+            <div key={i} className="flex gap-0.5 mr-2">
+              <ChildSetSelector
+                availableChildSets={availableChildSets}
+                value={c}
+                onChange={(v) => {
+                  if (v !== undefined) {
+                    value.child_names[i] = v;
+                    updateValue({ ...value });
+                  }
+                }}
+              />
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={() => {
+                  value.child_names.splice(i, 1);
+                  updateValue({ ...value });
+                }}
+              >
+                <LuTrash />
+              </Button>
+            </div>
+          ))}
+          <Button
+            onClick={() => {
+              value.child_names.push("A");
+              updateValue({ ...value });
+            }}
+          >
+            Add
+          </Button>
+        </>
+      );
+    case "EventAttributeValueFilter":
+      return (
+        <>
+          <EventVarSelector
+            eventVars={availableEventVars}
+            value={value.event}
+            onChange={(newV) => {
+              if (newV !== undefined) {
+                value.event = newV;
+                updateValue({ ...value });
+              }
+            }}
+          />
+          <AttributeNameSelector
+            availableAttributes={deDupe(
+              getTypesForVariable(nodeID, value.event, "event")
+                .map((t) => t.attributes)
+                .flat()
+                .map((at) => at.name),
+            )}
+            value={value.attribute_name}
+            onChange={(newV) => {
+              const newAttrName = getTypesForVariable(
+                nodeID,
+                value.event,
+                "event",
+              )
+                .map((t) => t.attributes)
+                .flat()
+                .find((at) => at.name === newV);
+              console.log({ newAttrName });
+              if (newV !== undefined) {
+                value.attribute_name = newV;
+                updateValue({ ...value });
+              }
+            }}
+          />
+          <AttributeValueFilterSelector
+            value={value.value_filter}
+            onChange={(valueFilter) => {
+              if (valueFilter !== undefined) {
+                value.value_filter = valueFilter;
+                updateValue({ ...value });
+              }
+            }}
+          />
+        </>
+      );
+    case "ObjectAttributeValueFilter":
+      return (
+        <>
+          <ObjectVarSelector
+            objectVars={availableObjectVars}
+            value={value.object}
+            onChange={(newV) => {
+              if (newV !== undefined) {
+                value.object = newV;
+                updateValue({ ...value });
+              }
+            }}
+          />
+          <AttributeNameSelector
+            availableAttributes={deDupe(
+              getTypesForVariable(nodeID, value.object, "object")
+                .map((t) => t.attributes)
+                .flat()
+                .map((at) => at.name),
+            )}
+            value={value.attribute_name}
+            onChange={(newV) => {
+              const newAttrName = getTypesForVariable(
+                nodeID,
+                value.object,
+                "object",
+              )
+                .map((t) => t.attributes)
+                .flat()
+                .find((at) => at.name === newV);
+              console.log({ newAttrName });
+
+              if (newV !== undefined) {
+                value.attribute_name = newV;
+                updateValue({ ...value });
+              }
+            }}
+          />
+          <AttributeValueFilterSelector
+            value={value.value_filter}
+            onChange={(valueFilter) => {
+              if (valueFilter !== undefined) {
+                value.value_filter = valueFilter;
+                updateValue({ ...value });
+              }
+            }}
+          />
+        </>
+      );
   }
 }
 
@@ -509,6 +679,18 @@ export function FilterOrConstraintDisplay<
           AND({value.child_names.map((i) => i).join(",")})
         </div>
       );
+    case "EventAttributeValueFilter":
+      return (
+        <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
+          {JSON.stringify(value)}
+        </div>
+      );
+    case "ObjectAttributeValueFilter":
+      return (
+        <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
+          {JSON.stringify(value)}
+        </div>
+      );
   }
 }
 
@@ -538,4 +720,191 @@ function ChildSetSelector({
       value={value ?? ""}
     />
   );
+}
+
+function AttributeNameSelector({
+  value,
+  onChange,
+  availableAttributes,
+}: {
+  value: string | undefined;
+  onChange: (value: string | undefined) => unknown;
+  availableAttributes: string[];
+}) {
+  return (
+    <Combobox
+      options={availableAttributes.map((v) => ({
+        label: v,
+        value: v,
+      }))}
+      onChange={(val) => {
+        if (val !== "") {
+          onChange(val);
+        } else {
+          onChange(undefined);
+        }
+      }}
+      name={"Attribute Name"}
+      value={value ?? ""}
+    />
+  );
+}
+
+function AttributeValueFilterSelector({
+  value,
+  onChange,
+}: {
+  value: ValueFilter | undefined;
+  onChange: (value: ValueFilter | undefined) => unknown;
+}) {
+  return (
+    <div className="flex items-start gap-x-2">
+      <Combobox
+        options={["Float", "Integer", "Boolean", "String", "Time"].map((v) => ({
+          label: v,
+          value: v,
+        }))}
+        onChange={(val) => {
+          if (val !== "") {
+            switch (val as ValueFilter["type"]) {
+              case "Float":
+                return onChange({ type: "Float", min: null, max: null });
+              case "Integer":
+                return onChange({ type: "Integer", min: null, max: null });
+              case "Boolean":
+                return onChange({ type: "Boolean", is_true: true });
+              case "String":
+                return onChange({ type: "String", is_in: [""] });
+              case "Time":
+                return onChange({ type: "Time", from: null, to: null });
+            }
+          } else {
+            onChange(undefined);
+          }
+        }}
+        name={"Attribute Type"}
+        value={value?.type ?? "String"}
+      />
+      {value?.type === "Boolean" && (
+        <Label className="flex gap-x-2 items-center justify-center">
+          <Checkbox
+            checked={value.is_true}
+            onCheckedChange={(c) => {
+              onChange({ ...value, is_true: Boolean(c) });
+            }}
+          />
+          Should be {value.is_true ? "True" : "False"}
+        </Label>
+      )}
+      {(value?.type === "Float" || value?.type === "Integer") && (
+        <div className="flex items-center gap-x-2">
+          <Input
+            type="number"
+            step={value.type === "Integer" ? 1 : undefined}
+            value={value.min + "" ?? ""}
+            onChange={(ev) => {
+              const val = ev.currentTarget.valueAsNumber;
+              if (isFinite(val)) {
+                value.min = val;
+              } else {
+                value.min = null;
+              }
+              onChange({ ...value });
+            }}
+          />
+          {"-"}
+
+          <Input
+            type="number"
+            step={value.type === "Integer" ? 1 : undefined}
+            value={value.max + "" ?? ""}
+            onChange={(ev) => {
+              const val = ev.currentTarget.valueAsNumber;
+              if (isFinite(val)) {
+                value.max = val;
+              } else {
+                value.max = null;
+              }
+              onChange({ ...value });
+            }}
+          />
+        </div>
+      )}
+      {value?.type === "String" && (
+        <div className="flex flex-col w-full -mt-6">
+          <div className="h-6">Value should be in:</div>
+          <div className="flex flex-col w-full gap-2 mb-2">
+            {value.is_in.map((v, i) => (
+              <div key={i} className="w-full flex items-center gap-x-2">
+                <Input
+                  className=""
+                  type="text"
+                  value={v}
+                  onChange={(ev) => {
+                    value.is_in[i] = ev.currentTarget.value;
+                    onChange({ ...value });
+                  }}
+                />
+                <Button
+                  className="shrink-0 w-[1.5rem] h-[1.5rem]"
+                  size="icon"
+                  variant="outline"
+                  onClick={() => {
+                    const values = [...value.is_in];
+                    values.splice(i, 1);
+                    onChange({ ...value, is_in: values });
+                  }}
+                >
+                  <LuDelete />
+                </Button>
+              </div>
+            ))}
+          </div>
+          <div className="text-right">
+            <Button
+              variant="outline"
+              onClick={() => {
+                onChange({ ...value, is_in: [...value.is_in, ""] });
+              }}
+            >
+              Add Option
+            </Button>
+          </div>
+        </div>
+      )}
+      {value?.type === "Time" && (
+        <div>
+          <Input
+            type="datetime-local"
+            value={value.from?.slice(0,16) ?? ""}
+            onChange={(ev) => {
+              const iso = ev.currentTarget.valueAsDate?.toISOString();
+              console.log({iso});
+              if (iso !== undefined) {
+                onChange({ ...value, from: iso });
+              } else {
+                onChange({ ...value, from: null });
+              }
+            }}
+          />
+          <Input
+            type="datetime-local"
+            value={value.to?.slice(0,16) ?? ""}
+            onChange={(ev) => {
+              const iso = ev.currentTarget.valueAsDate?.toISOString();
+              if (iso !== undefined) {
+                onChange({ ...value, to: iso });
+              } else {
+                onChange({ ...value, to: null });
+              }
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function deDupe<T>(values: T[]): T[] {
+  return [...new Set(values).values()];
 }
