@@ -161,6 +161,56 @@ pub enum BindingBoxTreeNode {
     AND(usize, usize),
     NOT(usize),
 }
+const UNNAMED: &'static str = "UNNAMED - ";
+impl BindingBoxTreeNode {
+    pub fn to_box(self) -> (BindingBox, Vec<usize>) {
+        match self {
+            BindingBoxTreeNode::Box(b, children) => (b, children),
+            BindingBoxTreeNode::OR(c1, c2) => (
+                BindingBox {
+                    new_event_vars: HashMap::default(),
+                    new_object_vars: HashMap::default(),
+                    filters: Vec::default(),
+                    size_filters: Vec::default(),
+                    constraints: vec![Constraint::OR {
+                        child_names: vec![
+                            format!("{}{}", UNNAMED, c1),
+                            format!("{}{}", UNNAMED, c2),
+                        ],
+                    }],
+                },
+                vec![c1, c2],
+            ),
+            BindingBoxTreeNode::AND(c1, c2) => (
+                BindingBox {
+                    new_event_vars: HashMap::default(),
+                    new_object_vars: HashMap::default(),
+                    filters: Vec::default(),
+                    size_filters: Vec::default(),
+                    constraints: vec![Constraint::AND {
+                        child_names: vec![
+                            format!("{}{}", UNNAMED, c1),
+                            format!("{}{}", UNNAMED, c2),
+                        ],
+                    }],
+                },
+                vec![c1, c2],
+            ),
+            BindingBoxTreeNode::NOT(c1) => (
+                BindingBox {
+                    new_event_vars: HashMap::default(),
+                    new_object_vars: HashMap::default(),
+                    filters: Vec::default(),
+                    size_filters: Vec::default(),
+                    constraints: vec![Constraint::NOT {
+                        child_names: vec![format!("{}{}", UNNAMED, c1)],
+                    }],
+                },
+                vec![c1],
+            ),
+        }
+    }
+}
 
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
@@ -192,11 +242,16 @@ impl BindingBoxTreeNode {
         tree: &BindingBoxTree,
         ocel: &IndexLinkedOCEL,
     ) -> (EvaluationResults, Vec<(Binding, Option<ViolationReason>)>) {
-        match self {
-            BindingBoxTreeNode::Box(bbox, children) => {
+        let (bbox,children) = match self.clone() {
+            BindingBoxTreeNode::Box(b, cs) => (b,cs),
+            x => {
+                x.to_box()}
+        };
+        // match self {
+        //     BindingBoxTreeNode::Box(bbox, children) => {
                 let expanded: Vec<Binding> = bbox.expand(vec![parent_binding.clone()], ocel);
                 enum BindingResult {
-                    FilteredOutBySizeFilter(Binding,EvaluationResults),
+                    FilteredOutBySizeFilter(Binding, EvaluationResults),
                     Sat(Binding, EvaluationResults),
                     Viol(Binding, ViolationReason, EvaluationResults),
                 }
@@ -210,12 +265,12 @@ impl BindingBoxTreeNode {
                             Vec<(Binding, Option<ViolationReason>)>,
                         > = HashMap::new();
                         // let mut child_res = Vec::with_capacity(children.len());
-                        for c in children {
+                        for c in &children {
                             let c_name = tree
                                 .edge_names
                                 .get(&(own_index, *c))
                                 .cloned()
-                                .unwrap_or(format!("NO NAME PROVIDED - {c}"));
+                                .unwrap_or(format!("{UNNAMED}{c}"));
                             let (c_res, violations) =
                         // Evaluate Child
                             tree.nodes[*c].evaluate(*c, own_index, b.clone(), tree, ocel);
@@ -254,7 +309,7 @@ impl BindingBoxTreeNode {
                         }
                         for sf in &bbox.size_filters {
                             if !sf.check(&child_res) {
-                                return BindingResult::FilteredOutBySizeFilter(b.clone(),all_res);
+                                return BindingResult::FilteredOutBySizeFilter(b.clone(), all_res);
                             }
                         }
                         for (constr_index, constr) in bbox.constraints.iter().enumerate() {
@@ -288,7 +343,6 @@ impl BindingBoxTreeNode {
                                     }
                                 }
                                 Constraint::NOT { child_names } => {
-
                                     let violated = !child_names.iter().all(|child_name| {
                                         if let Some(c_res) = child_res.get(child_name) {
                                             c_res.iter().any(|(_b, v)| v.is_some())
@@ -301,7 +355,7 @@ impl BindingBoxTreeNode {
                                     } else {
                                         None
                                     }
-                                },
+                                }
                                 Constraint::OR { child_names } => {
                                     // println!("Child indices: {:?}, Children: {:?}", child_names, children);
                                     let any_sat = child_names.iter().any(|child_name| {
@@ -318,7 +372,6 @@ impl BindingBoxTreeNode {
                                     }
                                 }
                                 Constraint::AND { child_names } => {
-
                                     // println!("Child indices: {:?}, Children: {:?}", child_names, children);
                                     let any_sat = child_names.iter().all(|child_name| {
                                         if let Some(c_res) = child_res.get(child_name) {
@@ -332,7 +385,7 @@ impl BindingBoxTreeNode {
                                     } else {
                                         Some(ViolationReason::ConstraintNotSatisfied(constr_index))
                                     }
-                                },
+                                }
                             };
                             if let Some(vr) = viol {
                                 all_res.push((own_index, b.clone(), Some(vr)));
@@ -344,17 +397,14 @@ impl BindingBoxTreeNode {
                     })
                     .collect();
 
-                
-
-                re
-                    .into_par_iter()
+                re.into_par_iter()
                     .fold(
                         || (EvaluationResults::new(), Vec::new()),
                         |(mut a, mut b), x| match x {
-                            BindingResult::FilteredOutBySizeFilter(_binding,r) => {
+                            BindingResult::FilteredOutBySizeFilter(_binding, r) => {
                                 a.extend(r);
-                                (a,b)
-                            },
+                                (a, b)
+                            }
                             BindingResult::Sat(binding, r) => {
                                 a.extend(r);
                                 b.push((binding, None));
@@ -467,9 +517,9 @@ impl BindingBoxTreeNode {
             //         (ret, Some(ViolationReason::ChildrenOfNOTSatisfied))
             //     }
             // }
-            _ => todo!(),
-        }
-    }
+        //     _ => todo!(),
+        // }
+    // }
 }
 
 #[derive(TS)]
@@ -589,7 +639,9 @@ impl SizeFilter {
                 if let Some(c_res) = child_res.get(child_name) {
                     if min.is_some_and(|min| c_res.len() < min) {
                         false
-                    } else { !max.is_some_and(|max| c_res.len() > max) }
+                    } else {
+                        !max.is_some_and(|max| c_res.len() > max)
+                    }
                 } else {
                     false
                 }
@@ -625,9 +677,7 @@ impl SizeFilter {
                         .iter()
                         .map(|(binding, _)| match child_name_with_var_name[0].1 {
                             Variable::Event(e_var) => binding.get_ev_index(&e_var).map(|e| e.0),
-                            Variable::Object(o_var) => {
-                                binding.get_ob_index(&o_var).map(|o| o.0)
-                            }
+                            Variable::Object(o_var) => binding.get_ob_index(&o_var).map(|o| o.0),
                         })
                         .collect();
                     for (other_c, var) in child_name_with_var_name.iter().skip(1) {

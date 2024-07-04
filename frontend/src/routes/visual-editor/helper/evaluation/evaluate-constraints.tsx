@@ -9,6 +9,7 @@ import { Filter } from "@/types/generated/Filter";
 import { SizeFilter } from "@/types/generated/SizeFilter";
 import { Constraint } from "@/types/generated/Constraint";
 import { formatSeconds } from "@/components/TimeDurationInput";
+import { Variable } from "@/types/generated/Variable";
 
 export function getParentNodeID(
   nodeID: string,
@@ -216,62 +217,30 @@ function predicateToLaTeX<T extends Filter | SizeFilter | Constraint>(
       return String.raw`${value.min ?? 0} \leq \left|\texttt{${
         value.child_name
       }}\right| \leq ${value.max ?? "\\infty"}`;
-    //   return (
-    //     <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
-    //       {value.min ?? 0} ≤ |{value.child_name}| ≤ {value.max ?? "∞"}
-    //     </div>
-    //   );
-    // case "BindingSetEqual":
-    //   return (
-    //     <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
-    //       {value.child_names.join(" = ") ?? 0}
-    //     </div>
-    //   );
-    // case "BindingSetProjectionEqual":
-    //   return (
-    //     <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
-    //       {value.child_name_with_var_name.map(([n, v], i) => (
-    //         <div key={i}>
-    //           {n}
-    //           <span className="">
-    //             {"["}
-    //             {"Event" in v ? (
-    //               <EvVarName eventVar={v.Event} />
-    //             ) : (
-    //               <ObVarName obVar={v.Object} />
-    //             )}
-    //             {"]"}
-    //           </span>
-    //           {i < value.child_name_with_var_name.length - 1 ? "=" : ""}
-    //         </div>
-    //       ))}
-    //     </div>
-    //   );
+      case "AND":
+        return String.raw`\mathrm{AND}(${value.child_names.map(s => "\\texttt{"+s+"}").join(", ")})`
+        case "SAT":
+        return String.raw`\mathrm{SAT}(${value.child_names.map(s => "\\texttt{"+s+"}").join(", ")})`
+        case "NOT":
+        return String.raw`\mathrm{NOT}(${value.child_names.map(s => "\\texttt{"+s+"}").join(", ")})`
+        case "OR":
+        return String.raw`\mathrm{OR}(${value.child_names.map(s => "\\texttt{"+s+"}").join(", ")})`
+      case "BindingSetEqual":
+        return String.raw`${value.child_names.map(s => "\\texttt{"+s+"}").join(" = ")}`
+      case "BindingSetProjectionEqual": {
+        function varName(v: Variable){
+          if("Event" in v){
+            return "e" + (1 + v.Event)
+          }else{
+            return "o" + (1 + v.Object)
+          }
+        }
+        return String.raw`${value.child_name_with_var_name.map(([s,v]) => "\\texttt{"+s+"}["+ varName(v) + "]").join(" = ")}`
+      }
     case "Filter":
       return predicateToLaTeX(value.filter);
     case "SizeFilter":
       return predicateToLaTeX(value.filter);
-    // case "SAT":
-    //   return (
-    //     <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
-    //       SAT({value.child_names.map((i) => i).join(",")})
-    //     </div>
-    //   );
-    // case "NOT":
-    //   return (
-    //     <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
-    //       NOT({value.child_names.map((i) => i).join(",")})
-    //     </div>
-    //   );
-    // case "OR":
-    //   return (
-    //     <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
-    //       OR({value.child_names.map((i) => i).join(",")})
-    //     </div>
-    //   );
-    // case "AND":
-    //   return `AND({value.child_names.map((i) => i).join(",")})`
-    //   );
     default:
       return "TODO";
   }
@@ -280,8 +249,9 @@ function predicateToLaTeX<T extends Filter | SizeFilter | Constraint>(
 function bindingTreeToTikzTree(tree: BindingBoxTree) {
   let s = String.raw`
 \begin{tikzpicture}
-    \graph [tree layout,sibling distance=15mm, level distance=20mm, nodes={align=center}]
+    \graph[tree layout, sibling distance=15mm, nodes={align=center},level 2/.style={level distance=15mm}]
     {
+      root [as={}];
 `;
   const edgeNames = [...tree.edgeNames];
   for (let i = 0; i < tree.nodes.length; i++) {
@@ -297,6 +267,9 @@ function bindingTreeToTikzTree(tree: BindingBoxTree) {
     }
   }
   let i = 0;
+  s+= `
+  root -> v0,
+`;
   for(const [[from,to],name] of edgeNames){
     s += String.raw`  v${from} -> ["${name}"${i%2 === 0 ? ",swap" : ""}] v${to},`
     s += "\n"
