@@ -708,7 +708,6 @@ pub enum ValueFilter {
 
 impl ValueFilter {
     pub fn check_value(&self, val: &OCELAttributeValue) -> bool {
-        println!("{:?} checked against {:?}",self,val);
         match self {
             ValueFilter::Float { min, max } => match val {
                 OCELAttributeValue::Float(v) => {
@@ -732,7 +731,6 @@ impl ValueFilter {
             },
             ValueFilter::Time { from, to } => match val {
                 OCELAttributeValue::Time(v) => {
-                    println!("{:?} ?  {:?}  - {:?}",v,from,to);
                     !from.is_some_and(|min_v| v < &min_v) && !to.is_some_and(|max_v| v > &max_v)
                 }
                 _ => false,

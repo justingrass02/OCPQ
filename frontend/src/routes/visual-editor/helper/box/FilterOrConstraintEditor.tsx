@@ -573,6 +573,48 @@ export default function FilterOrConstraintEditor<
               }
             }}
           />
+          <Combobox
+            value={value.at_time.type}
+            options={[
+              { label: "Always", value: "Always" },
+              { label: "Sometime", value: "Sometime" },
+              { label: "At event", value: "AtEvent" },
+            ]}
+            name="At time"
+            onChange={(ev) => {
+              switch (
+                ev as (Filter & {
+                  type: "ObjectAttributeValueFilter";
+                })["at_time"]["type"]
+              ) {
+                case "Always":
+                  value.at_time = { type: "Always" };
+                  updateValue({ ...value });
+                  break;
+
+                case "Sometime":
+                  value.at_time = { type: "Sometime" };
+                  updateValue({ ...value });
+                  break;
+                case "AtEvent":
+                  value.at_time = { type: "AtEvent", event: 0 };
+                  updateValue({ ...value });
+                  break;
+              }
+            }}
+          />
+          {value.at_time.type === "AtEvent" && (
+            <EventVarSelector
+              eventVars={availableEventVars}
+              value={value.at_time.event}
+              onChange={(newV) => {
+                if (newV !== undefined && value.at_time.type === "AtEvent") {
+                  value.at_time.event = newV;
+                  updateValue({ ...value });
+                }
+              }}
+            />
+          )}
           <AttributeValueFilterSelector
             value={value.value_filter}
             onChange={(valueFilter) => {
@@ -681,15 +723,68 @@ export function FilterOrConstraintDisplay<
       );
     case "EventAttributeValueFilter":
       return (
-        <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
-          {JSON.stringify(value)}
+        <div className="font-normal text-sm whitespace-nowrap max-w-full w-full overflow-hidden overflow-ellipsis">
+          <EvVarName eventVar={value.event} />
+          <span className="whitespace-nowrap font-light">
+            .
+            {value.attribute_name.length > 0
+              ? value.attribute_name
+              : "Unknown Attribute"}{" "}
+            {": "}
+            <AttributeValueFilterDisplay value={value.value_filter} />
+          </span>
         </div>
       );
     case "ObjectAttributeValueFilter":
       return (
-        <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
-          {JSON.stringify(value)}
+        <div className="font-normal text-sm whitespace-nowrap max-w-full w-full overflow-hidden overflow-ellipsis">
+          <ObVarName obVar={value.object} />
+          <span className="whitespace-nowrap font-light text-xs">
+            .
+            {value.attribute_name.length > 0
+              ? value.attribute_name
+              : "Unknown Attribute"}{" "}
+            {": "}
+            <AttributeValueFilterDisplay value={value.value_filter} />
+            {" "}
+            (
+            {value.at_time.type === "Sometime" && "sometime"}
+            {value.at_time.type === "Always" && "always"}
+            {value.at_time.type === "AtEvent" && <span>at <EvVarName eventVar={value.at_time.event}/></span>}
+            )
+          </span>
         </div>
+      );
+  }
+}
+
+function AttributeValueFilterDisplay({ value }: { value: ValueFilter }) {
+  switch (value.type) {
+    case "Float":
+      return (
+        <span>
+          {value.min ?? "-∞"} - {value.max ?? "∞"}
+        </span>
+      );
+    case "Integer":
+      return (
+        <span>
+          {value.min ?? "-∞"} - {value.max ?? "∞"}
+        </span>
+      );
+    case "Boolean":
+      return <span>{value.is_true ? "true" : "false"}</span>;
+    case "String":
+      return (
+        <span>
+          {value.is_in.length > 1 ? "in" : ""} {value.is_in.join(", ")}
+        </span>
+      );
+    case "Time":
+      return (
+        <span>
+          {value.from} - {value.to}
+        </span>
       );
   }
 }
@@ -876,10 +971,10 @@ function AttributeValueFilterSelector({
         <div>
           <Input
             type="datetime-local"
-            value={value.from?.slice(0,16) ?? ""}
+            value={value.from?.slice(0, 16) ?? ""}
             onChange={(ev) => {
               const iso = ev.currentTarget.valueAsDate?.toISOString();
-              console.log({iso});
+              console.log({ iso });
               if (iso !== undefined) {
                 onChange({ ...value, from: iso });
               } else {
@@ -889,7 +984,7 @@ function AttributeValueFilterSelector({
           />
           <Input
             type="datetime-local"
-            value={value.to?.slice(0,16) ?? ""}
+            value={value.to?.slice(0, 16) ?? ""}
             onChange={(ev) => {
               const iso = ev.currentTarget.valueAsDate?.toISOString();
               if (iso !== undefined) {
