@@ -147,7 +147,7 @@ export default function FilterOrConstraintEditor<
           <TimeDurationInput
             durationSeconds={value.min_seconds ?? -Infinity}
             onChange={(newVal) => {
-              if (isFinite(newVal)) {
+              if (newVal !== undefined && isFinite(newVal)) {
                 value.min_seconds = newVal;
                 updateValue({ ...value });
               } else {
@@ -159,7 +159,7 @@ export default function FilterOrConstraintEditor<
           <TimeDurationInput
             durationSeconds={value.max_seconds ?? Infinity}
             onChange={(newVal) => {
-              if (isFinite(newVal)) {
+              if (newVal !== undefined && isFinite(newVal)) {
                 value.max_seconds = newVal;
                 updateValue({ ...value });
               } else {
@@ -664,7 +664,29 @@ export function FilterOrConstraintDisplay<
     case "NumChilds":
       return (
         <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
-          {value.min ?? 0} ≤ |{value.child_name}| ≤ {value.max ?? "∞"}
+          {value.max === value.min && value.min !== null && (
+            <>
+              |{value.child_name}| = {value.min}
+            </>
+          )}
+          {value.max === null && value.min !== null && (
+            <>
+              |{value.child_name}| ≥ {value.min}
+            </>
+          )}
+          {value.min === null && value.max !== null && (
+            <>
+              |{value.child_name}| ≤ {value.max}
+            </>
+          )}
+          {((value.min === null && value.max === null) ||
+            (value.min !== value.max &&
+              value.min !== null &&
+              value.max !== null)) && (
+            <>
+              {value.min ?? 0} ≤ |{value.child_name}| ≤ {value.max ?? "∞"}
+            </>
+          )}
         </div>
       );
     case "BindingSetEqual":
@@ -745,12 +767,14 @@ export function FilterOrConstraintDisplay<
               ? value.attribute_name
               : "Unknown Attribute"}{" "}
             {": "}
-            <AttributeValueFilterDisplay value={value.value_filter} />
-            {" "}
-            (
+            <AttributeValueFilterDisplay value={value.value_filter} /> (
             {value.at_time.type === "Sometime" && "sometime"}
             {value.at_time.type === "Always" && "always"}
-            {value.at_time.type === "AtEvent" && <span>at <EvVarName eventVar={value.at_time.event}/></span>}
+            {value.at_time.type === "AtEvent" && (
+              <span>
+                at <EvVarName eventVar={value.at_time.event} />
+              </span>
+            )}
             )
           </span>
         </div>
