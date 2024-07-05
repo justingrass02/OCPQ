@@ -653,12 +653,13 @@ impl Filter {
                             .any(|at| value_filter.check_value(&at.value)),
                         ObjectValueFilterTimepoint::AtEvent { event } => {
                             if let Some(ev) = b.get_ev(event, ocel) {
+                                // Find last attribute value update _before_ the event occured (or at the same time)
                                 if let Some(last_val_before) = o
                                     .attributes
                                     .iter()
-                                    .filter(|at| &at.name == attribute_name && at.time >= ev.time)
+                                    .filter(|at| &at.name == attribute_name && at.time <= ev.time)
                                     .sorted_by_key(|x| x.time)
-                                    .next()
+                                    .last()
                                 {
                                     value_filter.check_value(&last_val_before.value)
                                 } else {
