@@ -91,7 +91,7 @@ export default function NewVariableChooser({
         {Object.entries(box.newObjectVars).map(([obVar, obTypes]) => (
           <li key={obVar} className="flex items-center gap-x-0.5">
             <button
-              className="hover:bg-blue-200/50 px-0.5 rounded-sm flex items-baseline w-full"
+              className="hover:bg-blue-200/50 px-0.5 rounded-sm flex items-baseline w-fit max-w-full"
               onClick={() =>
                 setAlertState({
                   mode: "edit",
@@ -135,7 +135,7 @@ export default function NewVariableChooser({
         {Object.entries(box.newEventVars).map(([evVar, evTypes]) => (
           <li key={evVar}>
             <button
-              className="hover:bg-blue-200/50 px-0.5 rounded-sm flex items-baseline w-full"
+              className="hover:bg-blue-200/50 px-0.5 rounded-sm flex items-baseline w-fit max-w-full"
               onClick={() =>
                 setAlertState({
                   mode: "edit",
@@ -148,7 +148,7 @@ export default function NewVariableChooser({
             >
               <EvVarName eventVar={parseInt(evVar)} />:
               <span
-                className="ml-1 max-w-[15ch] shrink overflow-ellipsis overflow-hidden inline-block whitespace-pre text-left"
+                className="ml-1 max-w-full shrink overflow-ellipsis overflow-hidden inline-block whitespace-pre text-left"
                 title={evTypes.join(",\n")}
               >
                 {evTypes.join(",\n")}

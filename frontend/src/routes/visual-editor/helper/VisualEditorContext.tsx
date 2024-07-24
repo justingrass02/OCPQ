@@ -12,7 +12,7 @@ import type { ObjectVariable } from "@/types/generated/ObjectVariable";
 
 export type VisualEditorContextValue = {
   violationsPerNode?: EvaluationResPerNodes;
-  showViolationsFor?: (data: EvaluationRes) => unknown;
+  showViolationsFor?: (data: EvaluationRes, mode?: "violations" | "situations" | "satisfied-situations") => unknown;
   onNodeDataChange: (
     id: string,
     newData: Partial<EventTypeNodeData | GateNodeData> | undefined,
@@ -47,7 +47,8 @@ export const VisualEditorContext = createContext<VisualEditorContextValue>({
   getTypesForVariable: () => [],
   getAvailableChildNames: () => [],
   getVarName: (variable, type) => ({
-    name: type.substring(0, 2) + "_" + variable,
+    name: type.substring(0, 1) + variable,
+    // name: type.substring(0, 2) + "_" + variable,
     color: "black",
   }),
 });

@@ -30,6 +30,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { downloadURL } from "@/lib/download-url";
 import type { Binding } from "@/types/generated/Binding";
 import type { EventVariable } from "@/types/generated/EventVariable";
 import type { ObjectVariable } from "@/types/generated/ObjectVariable";
@@ -76,9 +77,6 @@ import {
   type EventTypeNodeData,
   type GateNodeData,
 } from "./helper/types";
-import { downloadURL } from "@/lib/download-url";
-import EventTypeLink from "./helper/EventTypeLink";
-import { OcelInfoContext } from "@/App";
 function isEditorElementTarget(el: HTMLElement | EventTarget | null) {
   return (
     el === document.body ||
@@ -98,14 +96,20 @@ export default function VisualEditor(props: VisualEditorProps) {
     useContext(FlowContext);
   const instance = useReactFlow();
 
-  const [violationDetails, setViolationDetails] = useState<EvaluationRes>();
+  const [violationDetails, setViolationDetails] = useState<{
+    res: EvaluationRes;
+    initialMode?: "violations" | "situations" | "satisfied-situations";
+  }>();
 
   const [violationInfo, setViolationInfo] = useState<{
     violationsPerNode?: EvaluationResPerNodes;
-    showViolationsFor?: (data: EvaluationRes) => unknown;
+    showViolationsFor?: (
+      data: EvaluationRes,
+      initialMode?: "violations" | "situations" | "satisfied-situations",
+    ) => unknown;
   }>({
-    showViolationsFor: (d) => {
-      setViolationDetails(d);
+    showViolationsFor: (d, im) => {
+      setViolationDetails({ res: d, initialMode: im });
     },
     violationsPerNode: otherData?.violations,
   });
@@ -238,9 +242,9 @@ export default function VisualEditor(props: VisualEditorProps) {
         node != null &&
         !(
           variable in
-            (type === "event"
-              ? node.data.box.newEventVars
-              : node.data.box.newObjectVars)
+          (type === "event"
+            ? node.data.box.newEventVars
+            : node.data.box.newObjectVars)
         )
       ) {
         node = instance.getNode(getParentNodeID(node.id, edges) ?? "-");
@@ -568,14 +572,16 @@ export default function VisualEditor(props: VisualEditorProps) {
       value={{
         ocelInfo: props.ocelInfo,
         violationsPerNode: violationInfo.violationsPerNode,
-        showViolationsFor: (d) => setViolationDetails(d),
+        showViolationsFor: (d, im) =>
+          setViolationDetails({ res: d, initialMode: im }),
         getAvailableVars,
         getAvailableChildNames,
         getTypesForVariable,
         getNodeIDByName,
         getVarName: (variable, type) => {
           return {
-            name: type.substring(0, 2) + "_" + variable,
+            name: type.substring(0, 1) + (variable + 1),
+            // name: type.substring(0, 2) + "_" + variable,
             color: COLORS[type][variable % COLORS[type].length],
           };
         },
@@ -895,7 +901,8 @@ export default function VisualEditor(props: VisualEditorProps) {
       {violationDetails !== undefined &&
         violationInfo.violationsPerNode !== undefined && (
           <ViolationDetailsSheet
-            violationDetails={violationDetails}
+            initialMode={violationDetails.initialMode}
+            violationDetails={violationDetails.res}
             setViolationDetails={setViolationDetails}
             violationResPerNodes={violationInfo.violationsPerNode}
           />
@@ -908,13 +915,22 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
   violationDetails,
   violationResPerNodes,
   setViolationDetails,
+  initialMode,
 }: {
   violationDetails: EvaluationRes;
   violationResPerNodes: EvaluationResPerNodes;
+  initialMode: "violations" | "situations" | "satisfied-situations" | undefined;
   setViolationDetails: React.Dispatch<
-    React.SetStateAction<EvaluationRes | undefined>
+    React.SetStateAction<
+      | {
+          res: EvaluationRes;
+          initialMode?: "violations" | "situations" | "satisfied-situations";
+        }
+      | undefined
+    >
   >;
 }) {
+  const varRef = useRef<VariableSizeList>(null);
   function getItemHeight([binding, reason]: [Binding, ViolationReason | null]) {
     return (
       8 +
@@ -927,7 +943,12 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
   }
   const [mode, setMode] = useState<
     "violations" | "situations" | "satisfied-situations"
-  >("violations");
+  >(initialMode ?? "violations");
+  useEffect(() => {
+    if(initialMode !== undefined){
+      setMode(initialMode);
+    }
+  },[initialMode])
   const items =
     mode === "violations"
       ? violationDetails.situations.filter(
@@ -938,6 +959,9 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
           ([_binding, reason]) => reason === null,
         )
       : violationDetails.situations;
+  useEffect(() => {
+    varRef.current?.resetAfterIndex(0);
+  }, [mode, items]);
   const Row = ({ index, style }: ListChildComponentProps) => {
     const [binding, reason] = items[index];
     return (
@@ -1068,10 +1092,13 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
             <AutoSizer>
               {({ height, width }) => (
                 <VariableSizeList
+                  key={mode + items.length}
                   itemCount={items.length}
                   itemSize={(i) => getItemHeight(items[i])}
+                  // estimatedItemSize={getItemHeight(items[0])}
                   width={width}
                   height={height}
+                  ref={varRef}
                 >
                   {Row}
                 </VariableSizeList>

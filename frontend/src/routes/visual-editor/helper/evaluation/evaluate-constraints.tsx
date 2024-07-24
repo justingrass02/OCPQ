@@ -144,7 +144,7 @@ export function evaluateConstraints(
       };
     });
     console.log(bindingTreeToLaTeXSchema(tree));
-    console.log("===")
+    console.log("===");
     console.log(bindingTreeToTikzTree(tree));
     ret.push({ tree, nodesOrder });
   }
@@ -181,7 +181,7 @@ function bindingTreeToLaTeXSchema(tree: BindingBoxTree) {
         .join("\\\\\n")}
       \where ${box.constraints.map((f) => predicateToLaTeX(f)).join("\\\\\n")}
 \end{schema}
-\vspace{-1.33cm}`;
+\vspace{-1.0cm}`;
     } else {
       console.warn("Non-Box node type not handled!");
     }
@@ -192,6 +192,13 @@ function bindingTreeToLaTeXSchema(tree: BindingBoxTree) {
 function predicateToLaTeX<T extends Filter | SizeFilter | Constraint>(
   value: T,
 ) {
+  function varName(v: Variable) {
+    if ("Event" in v) {
+      return "e" + (1 + v.Event);
+    } else {
+      return "o" + (1 + v.Object);
+    }
+  }
   switch (value.type) {
     case "O2E":
       return String.raw`\mathrm{E2O}(\texttt{e${value.event + 1}},\texttt{o${
@@ -202,45 +209,107 @@ function predicateToLaTeX<T extends Filter | SizeFilter | Constraint>(
         value.other_object + 1
       }},\texttt{${value.qualifier ?? "$\\ast$"}})`;
     case "TimeBetweenEvents":
-      return String.raw`\texttt{e${
+      return String.raw`\mathrm{TBE}(\texttt{e${
         value.from_event + 1
-      }} \xrightarrow{\text{${formatSeconds(
+      }},\texttt{e${value.to_event + 1}},\text{${formatSeconds(
         value.min_seconds ?? -Infinity,
         "$\\infty$",
         "$-\\infty$",
-      )} -- ${formatSeconds(
+      )}},\text{${formatSeconds(
         value.max_seconds ?? Infinity,
         "$\\infty$",
         "$-\\infty$",
-      )}}} \texttt{e${value.to_event + 1}}`;
+      )}})`;
     case "NumChilds":
+      // TODO: Add syntactic sugar (e.g., |A| = 1, |A| >= 2)
+      if (value.min !== null && value.min === value.max) {
+        return String.raw`\left|\texttt{${value.child_name}}\right| = ${value.min}`;
+      } else if (value.min === null && value.max !== null) {
+        return String.raw`\left|\texttt{${value.child_name}}\right| \leq ${value.max}`;
+      } else if (value.max === null && value.min !== null) {
+        return String.raw`\left|\texttt{${value.child_name}}\right| \geq ${value.min}`;
+      }
       return String.raw`${value.min ?? 0} \leq \left|\texttt{${
         value.child_name
       }}\right| \leq ${value.max ?? "\\infty"}`;
-      case "AND":
-        return String.raw`\mathrm{AND}(${value.child_names.map(s => "\\texttt{"+s+"}").join(", ")})`
-        case "SAT":
-        return String.raw`\mathrm{SAT}(${value.child_names.map(s => "\\texttt{"+s+"}").join(", ")})`
-        case "NOT":
-        return String.raw`\mathrm{NOT}(${value.child_names.map(s => "\\texttt{"+s+"}").join(", ")})`
-        case "OR":
-        return String.raw`\mathrm{OR}(${value.child_names.map(s => "\\texttt{"+s+"}").join(", ")})`
-      case "BindingSetEqual":
-        return String.raw`${value.child_names.map(s => "\\texttt{"+s+"}").join(" = ")}`
-      case "BindingSetProjectionEqual": {
-        function varName(v: Variable){
-          if("Event" in v){
-            return "e" + (1 + v.Event)
-          }else{
-            return "o" + (1 + v.Object)
-          }
-        }
-        return String.raw`${value.child_name_with_var_name.map(([s,v]) => "\\texttt{"+s+"}["+ varName(v) + "]").join(" = ")}`
-      }
+    case "AND":
+      return String.raw`\mathrm{AND}(${value.child_names
+        .map((s) => "\\texttt{" + s + "}")
+        .join(", ")})`;
+    case "SAT":
+      return String.raw`\mathrm{SAT}(${value.child_names
+        .map((s) => "\\texttt{" + s + "}")
+        .join(", ")})`;
+    case "NOT":
+      return String.raw`\mathrm{NOT}(${value.child_names
+        .map((s) => "\\texttt{" + s + "}")
+        .join(", ")})`;
+    case "OR":
+      return String.raw`\mathrm{OR}(${value.child_names
+        .map((s) => "\\texttt{" + s + "}")
+        .join(", ")})`;
+    case "BindingSetEqual":
+      return String.raw`${value.child_names
+        .map((s) => "\\texttt{" + s + "}")
+        .join(" = ")}`;
+    case "BindingSetProjectionEqual": {
+      return String.raw`${value.child_name_with_var_name
+        .map(([s, v]) => "\\texttt{" + s + "}[" + varName(v) + "]")
+        .join(" = ")}`;
+    }
     case "Filter":
       return predicateToLaTeX(value.filter);
     case "SizeFilter":
       return predicateToLaTeX(value.filter);
+    case "EventAttributeValueFilter": {
+      const valPart =
+        String.raw`\texttt{${varName({ Event: value.event })}}.\texttt{${value.attribute_name}}`;
+      let complete = "";
+      switch (value.value_filter.type) {
+        case "Float":
+        case "Integer":
+          if(value.value_filter.min !== null && value.value_filter.min === value.value_filter.max){
+            return String.raw`${valPart} = ${value.value_filter.min}`
+          }else if(value.value_filter.min === null && value.value_filter.max !== null){
+            return String.raw`${valPart} \leq ${value.value_filter.max}`
+        }else if(value.value_filter.min !== null && value.value_filter.max === null){
+          return String.raw`${valPart} \geq ${value.value_filter.min}`
+        }else{
+          return String.raw`${value.value_filter.min} \leq ${valPart} \leq ${value.value_filter.max}`
+        }
+        case "Boolean":
+        case "String":
+        case "Time":
+          complete = valPart + "TODO";
+          return complete;
+      }
+    }
+    break;
+    case "ObjectAttributeValueFilter": {
+      const valPart =
+        String.raw`\texttt{${varName({ Object: value.object })}}.\texttt{${value.attribute_name}}`;
+        const timePart = String.raw`\;\;(\at\,\texttt{${value.at_time.type === "Always" ? "always" : value.at_time.type === "Sometime" ? "sometime" : varName({Event: value.at_time.event})})}`
+      let complete = "";
+      switch (value.value_filter.type) {
+        case "Float":
+        case "Integer":
+          if(value.value_filter.min !== null && value.value_filter.min === value.value_filter.max){
+            return String.raw`${valPart} = ${value.value_filter.min} ${timePart}`
+          }else if(value.value_filter.min === null && value.value_filter.max !== null){
+            return String.raw`${valPart} \leq ${value.value_filter.max} ${timePart}`
+        }else if(value.value_filter.min !== null && value.value_filter.max === null){
+          return String.raw`${valPart} \geq ${value.value_filter.min} ${timePart}`
+        }else{
+          return String.raw`${value.value_filter.min} \leq ${valPart} \leq ${value.value_filter.max} ${timePart}`
+        }
+        case "Boolean":
+        case "String":
+        case "Time":
+          complete = valPart + "TODO" + timePart ;
+          return complete;
+      }
+    }
+    break;
     default:
       return "TODO";
   }
@@ -255,27 +324,36 @@ function bindingTreeToTikzTree(tree: BindingBoxTree) {
 `;
   const edgeNames = [...tree.edgeNames];
   for (let i = 0; i < tree.nodes.length; i++) {
-    s += String.raw`  v${i} [as={$v_{${i}}$}];`
-    s += "\n"
+    s += String.raw`  v${i} [as={$v_{${i}}$}];`;
+    s += "\n";
     const node = tree.nodes[i];
-    if("Box" in node){
-      for(const child of node.Box[1]){
-        if(edgeNames.find(([[from,to],_name]) => from === i && child === to) === undefined){
-          edgeNames.push([[i,child],""]);
+    if ("Box" in node) {
+      for (const child of node.Box[1]) {
+        if (
+          edgeNames.find(
+            ([[from, to], _name]) => from === i && child === to,
+          ) === undefined
+        ) {
+          edgeNames.push([[i, child], ""]);
         }
       }
     }
   }
   let i = 0;
-  s+= `
+  s += `
   root -> v0,
 `;
-  for(const [[from,to],name] of edgeNames){
-    s += String.raw`  v${from} -> ["${name}"${i%2 === 0 ? ",swap" : ""}] v${to},`
-    s += "\n"
+  for (const [[from, to], name] of edgeNames) {
+    s += String.raw`  v${from} -> ["\texttt{${name}"}${
+      i % 2 === 0 ? ",swap" : ""
+    }] v${to},`;
+    s += "\n";
     i++;
   }
-  return s + String.raw`
+  return (
+    s +
+    String.raw`
   };
-\end{tikzpicture}`;
+\end{tikzpicture}`
+  );
 }

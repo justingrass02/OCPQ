@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import type { Constraint } from "@/types/generated/Constraint";
 import type { Filter } from "@/types/generated/Filter";
 import type { SizeFilter } from "@/types/generated/SizeFilter";
-import { useContext } from "react";
+import { ReactNode, useContext } from "react";
 import { LuArrowRight, LuDelete, LuLink, LuTrash } from "react-icons/lu";
 import { VisualEditorContext } from "../VisualEditorContext";
 import {
@@ -654,39 +654,19 @@ export function FilterOrConstraintDisplay<
         <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
           <EvVarName eventVar={value.from_event} /> <LuArrowRight />{" "}
           <EvVarName eventVar={value.to_event} />{" "}
-          <span className="ml-2 inline-flex items-center gap-x-1 text-xs">
+          <div className="ml-2 flex items-center gap-x-1 text-xs w-fit">
             {formatSeconds(value.min_seconds ?? -Infinity)}{" "}
             <span className="mx-1">-</span>{" "}
             {formatSeconds(value.max_seconds ?? Infinity)}
-          </span>
+          </div>
         </div>
       );
     case "NumChilds":
       return (
         <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
-          {value.max === value.min && value.min !== null && (
-            <>
-              |{value.child_name}| = {value.min}
-            </>
-          )}
-          {value.max === null && value.min !== null && (
-            <>
-              |{value.child_name}| ≥ {value.min}
-            </>
-          )}
-          {value.min === null && value.max !== null && (
-            <>
-              |{value.child_name}| ≤ {value.max}
-            </>
-          )}
-          {((value.min === null && value.max === null) ||
-            (value.min !== value.max &&
-              value.min !== null &&
-              value.max !== null)) && (
-            <>
-              {value.min ?? 0} ≤ |{value.child_name}| ≤ {value.max ?? "∞"}
-            </>
-          )}
+          <MinMaxDisplayWithSugar min={value.min} max={value.max}>
+            |{value.child_name}|
+          </MinMaxDisplayWithSugar>
         </div>
       );
     case "BindingSetEqual":
@@ -747,7 +727,7 @@ export function FilterOrConstraintDisplay<
       return (
         <div className="font-normal text-sm whitespace-nowrap max-w-full w-full overflow-hidden overflow-ellipsis">
           <EvVarName eventVar={value.event} />
-          <span className="whitespace-nowrap font-light">
+          <span className="font-light">
             .
             {value.attribute_name.length > 0
               ? value.attribute_name
@@ -761,12 +741,12 @@ export function FilterOrConstraintDisplay<
       return (
         <div className="font-normal text-sm whitespace-nowrap max-w-full w-full overflow-hidden overflow-ellipsis">
           <ObVarName obVar={value.object} />
-          <span className="whitespace-nowrap font-light text-xs">
+          <span className="whitespace-nowrap font-light text-xs w-full">
             .
             {value.attribute_name.length > 0
               ? value.attribute_name
               : "Unknown Attribute"}{" "}
-            {": "}
+            {/* {": "} */}
             <AttributeValueFilterDisplay value={value.value_filter} /> (
             {value.at_time.type === "Sometime" && "sometime"}
             {value.at_time.type === "Always" && "always"}
@@ -782,25 +762,79 @@ export function FilterOrConstraintDisplay<
   }
 }
 
+function MinMaxDisplayWithSugar({
+  min,
+  max,
+  children,
+  rangeMode,
+}: {
+  min: number | null;
+  max: number | null;
+  children?: ReactNode;
+  rangeMode?: boolean;
+}) {
+  const value = { min, max };
+  return (
+    <>
+      {value.max === value.min && value.min !== null && (
+        <>
+          {children} = {value.min}
+        </>
+      )}
+      {value.max === null && value.min !== null && (
+        <>
+          {children} ≥ {value.min}
+        </>
+      )}
+      {value.min === null && value.max !== null && (
+        <>
+          {children} ≤ {value.max}
+        </>
+      )}
+      {((value.min === null && value.max === null) ||
+        (value.min !== value.max &&
+          value.min !== null &&
+          value.max !== null)) && (
+        <>
+          {rangeMode === true && (
+            <>
+              {value.min ?? 0} - {value.max ?? "∞"}
+            </>
+          )}
+          {rangeMode !== true && (
+            <>
+              {value.min ?? 0} ≤ {children} ≤ {value.max ?? "∞"}
+            </>
+          )}
+        </>
+      )}
+      {}
+    </>
+  );
+}
+
 function AttributeValueFilterDisplay({ value }: { value: ValueFilter }) {
   switch (value.type) {
     case "Float":
       return (
-        <span>
-          {value.min ?? "-∞"} - {value.max ?? "∞"}
-        </span>
+        <MinMaxDisplayWithSugar
+          min={value.min}
+          max={value.max}
+          rangeMode
+        ></MinMaxDisplayWithSugar>
       );
     case "Integer":
       return (
-        <span>
-          {value.min ?? "-∞"} - {value.max ?? "∞"}
-        </span>
+        <MinMaxDisplayWithSugar
+          min={value.min}
+          max={value.max}
+        ></MinMaxDisplayWithSugar>
       );
     case "Boolean":
       return <span>{value.is_true ? "true" : "false"}</span>;
     case "String":
       return (
-        <span>
+        <span className="text-xs tracking-tighter">
           {value.is_in.length > 1 ? "in" : ""} {value.is_in.join(", ")}
         </span>
       );

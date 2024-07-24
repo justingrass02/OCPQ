@@ -10,6 +10,7 @@ import type { EventTypeNodeData } from "../types";
 import MiscNodeConstraints from "./MiscNodeConstraints";
 import ViolationIndicator from "./ViolationIndicator";
 import { getViolationStyles } from "../violation-styles";
+import SituationIndicator from "./SituationIndicator";
 export default memo(EventTypeNode);
 function EventTypeNode({ data, id, selected }: NodeProps<EventTypeNodeData>) {
   const { violationsPerNode, onNodeDataChange } =
@@ -23,7 +24,7 @@ function EventTypeNode({ data, id, selected }: NodeProps<EventTypeNodeData>) {
     <div
       className={clsx(
         "border-2 shadow-lg z-10 flex flex-col py-1 pb-2 px-0.5 rounded-md relative min-h-[5rem] w-[15rem]",
-        getViolationStyles(violations),
+        getViolationStyles(violations,data.box.constraints.length === 0),
         selected && "border-dashed",
       )}
     >
@@ -48,6 +49,9 @@ function EventTypeNode({ data, id, selected }: NodeProps<EventTypeNodeData>) {
         )}
       </Toggle> */}
       {violations !== undefined && (
+        <SituationIndicator violationsPerNode={violations} hasNoConstraints={data.box.constraints.length === 0} />
+      )}
+      {violations !== undefined && (violations.situationViolatedCount > 0 ||  data.box.constraints.length >= 1) && (
         <ViolationIndicator violationsPerNode={violations} />
       )}
 

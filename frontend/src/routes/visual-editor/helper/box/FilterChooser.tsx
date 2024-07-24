@@ -70,12 +70,12 @@ export default function FilterChooser({
           <LuPlus size={10} />
         </Button>
       </div>
-      <ul>
+      <ul className="w-full">
         {type === "filter" &&
           box.filters.map((fc, i) => (
             <li key={i}>
               <button
-                className="hover:bg-blue-200/50 px-0.5 rounded-sm"
+                className="hover:bg-blue-200/50 px-0.5 rounded-sm text-left w-fit max-w-full"
                 onClick={() => {
                   setAlertState({
                     editIndex: i,
@@ -94,7 +94,7 @@ export default function FilterChooser({
           box.sizeFilters.map((sf, i) => (
             <li key={"sizeFilters" + i}>
               <button
-                className="hover:bg-blue-200/50 px-0.5 rounded-sm"
+                className="hover:bg-blue-200/50 px-0.5 rounded-sm text-left w-fit max-w-full"
                 onClick={() => {
                   setAlertState({
                     editIndex: i,
@@ -113,7 +113,7 @@ export default function FilterChooser({
           box.constraints.map((c, i) => (
             <li key={"constraints" + i}>
               <button
-                className="hover:bg-blue-200/50 px-0.5 rounded-sm"
+                className="hover:bg-blue-200/50 px-0.5 rounded-sm text-left  w-fit max-w-full"
                 onClick={() => {
                   setAlertState({
                     editIndex: i,
@@ -415,7 +415,7 @@ export default function FilterChooser({
                         newBox.constraints[index] =
                           alertState.value as Constraint;
                       } else if (
-                        ["O2E", "O2O", "TimeBetweenEvents"].includes(
+                        ["O2E", "O2O", "TimeBetweenEvents","ObjectAttributeValueFilter","EventAttributeValueFilter"].includes(
                           alertState.value.type,
                         )
                       ) {

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use plotly::{common::Title, layout::Axis, Histogram, Layout, Plot};
+// use plotly::{common::Title, layout::Axis, Histogram, Layout, Plot};
 
 use crate::{
     discovery::EventOrObject,
@@ -115,34 +115,36 @@ fn get_range_with_coverage(
 ) -> (usize, usize) {
     let mut min = mean.floor() as usize;
     let mut max = mean.floor() as usize;
+    let mut steps = 0;
     let step_size = (0.01 * std_deviation).round().max(1.0) as usize;
     let coverage_min_count = (values.len() as f32 * coverage).ceil() as usize;
-    while values.iter().filter(|v| **v >= min && **v <= max).count() < coverage_min_count {
+    while steps < 10_000 && values.iter().filter(|v| **v >= min && **v <= max).count() < coverage_min_count {
         if min > 0 {
             min -= step_size;
         }
         max += step_size;
+        steps += 1;
     }
     (min, max)
 }
 
-fn plot_histogram<S: AsRef<str>, P: AsRef<std::path::Path>>(
-    counts: &Vec<usize>,
-    title: S,
-    filename: P,
-) {
-    let mut plot = Plot::new();
-    let trace = Histogram::new(counts.clone());
-    plot.add_trace(trace);
-    let layout = Layout::new()
-        .title(Title::new(title.as_ref()))
-        .x_axis(Axis::new().dtick(1.0).title(Title::new("Value")))
-        .y_axis(Axis::new().title(Title::new("Count")))
-        .bar_gap(0.05)
-        .bar_group_gap(0.05);
-    plot.set_layout(layout);
-    plot.write_image(filename, plotly::ImageFormat::SVG, 800, 600, 1.0)
-}
+// fn plot_histogram<S: AsRef<str>, P: AsRef<std::path::Path>>(
+//     counts: &Vec<usize>,
+//     title: S,
+//     filename: P,
+// ) {
+//     let mut plot = Plot::new();
+//     let trace = Histogram::new(counts.clone());
+//     plot.add_trace(trace);
+//     let layout = Layout::new()
+//         .title(Title::new(title.as_ref()))
+//         .x_axis(Axis::new().dtick(1.0).title(Title::new("Value")))
+//         .y_axis(Axis::new().title(Title::new("Count")))
+//         .bar_gap(0.05)
+//         .bar_group_gap(0.05);
+//     plot.set_layout(layout);
+//     plot.write_image(filename, plotly::ImageFormat::SVG, 800, 600, 1.0)
+// }
 
 #[cfg(test)]
 mod tests {

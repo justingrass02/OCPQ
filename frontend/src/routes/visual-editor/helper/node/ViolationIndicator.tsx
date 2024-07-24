@@ -10,8 +10,10 @@ import { getViolationTextColor } from "../violation-styles";
 
 export default function ViolationIndicator({
   violationsPerNode,
+  hasNoConstraints
 }: {
   violationsPerNode: EvaluationRes;
+  hasNoConstraints?: boolean
 }) {
   const { showViolationsFor } = useContext(VisualEditorContext);
   return (
@@ -21,20 +23,20 @@ export default function ViolationIndicator({
           violationsPerNode !== undefined &&
           showViolationsFor !== undefined
         ) {
-          showViolationsFor(violationsPerNode);
+          showViolationsFor(violationsPerNode,"violations");
         }
       }}
-      className={`absolute right-1 top-1 text-xs flex flex-col items-center gap-x-1 border border-transparent px-1 py-0.5 rounded-sm hover:bg-amber-100/70 hover:border-gray-400/50`}
+      className={`absolute right-1 bottom-1 text-xs flex flex-col items-center gap-x-1 border border-transparent px-1 py-0.5 rounded-sm hover:bg-blue-100/70 hover:border-blue-400/50`}
       title={`Found ${violationsPerNode.situationViolatedCount} Violations of ${violationsPerNode.situationCount} Situations`}
     >
       {violationsPerNode.situationViolatedCount > 0 && (
         <ExclamationTriangleIcon
-          className={clsx("h-4 mt-1", getViolationTextColor(violationsPerNode))}
+          className={clsx("h-4 mt-1", getViolationTextColor(violationsPerNode,hasNoConstraints))}
         />
       )}
       {violationsPerNode.situationViolatedCount === 0 && (
         <CheckCircledIcon
-          className={clsx("h-4", getViolationTextColor(violationsPerNode))}
+          className={clsx("h-4", getViolationTextColor(violationsPerNode,hasNoConstraints))}
         />
       )}
       <div className="flex flex-col items-center justify-center">

@@ -46,10 +46,10 @@ async fn main() {
     let state = AppState {
         ocel: Arc::new(RwLock::new(None)),
     };
-    let cors = CorsLayer::new()
-        .allow_methods([Method::GET, Method::POST])
-        .allow_headers([CONTENT_TYPE])
-        .allow_origin(tower_http::cors::Any);
+    let cors = CorsLayer::permissive();
+        // .allow_methods([Method::GET, Method::POST])
+        // .allow_headers([CONTENT_TYPE])
+        // .allow_origin(tower_http::cors::Any);
 
     load_ocel_file_to_state(DEFAULT_OCEL_FILE, &state);
 

@@ -49,30 +49,37 @@ export const BackendProviderContext = createContext<BackendProvider>({
   "ocel/graph": warnForNoBackendProvider,
 });
 
+export const BACKEND_URL = "http://localhost:3000";
+
 export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
   "ocel/info": async () => {
-    const res = await fetch("http://localhost:3000/ocel/info", {
+    const res = await fetch(BACKEND_URL + "/ocel/info", {
       method: "get",
+      headers: {},
     });
     return await res.json();
   },
   "ocel/available": async () => {
     return await (
-      await fetch("http://localhost:3000/ocel/available", { method: "get" })
+      await fetch(BACKEND_URL + "/ocel/available", {
+        method: "get",
+        headers: {},
+      })
     ).json();
   },
   "ocel/upload": async (ocelFile) => {
     const type = ocelFile.name.endsWith(".json") ? "json" : "xml";
     return await (
-      await fetch(`http://localhost:3000/ocel/upload-${type}`, {
+      await fetch(BACKEND_URL + `/ocel/upload-${type}`, {
         method: "post",
         body: ocelFile,
+        headers: {},
       })
     ).json();
   },
   "ocel/load": async (name) => {
     return await (
-      await fetch("http://localhost:3000/ocel/load", {
+      await fetch(BACKEND_URL + "/ocel/load", {
         method: "post",
         body: JSON.stringify({ name }),
         headers: { "Content-Type": "application/json" },
@@ -81,7 +88,7 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
   },
   "ocel/check-constraints-box": async (tree) => {
     return await (
-      await fetch("http://localhost:3000/ocel/check-constraints-box", {
+      await fetch(BACKEND_URL + "/ocel/check-constraints-box", {
         method: "post",
         body: JSON.stringify({ tree }),
         headers: { "Content-Type": "application/json" },
@@ -90,21 +97,23 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
   },
   "ocel/event-qualifiers": async () => {
     return await (
-      await fetch("http://localhost:3000/ocel/event-qualifiers", {
+      await fetch(BACKEND_URL + "/ocel/event-qualifiers", {
         method: "get",
+        headers: {},
       })
     ).json();
   },
   "ocel/object-qualifiers": async () => {
     return await (
-      await fetch("http://localhost:3000/ocel/object-qualifiers", {
+      await fetch(BACKEND_URL + "/ocel/object-qualifiers", {
         method: "get",
+        headers: {},
       })
     ).json();
   },
   "ocel/discover-constraints": async (autoDiscoveryOptions) => {
     return await (
-      await fetch("http://localhost:3000/ocel/discover-constraints", {
+      await fetch(BACKEND_URL + "/ocel/discover-constraints", {
         method: "post",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(autoDiscoveryOptions),
@@ -112,7 +121,7 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
     ).json();
   },
   "ocel/graph": async (options) => {
-    const res = await fetch("http://localhost:3000/ocel/graph", {
+    const res = await fetch(BACKEND_URL + "/ocel/graph", {
       method: "post",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(options),
