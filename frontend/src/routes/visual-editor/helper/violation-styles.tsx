@@ -5,10 +5,10 @@ export function getViolationStyles(
   hasNoConstraints?: boolean
 ) {
   if (violations === undefined) {
-    return "bg-gray-50  border-slate-500";
+    return "bg-gray-50  border-slate-500 shadow-gray-50";
   }
   if( violations.situationCount === 0 || (violations.situationViolatedCount === 0 && hasNoConstraints === true)){
-    return  "bg-sky-50 border-sky-300";
+    return  "bg-sky-50 border-sky-300 shadow-sky-300";
   }
   const violationFraction =
     violations.situationViolatedCount / violations.situationCount;
