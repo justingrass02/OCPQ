@@ -14,11 +14,12 @@ use crate::{
         structs::{BindingBoxTreeNode, Constraint, EventVariable, ObjectVariable, Variable},
         Binding, BindingBox, BindingBoxTree,
     },
-    preprocessing::linked_ocel::IndexLinkedOCEL,
+    preprocessing::linked_ocel::{EventOrObjectIndex, IndexLinkedOCEL},
 };
 
 use super::{
-    graph_discovery::discover_count_constraints_for_supporting_instances, RNG_SEED, SAMPLE_FRAC, SAMPLE_MIN_NUM_INSTANCES,
+    graph_discovery::discover_count_constraints_for_supporting_instances, RNG_SEED, SAMPLE_FRAC,
+    SAMPLE_MIN_NUM_INSTANCES,
 };
 
 // 1st Step: Allow building of  (simple) sampled bindings based on object/event type
@@ -68,13 +69,39 @@ pub fn generate_sample_bindings(
     }
 }
 
+pub fn get_labeled_instances(
+    ocel: &IndexLinkedOCEL,
+    ocel_type: &EventOrObjectType,
+    subtree: BindingBoxTree,
+) -> Vec<(EventOrObjectIndex,bool)> {
+    let variable = match ocel_type {
+        EventOrObjectType::Event(_) => Variable::Event(EventVariable(0)),
+        EventOrObjectType::Object(_) => Variable::Object(ObjectVariable(0)),
+    };
+    let bindings = generate_sample_bindings(ocel, &vec![ocel_type.clone()], variable.clone());
+
+    let violated_instances = bindings
+        .iter()
+        .flat_map(|b| {
+            let (_x, y) = subtree.nodes[0].evaluate(0, 0, (*b).clone(), &subtree, ocel);
+            let is_violated = y.iter().any(|(_, v)| v.is_some());
+            if let Some(instance) = b.get_any_index(&variable) {
+                Some((instance,!is_violated))
+            }else{
+                None
+            }
+        })
+        .collect_vec();
+    violated_instances
+}
+
 // 2nd Step
 pub fn test_tree_combinations(
     ocel: &IndexLinkedOCEL,
     subtrees: Vec<BindingBoxTree>,
     input_bindings: Vec<Binding>,
     input_variable: Variable,
-    ocel_types: &EventOrObjectType,
+    ocel_type: &EventOrObjectType,
 ) -> Vec<BindingBoxTree> {
     let mut ret = Vec::new();
     // First index: Binding index, second index: subtree index;
@@ -118,7 +145,7 @@ pub fn test_tree_combinations(
                 let tree1 = &subtrees[i];
                 let tree2 = &subtrees[j];
                 let name1 = "A".to_string();
-                let name2 = "B".to_string();
+                let name2: String = "B".to_string();
                 let mut bbox = BindingBox {
                     new_event_vars: HashMap::new(),
                     new_object_vars: HashMap::new(),
@@ -128,7 +155,7 @@ pub fn test_tree_combinations(
                         child_names: vec![name1.clone(), name2.clone()],
                     }],
                 };
-                match ocel_types {
+                match ocel_type {
                     EventOrObjectType::Event(et) => bbox.new_event_vars.insert(
                         EventVariable(input_variable.to_inner()),
                         vec![et.clone()].into_iter().collect(),
@@ -205,17 +232,19 @@ pub fn discover_or_constraints(
     let bindings = generate_sample_bindings(ocel, &vec![ocel_type.clone()], input_variable.clone());
     let mut all_subtrees = subtrees.clone();
     for st in &subtrees {
+        let violated_instances = bindings
+            .iter()
+            .filter(|b| {
+                let (_x, y) = st.nodes[0].evaluate(0, 0, (*b).clone(), st, ocel);
+                y.iter().any(|(_, v)| v.is_some())
+            })
+            .map(|b| b.get_any_index(&input_variable))
+            .flatten()
+            .collect_vec();
         let count_constraints = discover_count_constraints_for_supporting_instances(
             ocel,
             0.85,
-            bindings
-                .iter()
-                .filter(|b| {
-                    let (_x, y) = st.nodes[0].evaluate(0, 0, (*b).clone(), st, ocel);
-                    y.iter().any(|(_, v)| v.is_some())
-                })
-                .map(|b| b.get_any_index(&input_variable))
-                .flatten(),
+            violated_instances.into_iter(),
             ocel_type.clone(),
         );
         for cc in count_constraints {
@@ -247,7 +276,7 @@ pub fn discover_or_constraints(
 //         .unwrap();
 // }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EventOrObjectType {
     Event(String),
     Object(String),

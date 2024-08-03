@@ -14,10 +14,11 @@ use crate::{
     binding_box::{
         structs::{
             BindingBoxTreeNode, Constraint, EventVariable, Filter, ObjectVariable, SizeFilter,
+            Variable,
         },
         BindingBox, BindingBoxTree,
     },
-    discovery::{RNG_SEED, SAMPLE_FRAC, SAMPLE_MIN_NUM_INSTANCES},
+    discovery::{advanced::get_labeled_instances, RNG_SEED, SAMPLE_FRAC, SAMPLE_MIN_NUM_INSTANCES},
     preprocessing::linked_ocel::{EventOrObjectIndex, IndexLinkedOCEL, OCELNodeRef, ObjectIndex},
 };
 
@@ -41,15 +42,16 @@ pub fn get_instances(
             if let Some(o_indices) = ocel.events_of_type.get(et) {
                 let instances = if o_indices.len() >= SAMPLE_MIN_NUM_INSTANCES {
                     let sample_count = (o_indices.len() as f32 * SAMPLE_FRAC).ceil() as usize;
-                     o_indices
-                    .iter()
-                    .choose_multiple(&mut rng, sample_count)
+                    o_indices.iter().choose_multiple(&mut rng, sample_count)
                 } else {
                     o_indices.iter().collect()
                 };
-                Some(instances.into_iter()
-                .map(|i| EventOrObjectIndex::Event(*i))
-                .collect())
+                Some(
+                    instances
+                        .into_iter()
+                        .map(|i| EventOrObjectIndex::Event(*i))
+                        .collect(),
+                )
             } else {
                 None
             }
@@ -58,15 +60,16 @@ pub fn get_instances(
             if let Some(o_indices) = ocel.objects_of_type.get(ot) {
                 let instances = if o_indices.len() >= SAMPLE_MIN_NUM_INSTANCES {
                     let sample_count = (o_indices.len() as f32 * SAMPLE_FRAC).ceil() as usize;
-                     o_indices
-                    .iter()
-                    .choose_multiple(&mut rng, sample_count)
+                    o_indices.iter().choose_multiple(&mut rng, sample_count)
                 } else {
                     o_indices.iter().collect()
                 };
-                Some(instances.into_iter()
-                .map(|i| EventOrObjectIndex::Object(*i))
-                .collect())
+                Some(
+                    instances
+                        .into_iter()
+                        .map(|i| EventOrObjectIndex::Object(*i))
+                        .collect(),
+                )
             } else {
                 None
             }
@@ -75,22 +78,20 @@ pub fn get_instances(
     instances.unwrap_or_default()
 }
 
-pub fn discover_count_constraints<I: Iterator<Item = EventOrObjectType>>(
+pub fn discover_count_constraints(
     ocel: &IndexLinkedOCEL,
     coverage: f32,
-    ocel_types: I,
+    ocel_type: EventOrObjectType,
 ) -> Vec<CountConstraint> {
     let now = Instant::now();
     let mut ret = Vec::new();
-    for t in ocel_types {
-        let instances: Vec<_> = get_instances(ocel, &t);
-        ret.extend(discover_count_constraints_for_supporting_instances(
-            ocel,
-            coverage,
-            instances.into_iter(),
-            t,
-        ));
-    }
+    let instances: Vec<_> = get_instances(ocel, &ocel_type);
+    ret.extend(discover_count_constraints_for_supporting_instances(
+        ocel,
+        coverage,
+        instances.into_iter(),
+        ocel_type,
+    ));
     println!("Graph Count Discovery took {:?}", now.elapsed());
     ret
 }
@@ -152,36 +153,31 @@ pub fn discover_count_constraints_for_supporting_instances<
                         let diff = mean - *c as f32;
                         diff * diff
                     })
-                    .sum::<f32>() / n)
+                    .sum::<f32>()
+                    / n)
                     .sqrt();
                 // TODO: Decide if > 0?
                 if std_deviation >= 0.0 {
                     // Otherwise, not interesting (no deviation between values)
                     for (min, max) in get_range_with_coverage(counts, coverage, mean, std_deviation)
                     {
-                        println!("Counts {} Mean {} stdDev {} for min {} max {} FOR {ref_type:?} {ocel_type}",counts.len(),mean, std_deviation,min,max);
+                        // println!("Counts {} Mean {} stdDev {} for min {} max {} FOR {ref_type:?} {ocel_type}",counts.len(),mean, std_deviation,min,max);
                         ret.push(CountConstraint {
                             min_count: min,
                             max_count: max,
                             root_type: supporting_instance_type.clone(),
-                            // root_type: match &ref_type {
-                            //     RefType::ObjectReversed => {
-                            //         EventOrObjectType::Object(ocel_type.clone())
-                            //     }
-                            //     RefType::EventReversed => {
-                            //         EventOrObjectType::Event(ocel_type.clone())
-                            //     }
-                            //     _ => supporting_instance_type.clone(),
-                            // },
-                            // related_type: ocel_type.clone(),
                             related_type: match &ref_type {
-                                RefType::Object | RefType::ObjectReversed => EventOrObjectType::Object(ocel_type.clone()),
-                                RefType::Event | RefType::EventReversed => EventOrObjectType::Event(ocel_type.clone()),
+                                RefType::Object | RefType::ObjectReversed => {
+                                    EventOrObjectType::Object(ocel_type.clone())
+                                }
+                                RefType::Event | RefType::EventReversed => {
+                                    EventOrObjectType::Event(ocel_type.clone())
+                                }
                             },
                             ocel_relation_flipped: match &ref_type {
-                                RefType::ObjectReversed |RefType::EventReversed => true,
-                                _ => false
-                            }
+                                RefType::ObjectReversed | RefType::EventReversed => true,
+                                _ => false,
+                            },
                         });
                     }
                 }
@@ -210,7 +206,7 @@ fn get_range_with_coverage(
         get_range_with_coverage_inner(
             values,
             coverage,
-            2 * mean_usize,
+            10 * mean_usize,
             step_size,
             Direction::Decrease,
         ),
@@ -477,25 +473,21 @@ pub struct EFConstraint {
 pub fn discover_ef_constraints(
     ocel: &IndexLinkedOCEL,
     coverage: f32,
-    object_types: &Vec<String>,
+    object_type: &String,
 ) -> Vec<EFConstraint> {
-    println!("Hello! discover_ef_constraints for {:?}", object_types);
     let now = Instant::now();
     let mut ret = Vec::new();
-    for t in object_types {
-        println!("EF {t}");
-        let instances: Vec<_> = get_instances(ocel, &EventOrObjectType::Object(t.clone()));
-        println!("Got  #{} instances", instances.len());
-        ret.extend(discover_ef_constraints_for_supporting_instances(
-            ocel,
-            coverage,
-            instances.into_iter().flat_map(|i| match i {
-                EventOrObjectIndex::Object(oi) => Some(oi),
-                _ => None,
-            }),
-            &t,
-        ));
-    }
+    let instances: Vec<_> = get_instances(ocel, &EventOrObjectType::Object(object_type.clone()));
+    ret.extend(discover_ef_constraints_for_supporting_instances(
+        ocel,
+        coverage,
+        instances.into_iter().flat_map(|i| match i {
+            EventOrObjectIndex::Object(oi) => Some(oi),
+            _ => None,
+        }),
+        &object_type,
+    ));
+
     println!("Graph Count Discovery took {:?}", now.elapsed());
     ret
 }
@@ -557,7 +549,7 @@ pub fn discover_ef_constraints_for_supporting_instances<I: Iterator<Item = Objec
         .for_each(|((from_ev_type, to_ev_type), seconds)| {
             let num_ef_with_any_delay = seconds.iter().filter(|s| s.is_some()).count() as f32;
             let fraction_ef_with_any_delay = num_ef_with_any_delay / seconds.len() as f32;
-            println!("EF Fraction: {fraction_ef_with_any_delay} of {coverage}");
+            // println!("EF Fraction: {fraction_ef_with_any_delay} of {coverage}");
             if fraction_ef_with_any_delay >= coverage {
                 let n = seconds.iter().flatten().count() as f64;
                 let mean = seconds.iter().flatten().sum::<f64>() / n;
@@ -590,7 +582,6 @@ pub fn discover_ef_constraints_for_supporting_instances<I: Iterator<Item = Objec
                             for_object_type: supporting_object_type.clone(),
                         });
                     }
-                    println!("Thank You, Next!");
                 }
             }
         });
@@ -685,4 +676,127 @@ impl EFConstraint {
             edge_names: vec![((0, 1), child_name)].into_iter().collect(),
         }
     }
+}
+
+pub fn discover_or_constraints_new(
+    ocel: &IndexLinkedOCEL,
+    object_type: &String,
+) -> Vec<BindingBoxTree> {
+    let now = Instant::now();
+    let ocel_type: EventOrObjectType = EventOrObjectType::Object(object_type.clone());
+    let mut ret = Vec::new();
+    let instances: Vec<_> = get_instances(ocel, &ocel_type);
+    let count_constraints = discover_count_constraints_for_supporting_instances(
+        ocel,
+        0.4,
+        instances.into_iter(),
+        ocel_type.clone(),
+    );
+    for cc in &count_constraints {
+        let labeled_instances =
+            get_labeled_instances(ocel, &ocel_type, cc.to_subtree("X".to_string(), 0, 1));
+
+        let ef_constraints = discover_ef_constraints_for_supporting_instances(
+            ocel,
+            0.9,
+            labeled_instances
+                .iter()
+                .filter(|(_i, v)| !v)
+                .flat_map(|(i, _v)| match i {
+                    EventOrObjectIndex::Object(oi) => Some(oi),
+                    EventOrObjectIndex::Event(_) => None,
+                })
+                .cloned(),
+            object_type,
+        );
+        for ef_c in ef_constraints {
+            let or_tree = merge_or_tree(ef_c.to_subtree("X".to_string(), 0, 2, 3),
+            cc.to_subtree("X".to_string(), 0, 2),ocel_type.clone(),Variable::Object(ObjectVariable(0)));
+            println!(
+                "Found EF Constraint: {:?} for count constraint {:?}",
+                ef_c, cc
+            );
+            ret.push(or_tree);
+        }
+    }
+    println!("Graph Count Discovery took {:?}", now.elapsed());
+    ret
+}
+
+pub fn merge_or_tree(
+    tree1: BindingBoxTree,
+    tree2: BindingBoxTree,
+    ocel_type: EventOrObjectType,
+    input_variable: Variable,
+) -> BindingBoxTree {
+    let name1 = "A".to_string();
+    let name2: String = "B".to_string();
+    let mut bbox = BindingBox {
+        new_event_vars: HashMap::new(),
+        new_object_vars: HashMap::new(),
+        filters: Vec::default(),
+        size_filters: Vec::default(),
+        constraints: vec![Constraint::SAT {
+            child_names: vec![name1.clone(), name2.clone()],
+        }],
+    };
+    match ocel_type {
+        EventOrObjectType::Event(et) => bbox.new_event_vars.insert(
+            EventVariable(input_variable.to_inner()),
+            vec![et.clone()].into_iter().collect(),
+        ),
+        EventOrObjectType::Object(ot) => bbox.new_object_vars.insert(
+            ObjectVariable(input_variable.to_inner()),
+            vec![ot.clone()].into_iter().collect(),
+        ),
+    };
+    let or_box = BindingBoxTreeNode::Box(bbox, vec![1, 1 + tree1.nodes.len()]);
+    let mut or_tree = BindingBoxTree {
+        nodes: vec![or_box],
+        edge_names: HashMap::default(),
+    };
+    for tn in &tree1.nodes {
+        match tn {
+            BindingBoxTreeNode::Box(tn_box, tn_children) => {
+                or_tree.nodes.push(BindingBoxTreeNode::Box(
+                    tn_box.clone(),
+                    tn_children.iter().map(|c| c + 1).collect(),
+                ))
+            }
+            _ => {}
+        }
+    }
+    for tn in &tree2.nodes {
+        match tn {
+            BindingBoxTreeNode::Box(tn_box, tn_children) => {
+                or_tree.nodes.push(BindingBoxTreeNode::Box(
+                    tn_box.clone(),
+                    tn_children
+                        .iter()
+                        .map(|c| c + 1 + tree1.nodes.len())
+                        .collect(),
+                ))
+            }
+            _ => {}
+        }
+    }
+    or_tree.edge_names.insert((0, 1), name1.clone());
+    or_tree
+        .edge_names
+        .insert((0, 1 + tree1.nodes.len()), name2.clone());
+    or_tree.edge_names.extend(
+        tree1
+            .edge_names
+            .iter()
+            .map(|((from, to), name)| ((*from + 1, to + 1), name.clone())),
+    );
+    or_tree
+        .edge_names
+        .extend(tree2.edge_names.iter().map(|((from, to), name)| {
+            (
+                (*from + 1 + tree1.nodes.len(), to + 1 + tree1.nodes.len()),
+                name.clone(),
+            )
+        }));
+    or_tree
 }

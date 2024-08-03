@@ -6,7 +6,7 @@ use std::{
 };
 
 use advanced::{discover_or_constraints, EventOrObjectType};
-use graph_discovery::{discover_count_constraints, discover_ef_constraints};
+use graph_discovery::{discover_count_constraints, discover_ef_constraints, discover_or_constraints_new};
 use itertools::Itertools;
 use process_mining::OCEL;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
@@ -20,7 +20,10 @@ use crate::{
         },
         BindingBox, BindingBoxTree,
     },
-    preprocessing::{linked_ocel::{IndexLinkedOCEL, ObjectIndex}, preprocess::LinkedOCEL},
+    preprocessing::{
+        linked_ocel::{IndexLinkedOCEL, ObjectIndex},
+        preprocess::LinkedOCEL,
+    },
 };
 
 // use self::evaluation::{get_count_constraint_fraction, get_ef_constraint_fraction};
@@ -925,23 +928,21 @@ pub fn auto_discover_constraints_with_options(
     //     ),
     //     None => Vec::new(),
     // };
-    let eventually_follows_constraints = match options.eventually_follows_constraints {
-        Some(eventually_follows_options) => {
-            discover_ef_constraints(&ocel, eventually_follows_options.cover_fraction, &eventually_follows_options.object_types)
-        }
-        None => Vec::new(),
-    };
-    // let or_constraints = match options.or_constraints {
-    //     Some(or_constraint_option) => auto_discover_or_constraints(
-    //         &ocel.ocel,
-    //         &linked_ocel,
-    //         &obj_types_per_ev_type,
-    //         or_constraint_option,
-    //     ),
-    //     None => Vec::new(),
-    // };
+    let mut trees_per_type: HashMap<EventOrObjectType, Vec<BindingBoxTree>> = HashMap::new();
     let mut ret = AutoDiscoverConstraintsResponse {
         constraints: Vec::new(),
+    };
+    if let Some(eventually_follows_options) = options.eventually_follows_constraints {
+        for ot in &eventually_follows_options.object_types {
+            for c in discover_ef_constraints(&ocel, eventually_follows_options.cover_fraction, ot) {
+                ret.constraints
+                    .push((c.get_constraint_name(), c.get_full_tree()));
+                trees_per_type
+                    .entry(EventOrObjectType::Object(ot.clone()))
+                    .or_default()
+                    .push(c.to_subtree("X".to_string(), 0, 2, 3))
+            }
+        }
     };
     // for cc in &count_constraints {
     //     ret.constraints
@@ -954,35 +955,35 @@ pub fn auto_discover_constraints_with_options(
             .iter()
             .map(|ot| EventOrObjectType::Object(ot.clone()))
             .collect_vec();
-        let ccs = discover_count_constraints(ocel, count_opts.cover_fraction, types.into_iter());
-        // let var = Variable::Object(ObjectVariable(5));
-        // for cc in &ccs {
-        //     ret.constraints.extend(
-        //         discover_or_constraints(
-        //             ocel,
-        //             &cc.root_type,
-        //             var.clone(),
-        //             ccs.iter()
-        //                 .map(|cc| cc.to_subtree("A".to_string(), var.to_inner(), 4400))
-        //                 .collect_vec(),
-        //         )
-        //         .into_iter()
-        //         .map(|t| ("Auto OR".to_string(), t)),
-        //     );
-        // }
-        for cc in ccs {
-            ret.constraints
-                .push((cc.get_constraint_name(), cc.get_full_tree()))
+        for t in types {
+            for cc in discover_count_constraints(ocel, count_opts.cover_fraction, t.clone()) {
+                ret.constraints
+                    .push((cc.get_constraint_name(), cc.get_full_tree()));
+                
+                    trees_per_type
+                    .entry(t.clone())
+                    .or_default()
+                    .push(cc.to_subtree("X".to_string(), 0, 2));
+            
         }
     }
-    for ef in &eventually_follows_constraints {
-        ret.constraints
-            .push((ef.get_constraint_name(), ef.get_full_tree()))
+}
+    if let Some(or_constraint_option) = options.or_constraints {
+        for ot in or_constraint_option.object_types {
+            for or_c in discover_or_constraints_new(ocel, &ot) {
+                ret.constraints.push(("AUTO OR".to_string(),or_c));
+            }
+        }
+        // for (t,trees) in trees_per_type {
+        //     let var = match t {
+        //         EventOrObjectType::Event(_) => Variable::Event(EventVariable(0)),
+        //         EventOrObjectType::Object(_) => Variable::Object(ObjectVariable(0)),
+        //     };
+        //     for or_tree in discover_or_constraints(ocel,&t,var,trees) {
+        //         ret.constraints.push(("AUTO OR".to_string(),or_tree));
+        //     }
+        // }
     }
-
-    // for or in &or_constraints {
-    //     ret.constraints.push((or.get_constraint_name(), or.into()))
-    // }
 
     ret
 }
