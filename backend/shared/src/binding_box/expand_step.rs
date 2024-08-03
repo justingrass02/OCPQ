@@ -117,9 +117,11 @@ impl BindingBox {
                                     (qualifier.is_none()
                                         || &rel.qualifier == qualifier.as_ref().unwrap())
                                         && self.new_object_vars.get(ob_var_name).is_some_and(|v| {
-                                            v.contains(
-                                                &ocel.ob_by_id(&rel.object_id).unwrap().object_type,
-                                            )
+                                            if let Some(o) = ocel.ob_by_id(&rel.object_id) {
+                                                v.contains(&o.object_type)
+                                            } else {
+                                                false
+                                            }
                                         })
                                 })
                                 .map(move |rel| {

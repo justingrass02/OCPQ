@@ -5,6 +5,7 @@ use std::{
     sync::Mutex,
 };
 
+use advanced::{EventOrObjectType};
 use graph_discovery::build_frequencies_from_graph;
 use itertools::Itertools;
 use process_mining::OCEL;
@@ -20,14 +21,19 @@ use crate::{
     },
     preprocessing::{
         linked_ocel::IndexLinkedOCEL,
-        preprocess::{link_ocel_info, LinkedOCEL},
+        preprocess::{LinkedOCEL},
     },
 };
 
 use self::evaluation::{get_count_constraint_fraction, get_ef_constraint_fraction};
 
+pub mod advanced;
 pub mod evaluation;
 pub mod graph_discovery;
+
+pub static SAMPLE_MIN_NUM_INSTANCES: usize = 1000;
+pub static SAMPLE_FRAC: f32 = 0.1;
+pub static RNG_SEED: u64 = 13375050;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -908,57 +914,63 @@ pub fn auto_discover_constraints_with_options(
     ocel: &IndexLinkedOCEL,
     options: AutoDiscoverConstraintsRequest,
 ) -> AutoDiscoverConstraintsResponse {
-    let linked_ocel = link_ocel_info(&ocel.ocel);
-    let obj_types_per_ev_type = get_obj_types_per_ev_type(&linked_ocel);
-    let count_constraints = match &options.count_constraints {
-        Some(count_options) => auto_discover_count_constraints(
-            &ocel.ocel,
-            &obj_types_per_ev_type,
-            &linked_ocel,
-            None,
-            count_options,
-        ),
-        None => Vec::new(),
-    };
-    let eventually_follows_constraints = match options.eventually_follows_constraints {
-        Some(eventually_follows_options) => {
-            auto_discover_eventually_follows(&linked_ocel, None, eventually_follows_options)
-        }
-        None => Vec::new(),
-    };
-    let or_constraints = match options.or_constraints {
-        Some(or_constraint_option) => auto_discover_or_constraints(
-            &ocel.ocel,
-            &linked_ocel,
-            &obj_types_per_ev_type,
-            or_constraint_option,
-        ),
-        None => Vec::new(),
-    };
+    // let linked_ocel = link_ocel_info(&ocel.ocel);
+    // let obj_types_per_ev_type = get_obj_types_per_ev_type(&linked_ocel);
+    // let count_constraints = match &options.count_constraints {
+    //     Some(count_options) => auto_discover_count_constraints(
+    //         &ocel.ocel,
+    //         &obj_types_per_ev_type,
+    //         &linked_ocel,
+    //         None,
+    //         count_options,
+    //     ),
+    //     None => Vec::new(),
+    // };
+    // let eventually_follows_constraints = match options.eventually_follows_constraints {
+    //     Some(eventually_follows_options) => {
+    //         auto_discover_eventually_follows(&linked_ocel, None, eventually_follows_options)
+    //     }
+    //     None => Vec::new(),
+    // };
+    // let or_constraints = match options.or_constraints {
+    //     Some(or_constraint_option) => auto_discover_or_constraints(
+    //         &ocel.ocel,
+    //         &linked_ocel,
+    //         &obj_types_per_ev_type,
+    //         or_constraint_option,
+    //     ),
+    //     None => Vec::new(),
+    // };
     let mut ret = AutoDiscoverConstraintsResponse {
         constraints: Vec::new(),
     };
-    for cc in &count_constraints {
-        ret.constraints
-            .push((cc.constraint.get_constraint_name(), (&cc.constraint).into()))
-    }
+    // for cc in &count_constraints {
+    //     ret.constraints
+    //         .push((cc.constraint.get_constraint_name(), (&cc.constraint).into()))
+    // }
     // TODO: Fully integrate
     if let Some(count_opts) = &options.count_constraints {
-        for cc in
-            build_frequencies_from_graph(ocel, count_opts.cover_fraction, &count_opts.object_types)
-        {
+        let ccs =
+            build_frequencies_from_graph(ocel, count_opts.cover_fraction, count_opts.object_types.iter().map(|ot| EventOrObjectType::Object(ot.clone())));
+        // test123(
+        //     ocel,
+        //     &count_opts.object_types,
+        //     Variable::Object(ObjectVariable(5)),
+        //     &ccs,
+        // );
+        for cc in ccs {
             ret.constraints
-                .push((cc.get_constraint_name(), (&cc).into()))
+                .push((cc.get_constraint_name(), cc.get_full_tree()))
         }
     }
-    for ef in &eventually_follows_constraints {
-        ret.constraints
-            .push((ef.constraint.get_constraint_name(), (&ef.constraint).into()))
-    }
+    // for ef in &eventually_follows_constraints {
+    //     ret.constraints
+    //         .push((ef.constraint.get_constraint_name(), (&ef.constraint).into()))
+    // }
 
-    for or in &or_constraints {
-        ret.constraints.push((or.get_constraint_name(), or.into()))
-    }
+    // for or in &or_constraints {
+    //     ret.constraints.push((or.get_constraint_name(), or.into()))
+    // }
 
     ret
 }

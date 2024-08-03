@@ -146,7 +146,9 @@ export default function NewVariableChooser({
                 })
               }
             >
+              <span className="shrink-0">
               <EvVarName eventVar={parseInt(evVar)} />:
+              </span>
               <span
                 className="ml-1 max-w-full shrink overflow-ellipsis overflow-hidden inline-block whitespace-pre text-left"
                 title={evTypes.join(",\n")}

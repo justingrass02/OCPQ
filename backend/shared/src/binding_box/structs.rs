@@ -5,23 +5,32 @@ use std::{
 
 use itertools::Itertools;
 use process_mining::{
-    event_log::AttributeValue,
     ocel::{
         ocel_struct::{OCELAttributeValue, OCELEvent, OCELObject},
-        xml_ocel_import::OCELAttributeType,
     },
 };
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use ts_rs::TS;
 
-use crate::preprocessing::linked_ocel::{EventIndex, IndexLinkedOCEL, ObjectIndex};
+use crate::{
+    preprocessing::linked_ocel::{EventIndex, IndexLinkedOCEL, ObjectIndex, EventOrObjectIndex},
+};
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Variable {
     Event(EventVariable),
     Object(ObjectVariable),
+}
+
+impl Variable {
+    pub fn to_inner(&self) -> usize {
+        match self {
+            Variable::Event(ev) => ev.0,
+            Variable::Object(ov) => ov.0,
+        }
+    }
 }
 
 #[derive(TS)]
@@ -89,6 +98,17 @@ impl Binding {
     }
     pub fn get_ob_index(&self, ob_var: &ObjectVariable) -> Option<&ObjectIndex> {
         self.object_map.get(ob_var)
+    }
+
+    pub fn get_any_index(&self, var: &Variable) -> Option<EventOrObjectIndex> {
+        match var {
+            Variable::Event(ev) => self
+                .get_ev_index(ev)
+                .map(|r| EventOrObjectIndex::Event(*r)),
+            Variable::Object(ov) => self
+                .get_ob_index(ov)
+                .map(|r: &ObjectIndex| EventOrObjectIndex::Object(*r)),
+        }
     }
 }
 
@@ -168,7 +188,7 @@ pub enum BindingBoxTreeNode {
     AND(usize, usize),
     NOT(usize),
 }
-const UNNAMED: &'static str = "UNNAMED - ";
+const UNNAMED: &str = "UNNAMED - ";
 impl BindingBoxTreeNode {
     pub fn to_box(self) -> (BindingBox, Vec<usize>) {
         match self {

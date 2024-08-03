@@ -7,7 +7,10 @@ use axum::{extract::State, http::StatusCode, Json};
 use ocedeclare_shared::{preprocessing::linked_ocel::IndexLinkedOCEL, OCELInfo};
 use serde::{Deserialize, Serialize};
 
-use process_mining::event_log::ocel::ocel_struct::OCEL;
+use process_mining::{
+    event_log::ocel::ocel_struct::OCEL,
+    ocel::xml_ocel_import::{import_ocel_xml_file_with, OCELImportOptions},
+};
 
 use crate::AppState;
 
@@ -65,8 +68,14 @@ pub fn load_ocel_file_to_state(name: &str, state: &AppState) -> Option<OCELInfo>
 }
 
 pub fn load_ocel_file(name: &str) -> Result<OCEL, std::io::Error> {
-    let file = File::open(format!("{DATA_PATH}{name}"))?;
-    let reader = BufReader::new(file);
-    let ocel: OCEL = serde_json::from_reader(reader)?;
-    Ok(ocel)
+    let path = format!("{DATA_PATH}{name}");
+    if name.ends_with(".json") {
+        let file = File::open(path)?;
+        let reader = BufReader::new(file);
+        let ocel: OCEL = serde_json::from_reader(reader)?;
+        Ok(ocel)
+    } else {
+        let ocel = import_ocel_xml_file_with(&path, OCELImportOptions::default());
+        Ok(ocel)
+    }
 }

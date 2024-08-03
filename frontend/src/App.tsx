@@ -213,7 +213,7 @@ function App() {
                   }}
                 >
                   {loading && <Spinner />}
-                  <span>Open JSON OCEL</span>
+                  <span>Load Selected OCEL</span>
                 </Button>
               </div>
             )}

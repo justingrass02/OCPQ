@@ -2,7 +2,7 @@ use process_mining::ocel::ocel_struct::{OCELEvent, OCELObject};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::preprocessing::linked_ocel::{IndexLinkedOCEL, ObjectOrEventIndex};
+use crate::preprocessing::linked_ocel::{IndexLinkedOCEL, EventOrObjectIndex};
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(untagged)]
@@ -40,17 +40,17 @@ pub fn get_ocel_graph(ocel: &IndexLinkedOCEL, options: OCELGraphOptions) -> Opti
         true => ocel
             .object_index_map
             .get(&options.root)
-            .map(|o_index| ObjectOrEventIndex::Object(*o_index)),
+            .map(|o_index| EventOrObjectIndex::Object(*o_index)),
 
         false => ocel
             .event_index_map
             .get(&options.root)
-            .map(|e_index| ObjectOrEventIndex::Event(*e_index)),
+            .map(|e_index| EventOrObjectIndex::Event(*e_index)),
     };
     if let Some(root_index) = root_index_opt {
         let mut queue = vec![(root_index, 0)];
-        let mut done_indices: Vec<ObjectOrEventIndex> = Vec::new();
-        let mut expanded_arcs: Vec<(ObjectOrEventIndex, ObjectOrEventIndex, String)> = Vec::new();
+        let mut done_indices: Vec<EventOrObjectIndex> = Vec::new();
+        let mut expanded_arcs: Vec<(EventOrObjectIndex, EventOrObjectIndex, String)> = Vec::new();
         done_indices.push(root_index);
         let max_distance = options.max_distance;
         while let Some((index, distance)) = queue.pop() {
@@ -79,10 +79,10 @@ pub fn get_ocel_graph(ocel: &IndexLinkedOCEL, options: OCELGraphOptions) -> Opti
         let nodes = done_indices
             .iter()
             .map(|i| match i {
-                ObjectOrEventIndex::Object(o_index) => {
+                EventOrObjectIndex::Object(o_index) => {
                     GraphNode::Object(ocel.ob_by_index(o_index).unwrap().clone())
                 }
-                ObjectOrEventIndex::Event(e_index) => {
+                EventOrObjectIndex::Event(e_index) => {
                     GraphNode::Event(ocel.ev_by_index(e_index).unwrap().clone())
                 }
             })
