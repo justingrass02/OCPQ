@@ -1,3 +1,4 @@
+use core::f64;
 use std::{
     collections::{HashMap, HashSet},
     time::Instant,
@@ -5,6 +6,8 @@ use std::{
 
 // use plotly::{common::Title, layout::Axis, Histogram, Layout, Plot};
 
+use itertools::Itertools;
+use process_mining::ocel::ocel_struct::OCELType;
 use rand::{rngs::StdRng, seq::IteratorRandom, SeedableRng};
 
 use crate::{
@@ -15,7 +18,7 @@ use crate::{
         BindingBox, BindingBoxTree,
     },
     discovery::{RNG_SEED, SAMPLE_FRAC, SAMPLE_MIN_NUM_INSTANCES},
-    preprocessing::linked_ocel::{EventOrObjectIndex, IndexLinkedOCEL, OCELNodeRef},
+    preprocessing::linked_ocel::{EventOrObjectIndex, IndexLinkedOCEL, OCELNodeRef, ObjectIndex},
 };
 
 use super::advanced::EventOrObjectType;
@@ -27,68 +30,74 @@ pub enum RefType {
     Event,
     EventReversed,
 }
-pub fn build_frequencies_from_graph<I: Iterator<Item = EventOrObjectType>>(
+
+pub fn get_instances(
+    ocel: &IndexLinkedOCEL,
+    ocel_type: &EventOrObjectType,
+) -> Vec<EventOrObjectIndex> {
+    let mut rng = StdRng::seed_from_u64(RNG_SEED);
+    let instances: Option<Vec<_>> = match &ocel_type {
+        EventOrObjectType::Event(et) => {
+            if let Some(o_indices) = ocel.events_of_type.get(et) {
+                let instances = if o_indices.len() >= SAMPLE_MIN_NUM_INSTANCES {
+                    let sample_count = (o_indices.len() as f32 * SAMPLE_FRAC).ceil() as usize;
+                     o_indices
+                    .iter()
+                    .choose_multiple(&mut rng, sample_count)
+                } else {
+                    o_indices.iter().collect()
+                };
+                Some(instances.into_iter()
+                .map(|i| EventOrObjectIndex::Event(*i))
+                .collect())
+            } else {
+                None
+            }
+        }
+        EventOrObjectType::Object(ot) => {
+            if let Some(o_indices) = ocel.objects_of_type.get(ot) {
+                let instances = if o_indices.len() >= SAMPLE_MIN_NUM_INSTANCES {
+                    let sample_count = (o_indices.len() as f32 * SAMPLE_FRAC).ceil() as usize;
+                     o_indices
+                    .iter()
+                    .choose_multiple(&mut rng, sample_count)
+                } else {
+                    o_indices.iter().collect()
+                };
+                Some(instances.into_iter()
+                .map(|i| EventOrObjectIndex::Object(*i))
+                .collect())
+            } else {
+                None
+            }
+        }
+    };
+    instances.unwrap_or_default()
+}
+
+pub fn discover_count_constraints<I: Iterator<Item = EventOrObjectType>>(
     ocel: &IndexLinkedOCEL,
     coverage: f32,
     ocel_types: I,
 ) -> Vec<CountConstraint> {
     let now = Instant::now();
     let mut ret = Vec::new();
-    let mut rng = StdRng::seed_from_u64(RNG_SEED);
     for t in ocel_types {
-        let instances: Option<Vec<_>> = match &t {
-            EventOrObjectType::Event(et) => {
-                if let Some(o_indices) = ocel.events_of_type.get(et) {
-                    let sample_count = if o_indices.len() >= SAMPLE_MIN_NUM_INSTANCES {
-                        (o_indices.len() as f32 * SAMPLE_FRAC).ceil() as usize
-                    } else {
-                        o_indices.len()
-                    };
-                    let instances = o_indices
-                        .iter()
-                        .choose_multiple(&mut rng, sample_count)
-                        .into_iter()
-                        .map(|i| EventOrObjectIndex::Event(*i))
-                        .collect();
-                    Some(instances)
-                } else {
-                    None
-                }
-            }
-            EventOrObjectType::Object(ot) => {
-                if let Some(o_indices) = ocel.objects_of_type.get(ot) {
-                    let sample_count = if o_indices.len() >= SAMPLE_MIN_NUM_INSTANCES {
-                        (o_indices.len() as f32 * SAMPLE_FRAC).ceil() as usize
-                    } else {
-                        o_indices.len()
-                    };
-                    let instances = o_indices
-                        .iter()
-                        .choose_multiple(&mut rng, sample_count)
-                        .into_iter()
-                        .map(|i| EventOrObjectIndex::Object(*i))
-                        .collect();
-                    Some(instances)
-                } else {
-                    None
-                }
-            }
-        };
-        // println!("Sampled instances: {:?}",instances);
-        if let Some(instances) = instances {
-            ret.extend(get_count_constraint_for_supporting_instances(
-                ocel,
-                coverage,
-                instances.into_iter(),
-                t,
-            ));
-        }
+        let instances: Vec<_> = get_instances(ocel, &t);
+        ret.extend(discover_count_constraints_for_supporting_instances(
+            ocel,
+            coverage,
+            instances.into_iter(),
+            t,
+        ));
     }
-    // println!("Graph Count Discovery took {:?}", now.elapsed());
+    println!("Graph Count Discovery took {:?}", now.elapsed());
     ret
 }
 
-pub fn get_count_constraint_for_supporting_instances<I: Iterator<Item = EventOrObjectIndex>>(
+pub fn discover_count_constraints_for_supporting_instances<
+    I: Iterator<Item = EventOrObjectIndex>,
+>(
     ocel: &IndexLinkedOCEL,
     coverage: f32,
     supporting_instances: I,
@@ -133,16 +142,17 @@ pub fn get_count_constraint_for_supporting_instances<I: Iterator<Item = EventOrO
     total_map
         .iter()
         .for_each(|((ref_type, ocel_type), counts)| {
-            let mean = counts.iter().sum::<usize>() as f32 / counts.len() as f32;
+            let n = counts.len() as f32;
+            let mean = counts.iter().sum::<usize>() as f32 / n;
             if mean > 0.0 && mean <= 30.0 {
                 // Otherwise, not interesting (i.e., no values > 0)
-                let std_deviation = counts
+                let std_deviation = (counts
                     .iter()
                     .map(|c| {
                         let diff = mean - *c as f32;
                         diff * diff
                     })
-                    .sum::<f32>()
+                    .sum::<f32>() / n)
                     .sqrt();
                 // TODO: Decide if > 0?
                 if std_deviation >= 0.0 {
@@ -265,6 +275,45 @@ fn get_range_with_coverage_inner(
     vec![(min, max)]
 }
 
+fn get_seconds_range_with_coverage(
+    values: &[Option<f64>],
+    coverage: f32,
+    start: f64,
+    step_size: f64,
+    direction: Direction,
+) -> Option<(f64, f64)> {
+    let mut min = start;
+    let mut max = start;
+    let mut steps = 0;
+    let coverage_min_count = (values.len() as f32 * coverage).ceil() as usize;
+    while steps < 10_000
+        && values
+            .iter()
+            .filter(|v| v.is_some_and(|v| v >= min && v <= max))
+            .count()
+            < coverage_min_count
+    {
+        // Watch out for overflows!
+        if direction != Direction::Increase {
+            if min >= step_size {
+                min -= step_size;
+            } else {
+                min = 0.0;
+            }
+        }
+
+        if direction != Direction::Decrease {
+            max += step_size;
+        }
+        steps += 1;
+    }
+    if steps >= 1000 {
+        println!("[Warning!] Could not find coverage range after 1000 steps.");
+        return None;
+    }
+    Some((min, max))
+}
+
 // fn plot_histogram<S: AsRef<str>, P: AsRef<std::path::Path>>(
 //     counts: &Vec<usize>,
 //     title: S,
@@ -308,45 +357,6 @@ impl CountConstraint {
         let inner_child_name = "A".to_string();
         let inner_variable = 0;
         let mut subtree = self.to_subtree(inner_child_name.clone(), inner_variable, 1);
-        // match &mut subtree.nodes[0] {
-        //     BindingBoxTreeNode::Box(_, child) => {
-        //         child[0] = 2;
-        //     },
-        //     _ => todo!("Should be a Box")
-        // }
-        // subtree.nodes.insert(
-        //     0,
-        //     BindingBoxTreeNode::Box(
-        //         BindingBox {
-        //             new_event_vars: match &self.root_type {
-        //                 EventOrObjectType::Event(et) => vec![(
-        //                     EventVariable(inner_variable),
-        //                     vec![et.clone()].into_iter().collect(),
-        //                 )]
-        //                 .into_iter()
-        //                 .collect(),
-        //                 _ => HashMap::default(),
-        //             },
-        //             new_object_vars: match &self.root_type {
-        //                 EventOrObjectType::Object(ot) => vec![(
-        //                     ObjectVariable(inner_variable),
-        //                     vec![ot.clone()].into_iter().collect(),
-        //                 )]
-        //                 .into_iter()
-        //                 .collect(),
-        //                 _ => HashMap::default(),
-        //             },
-        //             filters: Vec::default(),
-        //             size_filters: Vec::default(),
-        //             constraints: vec![Constraint::SAT {
-        //                 child_names: vec![child_name.clone()],
-        //             }],
-        //         },
-        //         vec![1],
-        //     ),
-        // );
-        // subtree.edge_names.insert((0,1), child_name);
-        // subtree.edge_names.insert((1,2), inner_child_name);
         match &mut subtree.nodes[0] {
             BindingBoxTreeNode::Box(bbox, _) => {
                 match &self.root_type {
@@ -360,7 +370,7 @@ impl CountConstraint {
                     ),
                 };
             }
-            _ => todo!("Expected Box"),
+            _ => todo!("Expected a BindingBox"),
         }
         subtree
     }
@@ -443,6 +453,228 @@ impl CountConstraint {
                         },
                     },
                 }],
+                size_filters: vec![],
+                constraints: vec![],
+            },
+            vec![],
+        );
+        BindingBoxTree {
+            nodes: vec![bbox0, bbox1],
+            edge_names: vec![((0, 1), child_name)].into_iter().collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct EFConstraint {
+    pub from_ev_type: String,
+    pub to_ev_type: String,
+    pub min_duration_sec: Option<f64>,
+    pub max_duration_sec: Option<f64>,
+    pub for_object_type: String,
+}
+
+pub fn discover_ef_constraints(
+    ocel: &IndexLinkedOCEL,
+    coverage: f32,
+    object_types: &Vec<String>,
+) -> Vec<EFConstraint> {
+    println!("Hello! discover_ef_constraints for {:?}", object_types);
+    let now = Instant::now();
+    let mut ret = Vec::new();
+    for t in object_types {
+        println!("EF {t}");
+        let instances: Vec<_> = get_instances(ocel, &EventOrObjectType::Object(t.clone()));
+        println!("Got  #{} instances", instances.len());
+        ret.extend(discover_ef_constraints_for_supporting_instances(
+            ocel,
+            coverage,
+            instances.into_iter().flat_map(|i| match i {
+                EventOrObjectIndex::Object(oi) => Some(oi),
+                _ => None,
+            }),
+            &t,
+        ));
+    }
+    println!("Graph Count Discovery took {:?}", now.elapsed());
+    ret
+}
+
+pub fn discover_ef_constraints_for_supporting_instances<I: Iterator<Item = ObjectIndex>>(
+    ocel: &IndexLinkedOCEL,
+    coverage: f32,
+    supporting_instances: I,
+    supporting_object_type: &String,
+) -> Vec<EFConstraint> {
+    let mut ret = Vec::new();
+    let mut rng = StdRng::seed_from_u64(RNG_SEED);
+    let mut total_map: HashMap<(&String, &String), Vec<Option<f64>>> = HashMap::new();
+    for o_index in supporting_instances {
+        if let Some(rels) = ocel.get_symmetric_rels_ob(&o_index) {
+            let evs = rels
+                .into_iter()
+                .flat_map(|(o_or_e_index, _reverse, _qualifier)| match o_or_e_index {
+                    EventOrObjectIndex::Event(ei) => ocel.ev_by_index(ei),
+                    EventOrObjectIndex::Object(_) => None,
+                })
+                .collect_vec();
+            let evs_num = evs.len();
+            let evs = if evs_num >= 100 {
+                evs.into_iter()
+                    .choose_multiple(&mut rng, (SAMPLE_FRAC * evs_num as f32).ceil() as usize)
+            } else {
+                evs
+            };
+            for i in 0..evs.len() {
+                let mut min_delay_to: HashMap<&String, Option<f64>> = ocel
+                    .ocel
+                    .event_types
+                    .iter()
+                    .map(|t| (&t.name, None))
+                    .collect();
+                for j in 0..evs.len() {
+                    if i != j && evs[i].time <= evs[j].time {
+                        let time_diff =
+                            (evs[j].time - evs[i].time).num_milliseconds() as f64 / 1000.0;
+
+                        let v = min_delay_to.entry(&evs[j].event_type).or_default();
+                        if v.is_none() || v.unwrap() > time_diff {
+                            *v = Some(time_diff);
+                        }
+                    }
+                }
+                for (to_ev_type, min_delay) in &min_delay_to {
+                    total_map
+                        .entry((&evs[i].event_type, *to_ev_type))
+                        .or_default()
+                        .push(*min_delay);
+                }
+            }
+        }
+    }
+    total_map
+        .iter()
+        .for_each(|((from_ev_type, to_ev_type), seconds)| {
+            let num_ef_with_any_delay = seconds.iter().filter(|s| s.is_some()).count() as f32;
+            let fraction_ef_with_any_delay = num_ef_with_any_delay / seconds.len() as f32;
+            println!("EF Fraction: {fraction_ef_with_any_delay} of {coverage}");
+            if fraction_ef_with_any_delay >= coverage {
+                let n = seconds.iter().flatten().count() as f64;
+                let mean = seconds.iter().flatten().sum::<f64>() / n;
+                // Otherwise, not interesting (i.e., no values > 0)
+                let std_deviation = (seconds
+                    .iter()
+                    .flatten()
+                    .map(|c| {
+                        let diff = mean - *c as f64;
+                        diff * diff
+                    })
+                    .sum::<f64>()
+                    / n)
+                    .sqrt();
+                // TODO: Decide if > 0?
+                if std_deviation >= 0.0 {
+                    // Otherwise, not interesting (no deviation between values)
+                    if let Some((min, max)) = get_seconds_range_with_coverage(
+                        seconds,
+                        coverage,
+                        0.0,
+                        std_deviation,
+                        Direction::Increase,
+                    ) {
+                        ret.push(EFConstraint {
+                            from_ev_type: (*from_ev_type).clone(),
+                            to_ev_type: (*to_ev_type).clone(),
+                            min_duration_sec: Some(min),
+                            max_duration_sec: Some(max),
+                            for_object_type: supporting_object_type.clone(),
+                        });
+                    }
+                    println!("Thank You, Next!");
+                }
+            }
+        });
+    ret
+}
+
+impl EFConstraint {
+    pub fn get_constraint_name(&self) -> String {
+        format!(
+            "{} -> {} for {}",
+            self.from_ev_type, self.to_ev_type, self.for_object_type,
+        )
+    }
+    pub fn get_full_tree(&self) -> BindingBoxTree {
+        // let child_name = "A".to_string();
+        let inner_child_name = "A".to_string();
+        let inner_variable = 0;
+        let mut subtree = self.to_subtree(inner_child_name.clone(), inner_variable, 1, 2);
+        match &mut subtree.nodes[0] {
+            BindingBoxTreeNode::Box(bbox, _) => {
+                bbox.new_object_vars.insert(
+                    ObjectVariable(inner_variable),
+                    vec![self.for_object_type.clone()].into_iter().collect(),
+                );
+            }
+            _ => todo!("Expected a BindingBox"),
+        }
+        subtree
+    }
+    pub fn to_subtree(
+        &self,
+        child_name: String,
+        inner_variable: usize,
+        new_from_ev_var: usize,
+        new_to_ev_var: usize,
+    ) -> BindingBoxTree {
+        let bbox0 = BindingBoxTreeNode::Box(
+            BindingBox {
+                new_event_vars: vec![(
+                    EventVariable(new_from_ev_var),
+                    vec![self.from_ev_type.clone()].into_iter().collect(),
+                )]
+                .into_iter()
+                .collect(),
+                new_object_vars: HashMap::default(),
+                filters: vec![Filter::O2E {
+                    object: ObjectVariable(inner_variable),
+                    event: EventVariable(new_from_ev_var),
+                    qualifier: None,
+                }],
+                size_filters: vec![],
+                constraints: vec![Constraint::SizeFilter {
+                    filter: SizeFilter::NumChilds {
+                        child_name: child_name.clone(),
+                        min: Some(1),
+                        max: None,
+                    },
+                }],
+            },
+            vec![1],
+        );
+
+        let bbox1 = BindingBoxTreeNode::Box(
+            BindingBox {
+                new_event_vars: vec![(
+                    EventVariable(new_to_ev_var),
+                    vec![self.to_ev_type.clone()].into_iter().collect(),
+                )]
+                .into_iter()
+                .collect(),
+                new_object_vars: HashMap::default(),
+                filters: vec![
+                    Filter::O2E {
+                        object: ObjectVariable(inner_variable),
+                        event: EventVariable(new_to_ev_var),
+                        qualifier: None,
+                    },
+                    Filter::TimeBetweenEvents {
+                        from_event: EventVariable(new_from_ev_var),
+                        to_event: EventVariable(new_to_ev_var),
+                        min_seconds: self.min_duration_sec,
+                        max_seconds: self.max_duration_sec,
+                    },
+                ],
                 size_filters: vec![],
                 constraints: vec![],
             },

@@ -2,25 +2,29 @@
 // with the same input bindings (or at least a common subset?) use sampling of bindings to evaluate the binding subtrees
 // Detect patterns (e.g., OR) based on the boolean results for the sampled bindings (i..e., if the subtree is satisfied for the binding)
 
-use std::cmp::max;
+use std::{cmp::max, collections::HashMap};
 
 use itertools::Itertools;
 
 use rand::{rngs::StdRng, seq::IteratorRandom, SeedableRng};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-
 use crate::{
-    binding_box::{structs::Variable, Binding, BindingBoxTree},
+    binding_box::{
+        structs::{BindingBoxTreeNode, Constraint, EventVariable, ObjectVariable, Variable},
+        Binding, BindingBox, BindingBoxTree,
+    },
     preprocessing::linked_ocel::IndexLinkedOCEL,
 };
 
-use super::{SimpleDiscoveredCountConstraints, RNG_SEED, SAMPLE_FRAC, SAMPLE_MIN_NUM_INSTANCES};
+use super::{
+    graph_discovery::discover_count_constraints_for_supporting_instances, RNG_SEED, SAMPLE_FRAC, SAMPLE_MIN_NUM_INSTANCES,
+};
 
 // 1st Step: Allow building of  (simple) sampled bindings based on object/event type
 pub fn generate_sample_bindings(
     ocel: &IndexLinkedOCEL,
-    ocel_types: &Vec<String>,
+    ocel_types: &Vec<EventOrObjectType>,
     target_variable: Variable,
 ) -> Vec<Binding> {
     let mut rng = StdRng::seed_from_u64(RNG_SEED);
@@ -28,7 +32,7 @@ pub fn generate_sample_bindings(
         Variable::Event(ev) => {
             let instances: Vec<_> = ocel_types
                 .iter()
-                .flat_map(|t| ocel.events_of_type.get(t))
+                .flat_map(|t| ocel.events_of_type.get(t.inner()))
                 .flatten()
                 .collect();
             let sample_count = if instances.len() >= SAMPLE_MIN_NUM_INSTANCES {
@@ -46,10 +50,10 @@ pub fn generate_sample_bindings(
         Variable::Object(ov) => {
             let instances: Vec<_> = ocel_types
                 .iter()
-                .flat_map(|t| ocel.objects_of_type.get(t))
+                .flat_map(|t| ocel.objects_of_type.get(t.inner()))
                 .flatten()
                 .collect();
-            let sample_count = if instances.len() >= 1000 {
+            let sample_count = if instances.len() >= SAMPLE_MIN_NUM_INSTANCES {
                 (instances.len() as f32 * SAMPLE_FRAC).ceil() as usize
             } else {
                 instances.len()
@@ -65,11 +69,14 @@ pub fn generate_sample_bindings(
 }
 
 // 2nd Step
-pub fn check_tree_combinations(
+pub fn test_tree_combinations(
     ocel: &IndexLinkedOCEL,
     subtrees: Vec<BindingBoxTree>,
     input_bindings: Vec<Binding>,
-) {
+    input_variable: Variable,
+    ocel_types: &EventOrObjectType,
+) -> Vec<BindingBoxTree> {
+    let mut ret = Vec::new();
     // First index: Binding index, second index: subtree index;
     // Value: true if subtree is satisfied for binding, false otherwise
     let sat_subtrees_per_binding: Vec<_> = input_bindings
@@ -107,31 +114,115 @@ pub fn check_tree_combinations(
                 .count();
             let good_or_frac = num_or_sat as f32 / max(num_tree_sat[i], num_tree_sat[j]) as f32;
             let good_sat_frac = num_or_sat as f32 / input_bindings.len() as f32;
-            if good_sat_frac >= 0.8 && good_or_frac >= 1.1 {
+            if good_sat_frac >= 0.8 && good_sat_frac < 0.98 && good_or_frac >= 1.33 {
+                let tree1 = &subtrees[i];
+                let tree2 = &subtrees[j];
+                let name1 = "A".to_string();
+                let name2 = "B".to_string();
+                let mut bbox = BindingBox {
+                    new_event_vars: HashMap::new(),
+                    new_object_vars: HashMap::new(),
+                    filters: Vec::default(),
+                    size_filters: Vec::default(),
+                    constraints: vec![Constraint::SAT {
+                        child_names: vec![name1.clone(), name2.clone()],
+                    }],
+                };
+                match ocel_types {
+                    EventOrObjectType::Event(et) => bbox.new_event_vars.insert(
+                        EventVariable(input_variable.to_inner()),
+                        vec![et.clone()].into_iter().collect(),
+                    ),
+                    EventOrObjectType::Object(ot) => bbox.new_object_vars.insert(
+                        ObjectVariable(input_variable.to_inner()),
+                        vec![ot.clone()].into_iter().collect(),
+                    ),
+                };
+                let or_box = BindingBoxTreeNode::Box(bbox, vec![1, 1 + tree1.nodes.len()]);
+                let mut or_tree = BindingBoxTree {
+                    nodes: vec![or_box],
+                    edge_names: HashMap::default(),
+                };
+                for tn in &tree1.nodes {
+                    match tn {
+                        BindingBoxTreeNode::Box(tn_box, tn_children) => {
+                            or_tree.nodes.push(BindingBoxTreeNode::Box(
+                                tn_box.clone(),
+                                tn_children.iter().map(|c| c + 1).collect(),
+                            ))
+                        }
+                        _ => {}
+                    }
+                }
+                for tn in &tree2.nodes {
+                    match tn {
+                        BindingBoxTreeNode::Box(tn_box, tn_children) => {
+                            or_tree.nodes.push(BindingBoxTreeNode::Box(
+                                tn_box.clone(),
+                                tn_children
+                                    .iter()
+                                    .map(|c| c + 1 + tree1.nodes.len())
+                                    .collect(),
+                            ))
+                        }
+                        _ => {}
+                    }
+                }
+                or_tree.edge_names.insert((0, 1), name1.clone());
+                or_tree
+                    .edge_names
+                    .insert((0, 1 + tree1.nodes.len()), name2.clone());
+                or_tree.edge_names.extend(
+                    tree1
+                        .edge_names
+                        .iter()
+                        .map(|((from, to), name)| ((*from + 1, to + 1), name.clone())),
+                );
+                or_tree
+                    .edge_names
+                    .extend(tree2.edge_names.iter().map(|((from, to), name)| {
+                        (
+                            (*from + 1 + tree1.nodes.len(), to + 1 + tree1.nodes.len()),
+                            name.clone(),
+                        )
+                    }));
+
+                ret.push(or_tree);
                 println!("Good OR candidate with {good_or_frac}");
-                println!("{:#?}\n{:#?}\n\n", subtrees[i], subtrees[j]);
+                // println!("{:#?}\n{:#?}\n\n", tree1, tree1);
             }
         }
     }
+    ret
 }
 
-pub fn test123(
-    _ocel: &IndexLinkedOCEL,
-    _ocel_types: &Vec<String>,
-    _input_variable: Variable,
-    _count_constraints: &Vec<SimpleDiscoveredCountConstraints>,
-) {
-    // let subtrees = count_constraints
-    //     .iter()
-    //     .enumerate()
-    //     .map(|(i, cc)| cc.to_subtree("A".to_string(), input_variable.to_inner(), 1000 + i))
-    //     .collect_vec();
-    // println!("GOT {} subtrees", subtrees.len());
-    // println!("First subtree: {:?}", subtrees[0]);
-    // let bindings = generate_sample_bindings(ocel, ocel_types, input_variable);
-    // println!("GOT {} bindings", bindings.len());
-    // println!("First binding: {}", bindings[0]);
-    // check_tree_combinations(ocel, subtrees, bindings);
+pub fn discover_or_constraints(
+    ocel: &IndexLinkedOCEL,
+    ocel_type: &EventOrObjectType,
+    input_variable: Variable,
+    subtrees: Vec<BindingBoxTree>,
+) -> Vec<BindingBoxTree> {
+    let bindings = generate_sample_bindings(ocel, &vec![ocel_type.clone()], input_variable.clone());
+    let mut all_subtrees = subtrees.clone();
+    for st in &subtrees {
+        let count_constraints = discover_count_constraints_for_supporting_instances(
+            ocel,
+            0.85,
+            bindings
+                .iter()
+                .filter(|b| {
+                    let (_x, y) = st.nodes[0].evaluate(0, 0, (*b).clone(), st, ocel);
+                    y.iter().any(|(_, v)| v.is_some())
+                })
+                .map(|b| b.get_any_index(&input_variable))
+                .flatten(),
+            ocel_type.clone(),
+        );
+        for cc in count_constraints {
+            all_subtrees.push(cc.to_subtree("A".to_string(), input_variable.to_inner(), 850))
+        }
+    }
+    test_tree_combinations(ocel, all_subtrees, bindings, input_variable, ocel_type)
 }
 
 // // TODO: This is not great
