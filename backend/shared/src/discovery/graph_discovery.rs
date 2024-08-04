@@ -1,6 +1,6 @@
 use core::f64;
 use std::{
-    borrow::{Borrow, Cow},
+    borrow::Borrow,
     collections::{HashMap, HashSet},
     time::Instant,
 };
@@ -8,7 +8,7 @@ use std::{
 // use plotly::{common::Title, layout::Axis, Histogram, Layout, Plot};
 
 use itertools::Itertools;
-use process_mining::ocel::ocel_struct::OCELType;
+
 use rand::{rngs::StdRng, seq::IteratorRandom, SeedableRng};
 
 use crate::{
@@ -17,12 +17,10 @@ use crate::{
             BindingBoxTreeNode, Constraint, EventVariable, Filter, ObjectVariable, SizeFilter,
             Variable,
         },
-        BindingBox, BindingBoxTree,
+        Binding, BindingBox, BindingBoxTree,
     },
     discovery::{
-        advanced::{
-            binding_to_instances, generate_sample_bindings, get_labeled_instances, label_bindings,
-        },
+        advanced::{binding_to_instances, generate_sample_bindings, label_bindings},
         RNG_SEED, SAMPLE_FRAC, SAMPLE_MIN_NUM_INSTANCES,
     },
     preprocessing::linked_ocel::{EventOrObjectIndex, IndexLinkedOCEL, OCELNodeRef, ObjectIndex},
@@ -154,7 +152,7 @@ pub fn discover_count_constraints_for_supporting_instances<
             let mean = counts.iter().sum::<usize>() as f32 / n;
             let min = counts.iter().min().unwrap_or(&0);
             let max = counts.iter().max().unwrap_or(&usize::MAX);
-            
+
             if mean > 0.0 && mean <= 30.0 {
                 // Otherwise, not interesting (i.e., no values > 0)
                 let std_deviation = (counts
@@ -169,12 +167,17 @@ pub fn discover_count_constraints_for_supporting_instances<
                 // TODO: Decide if > 0?
                 if std_deviation >= 0.0 {
                     // Otherwise, not interesting (no deviation between values)
-                    for (c_min, c_max) in get_range_with_coverage(counts, coverage, mean, std_deviation)
+                    for (c_min, c_max) in
+                        get_range_with_coverage(counts, coverage, mean, std_deviation)
                     {
                         // println!("Counts {} Mean {} stdDev {} for min {} max {} FOR {ref_type:?} {ocel_type}",counts.len(),mean, std_deviation,min,max);
                         ret.push(CountConstraint {
-                            min_count: if c_min > 0 && c_min < *min { None } else { Some(c_min) },
-                            max_count: if c_max > *max { None } else { Some(c_max)},
+                            min_count: if c_min > 0 && c_min < *min {
+                                None
+                            } else {
+                                Some(c_min)
+                            },
+                            max_count: if c_max > *max { None } else { Some(c_max) },
                             root_type: supporting_instance_type.clone(),
                             related_type: match &ref_type {
                                 RefType::Object | RefType::ObjectReversed => {
@@ -350,10 +353,17 @@ pub struct CountConstraint {
 
 impl CountConstraint {
     pub fn get_constraint_name(&self) -> String {
+        let range = match (self.min_count, self.max_count) {
+            (None, None) => format!("any number of"),
+            (_, Some(0)) => format!("=0"),
+            (None, Some(max)) => format!("≤{max}"),
+            (Some(0), Some(max)) => format!("≤{max}"),
+            (Some(min), Some(max)) if min == max => format!("={min}"),
+            (Some(min), None) => format!("≥{min}"),
+            (Some(min), Some(max)) => format!("{min}-{max}"),
+        };
         format!(
-            "{} - {} '{}' per '{}'",
-            if let Some(min) = self.min_count {min} else { 0 }, 
-            if let Some(max) = self.max_count {max.to_string()} else { "∞".to_string() }, 
+            "{range} '{}' per '{}'",
             self.related_type.inner(),
             self.root_type.inner()
         )
@@ -498,21 +508,25 @@ pub fn discover_ef_constraints(
         &object_type,
     ));
 
-    println!("Graph Count Discovery took {:?}", now.elapsed());
+    // println!("Graph Count Discovery took {:?}", now.elapsed());
     ret
 }
 
-pub fn discover_ef_constraints_for_supporting_instances<I: Iterator<Item = ObjectIndex>>(
+pub fn discover_ef_constraints_for_supporting_instances<
+    It: Borrow<ObjectIndex>,
+    I: Iterator<Item = It>,
+>(
     ocel: &IndexLinkedOCEL,
     coverage: f32,
     supporting_instances: I,
     supporting_object_type: &String,
 ) -> Vec<EFConstraint> {
+    let now = Instant::now();
     let mut ret = Vec::new();
     let mut rng = StdRng::seed_from_u64(RNG_SEED);
     let mut total_map: HashMap<(&String, &String), Vec<Option<f64>>> = HashMap::new();
     for o_index in supporting_instances {
-        if let Some(rels) = ocel.get_symmetric_rels_ob(&o_index) {
+        if let Some(rels) = ocel.get_symmetric_rels_ob(o_index.borrow()) {
             let evs = rels
                 .into_iter()
                 .flat_map(|(o_or_e_index, _reverse, _qualifier)| match o_or_e_index {
@@ -521,12 +535,13 @@ pub fn discover_ef_constraints_for_supporting_instances<I: Iterator<Item = Objec
                 })
                 .collect_vec();
             let evs_num = evs.len();
-            let evs = if evs_num >= 100 {
+            let evs = if evs_num >= 1000 {
                 evs.into_iter()
                     .choose_multiple(&mut rng, (SAMPLE_FRAC * evs_num as f32).ceil() as usize)
             } else {
                 evs
             };
+            // println!("Selected {} out of {} events",evs.len(), evs_num);
             for i in 0..evs.len() {
                 let mut min_delay_to: HashMap<&String, Option<f64>> = ocel
                     .ocel
@@ -554,6 +569,7 @@ pub fn discover_ef_constraints_for_supporting_instances<I: Iterator<Item = Objec
             }
         }
     }
+    // println!("Count finished after {:?}",now.elapsed());
     total_map
         .iter()
         .for_each(|((from_ev_type, to_ev_type), seconds)| {
@@ -595,6 +611,7 @@ pub fn discover_ef_constraints_for_supporting_instances<I: Iterator<Item = Objec
                 }
             }
         });
+    // println!("total_map finished after {:?}",now.elapsed());
     ret
 }
 
@@ -691,47 +708,49 @@ impl EFConstraint {
 pub fn discover_or_constraints_new(
     ocel: &IndexLinkedOCEL,
     object_type: &String,
-) -> Vec<(String,BindingBoxTree)> {
-    let now = Instant::now();
+    coverage: f32,
+) -> Vec<(String, BindingBoxTree)> {
+    let mut now = Instant::now();
     let ocel_type: EventOrObjectType = EventOrObjectType::Object(object_type.clone());
+    // let ret = RwLock::new(Vec::new());
     let mut ret = Vec::new();
     let instances: Vec<_> = get_instances(ocel, &ocel_type);
-    let mut count_constraints: HashSet<CountConstraint> = discover_count_constraints_for_supporting_instances(
-        ocel,
-        0.1,
-        instances.iter(),
-        ocel_type.clone(),
-    ).into_iter().collect();
+    let mut count_constraints: HashSet<CountConstraint> =
+        discover_count_constraints_for_supporting_instances(
+            ocel,
+            0.11 * coverage,
+            instances.iter(),
+            ocel_type.clone(),
+        )
+        .into_iter()
+        .collect();
     count_constraints.extend(discover_count_constraints_for_supporting_instances(
         ocel,
-        0.5,
+        0.55 * coverage,
         instances.iter(),
         ocel_type.clone(),
     ));
     count_constraints.extend(discover_count_constraints_for_supporting_instances(
         ocel,
-        0.8,
+        0.9 * coverage,
         instances.iter(),
         ocel_type.clone(),
     ));
     let variable = Variable::Object(ObjectVariable(0));
     let bindings = generate_sample_bindings(ocel, &vec![ocel_type.clone()], variable.clone());
-    let instances = binding_to_instances(&bindings, variable.clone());
-    for cc in &count_constraints {
-        // if cc.related_type.inner() != "payment reminder" || cc.min_count < 1 {
-        //     continue;
-        // }
-        // println!("===\n{cc:#?}\n===");
-        // println!("Count constraint exists!");
-        let cc_subtree = cc.to_subtree("X".to_string(), variable.to_inner(), 1);
+    let max_sat_count: usize = (0.95 * coverage * bindings.len() as f32).ceil() as usize;
+    let b_instances = binding_to_instances(&bindings, variable.clone());
+    count_constraints.into_iter().for_each(|cc| {
+        // for cc in &count_constraints {
+        let cc_subtree: BindingBoxTree = cc.to_subtree("X".to_string(), variable.to_inner(), 1);
         let cc_labeled_bindings = label_bindings(ocel, &bindings, &cc_subtree);
         let cc_sat_count = cc_labeled_bindings.iter().filter(|x| **x).count();
         let ef_constraints: Vec<EFConstraint> = discover_ef_constraints_for_supporting_instances(
             ocel,
-            0.85,
+            0.9 * coverage,
             cc_labeled_bindings
                 .iter()
-                .zip(instances.iter())
+                .zip(b_instances.iter())
                 .filter(|(satisfied, _instance)| !**satisfied)
                 .flat_map(|(_satisfied, instance)| instance)
                 .flat_map(|i| match i {
@@ -741,38 +760,138 @@ pub fn discover_or_constraints_new(
                 .cloned(),
             object_type,
         );
-        for ef_c in ef_constraints {
+        ef_constraints.into_iter().take(20).for_each(|ef_c| {
             // Check if cc OR ef_c is a good candidate
             // for that, first get labeled results for ef_c
             let ef_c_subtree = ef_c.to_subtree("X".to_string(), variable.to_inner(), 2, 3);
-            let ef_c_labeled_bindings = label_bindings(ocel, &bindings, &ef_c_subtree);
-            let or_sat_count = ef_c_labeled_bindings
-                .iter()
-                .zip(cc_labeled_bindings.iter())
-                .filter(|(ef_sat, cc_sat)| **ef_sat || **cc_sat)
-                .count();
-            let ef_c_sat_count = ef_c_labeled_bindings.iter().filter(|x| **x).count();
-            let good_or_frac =
-                or_sat_count as f32 / usize::max(cc_sat_count, ef_c_sat_count) as f32;
-            let good_sat_frac = or_sat_count as f32 / bindings.len() as f32;
-            // println!("Evaluated OR candidate with scores {good_or_frac} {good_sat_frac} for counts {or_sat_count}");
-            if good_sat_frac >= 0.8 && good_or_frac >= 1.15 {
-                let or_tree = merge_or_tree(
-                    ef_c_subtree,
-                    cc_subtree.clone(),
-                    ocel_type.clone(),
-                    Variable::Object(ObjectVariable(0)),
-                );
-                // println!(
-                //     "Found EF Constraint: {:?} for count constraint {:?}",
-                //     ef_c, cc
-                // );
-                ret.push((format!("Quick '{}' after '{}' OR {}",ef_c.to_ev_type,ef_c.from_ev_type,cc.get_constraint_name()),or_tree));
+            if let Some(or_tree) = check_or_compat(
+                ocel,
+                &bindings,
+                &cc_labeled_bindings,
+                &cc_subtree,
+                cc_sat_count,
+                ef_c_subtree,
+                &ocel_type,
+                &coverage,
+            ) {
+                ret
+                    // .write().unwrap()
+                    .push((
+                        format!(
+                            "Quick '{}' after '{}' OR {}",
+                            ef_c.to_ev_type,
+                            ef_c.from_ev_type,
+                            cc.get_constraint_name()
+                        ),
+                        or_tree,
+                    ));
             }
-        }
-    }
-    println!("OR Graph Discovery took {:?}", now.elapsed());
+        })
+    });
+
+    println!("Count OR EF Graph Discovery took {:?}", now.elapsed());
+    now = Instant::now();
+    //
+    let ef_constraints = discover_ef_constraints_for_supporting_instances(
+        ocel,
+        0.6,
+        instances.iter().flat_map(|i| match i {
+            EventOrObjectIndex::Object(oi) => Some(oi),
+            EventOrObjectIndex::Event(_) => None,
+        }),
+        object_type,
+    );
+        ef_constraints.into_iter().take(20).for_each(|ef_1| {
+            let ef1_subtree = ef_1.to_subtree("X".to_string(), variable.to_inner(), 2, 3);
+            let ef1_labeled_bindings = label_bindings(ocel, &bindings, &ef1_subtree);
+            let ef1_sat_count: usize = ef1_labeled_bindings.iter().filter(|x| **x).count();
+            if ef1_sat_count < max_sat_count {
+                let ef2_constraints: Vec<EFConstraint> =
+                    discover_ef_constraints_for_supporting_instances(
+                        ocel,
+                        0.9,
+                        ef1_labeled_bindings
+                            .iter()
+                            .zip(b_instances.iter())
+                            .filter(|(satisfied, _instance)| !**satisfied)
+                            .flat_map(|(_satisfied, instance)| instance)
+                            .flat_map(|i| match i {
+                                EventOrObjectIndex::Object(oi) => Some(oi),
+                                EventOrObjectIndex::Event(_) => None,
+                            })
+                            .cloned(),
+                        object_type,
+                    );
+                    // println!("\t{} ef2_constraints",ef2_constraints.len());
+                    ef2_constraints.into_iter().take(20).for_each(|ef_2| {
+                        // println!("Next EF combination");
+                        // Check if cc OR ef_c is a good candidate
+                        // for that, first get labeled results for ef_c
+                        let ef2_subtree =
+                            ef_2.to_subtree("X".to_string(), variable.to_inner(), 2, 3);
+                        if let Some(or_tree) = check_or_compat(
+                            ocel,
+                            &bindings,
+                            &ef1_labeled_bindings,
+                            &ef1_subtree,
+                            ef1_sat_count,
+                            ef2_subtree,
+                            &ocel_type,
+                            &coverage,
+                        ) {
+                            ret
+                                // .write().unwrap()
+                                .push((
+                                    format!(
+                                        "Quick '{}' after '{}' OR Quick '{}' after '{}' for '{}'",
+                                        ef_2.to_ev_type,
+                                        ef_2.from_ev_type,
+                                        ef_1.to_ev_type,
+                                        ef_1.from_ev_type,
+                                        object_type
+                                    ),
+                                    or_tree,
+                                ));
+                        }
+                    })
+                }
+        });
+    //
+
+    println!("EF OR EF Graph Discovery took {:?}", now.elapsed());
+    // ret.into_inner().unwrap()
     ret
+}
+
+pub fn check_or_compat(
+    ocel: &IndexLinkedOCEL,
+    bindings: &Vec<Binding>,
+    st1_labeled_bindings: &Vec<bool>,
+    st1: &BindingBoxTree,
+    st1_sat_count: usize,
+    st2: BindingBoxTree,
+    ocel_type: &EventOrObjectType,
+    coverage: &f32,
+) -> Option<BindingBoxTree> {
+    let ef_c_labeled_bindings = label_bindings(ocel, &bindings, &st2);
+    let or_sat_count = ef_c_labeled_bindings
+        .iter()
+        .zip(st1_labeled_bindings.iter())
+        .filter(|(ef_sat, cc_sat)| **ef_sat || **cc_sat)
+        .count();
+    let st2_sat_count = ef_c_labeled_bindings.iter().filter(|x| **x).count();
+    let good_or_frac = or_sat_count as f32 / usize::max(st1_sat_count, st2_sat_count) as f32;
+    let good_sat_frac = or_sat_count as f32 / bindings.len() as f32;
+    if good_sat_frac >= *coverage && good_or_frac >= 1.15 {
+        let or_tree = merge_or_tree(
+            st2,
+            st1.clone(),
+            ocel_type.clone(),
+            Variable::Object(ObjectVariable(0)),
+        );
+        return Some(or_tree);
+    }
+    None
 }
 
 pub fn merge_or_tree(

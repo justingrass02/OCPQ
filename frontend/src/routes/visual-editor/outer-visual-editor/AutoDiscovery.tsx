@@ -64,17 +64,18 @@ export default function AutoDiscoveryButton({
       initialData={
         {
           countConstraints: {
-            coverFraction: 0.9,
-            objectTypes: [],
+            coverFraction: 0.8,
+            objectTypes: [ocelInfo.object_types[0].name],
             enabled: true,
           },
           eventuallyFollowsConstraints: {
-            objectTypes: [],
-            coverFraction: 0.9,
+            objectTypes: [ocelInfo.object_types[0].name],
+            coverFraction: 0.8,
             enabled: true,
           },
           orConstraints: {
-            objectTypes: [],
+            objectTypes: [ocelInfo.object_types[0].name],
+            coverFraction: 0.8,
             enabled: true,
           },
         } satisfies DiscoverConstraintsRequestWrapper as DiscoverConstraintsRequestWrapper
@@ -329,6 +330,24 @@ export default function AutoDiscoveryButton({
                       !data.orConstraints.enabled && "text-gray-400",
                     )}
                   >
+                    <Label>Cover Fraction</Label>
+                    <Input
+                      disabled={!data.orConstraints.enabled}
+                      type="number"
+                      min={0.0}
+                      step={0.05}
+                      max={1.0}
+                      value={data.orConstraints.coverFraction}
+                      onChange={(ev) => {
+                        setData({
+                          ...data,
+                          orConstraints: {
+                            ...data.orConstraints,
+                            coverFraction: ev.currentTarget.valueAsNumber,
+                          },
+                        });
+                      }}
+                    />
                     <Label className="mt-3 mb-1 block">Object Types</Label>
                     <ul className="flex flex-col mb-1 list-disc ml-6 text-base">
                       {data.orConstraints.objectTypes.map((ot, i) => (

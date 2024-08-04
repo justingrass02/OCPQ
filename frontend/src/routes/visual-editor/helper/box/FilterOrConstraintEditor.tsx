@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import type { Constraint } from "@/types/generated/Constraint";
 import type { Filter } from "@/types/generated/Filter";
 import type { SizeFilter } from "@/types/generated/SizeFilter";
-import { ReactNode, useContext } from "react";
+import { type ReactNode, useContext } from "react";
 import { LuArrowRight, LuDelete, LuLink, LuTrash } from "react-icons/lu";
 import { VisualEditorContext } from "../VisualEditorContext";
 import {
