@@ -158,8 +158,9 @@ function App() {
           {isAtRoot &&
             filePickerAvailable &&
             backend["ocel/picker"] !== undefined && (
-              <Button
+              <Button disabled={loading}
                 onClick={() => {
+                  setLoading(true);
                   void toast
                     .promise(backend["ocel/picker"]!(), {
                       loading: "Loading OCEL2...",
@@ -168,10 +169,11 @@ function App() {
                     })
                     .then((ocelInfo) => {
                       setOcelInfoAndNavigate(ocelInfo);
-                    });
+                    }).finally(() => setLoading(false));
                 }}
               >
-                Select OCEL2 File...
+                  {loading && <Spinner />}
+                Select an OCEL 2.0 File...
               </Button>
             )}
           {isAtRoot &&

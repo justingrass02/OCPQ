@@ -94,7 +94,7 @@ pub fn discover_count_constraints(
         ocel,
         coverage,
         instances.into_iter(),
-        ocel_type,
+        &ocel_type,
     ));
     println!("Graph Count Discovery took {:?}", now.elapsed());
     ret
@@ -107,7 +107,7 @@ pub fn discover_count_constraints_for_supporting_instances<
     ocel: &IndexLinkedOCEL,
     coverage: f32,
     supporting_instances: I,
-    supporting_instance_type: EventOrObjectType,
+    supporting_instance_type: &EventOrObjectType,
 ) -> Vec<CountConstraint> {
     let mut ret = Vec::new();
     let mut total_map: HashMap<_, Vec<usize>> = HashMap::new();
@@ -720,7 +720,7 @@ pub fn discover_or_constraints_new(
             ocel,
             0.11 * coverage,
             instances.iter(),
-            ocel_type.clone(),
+            &ocel_type,
         )
         .into_iter()
         .collect();
@@ -728,13 +728,13 @@ pub fn discover_or_constraints_new(
         ocel,
         0.55 * coverage,
         instances.iter(),
-        ocel_type.clone(),
+        &ocel_type,
     ));
     count_constraints.extend(discover_count_constraints_for_supporting_instances(
         ocel,
         0.9 * coverage,
         instances.iter(),
-        ocel_type.clone(),
+        &ocel_type,
     ));
     let variable = Variable::Object(ObjectVariable(0));
     let bindings = generate_sample_bindings(ocel, &vec![ocel_type.clone()], variable.clone());
@@ -742,9 +742,11 @@ pub fn discover_or_constraints_new(
     let b_instances = binding_to_instances(&bindings, variable.clone());
     count_constraints.into_iter().for_each(|cc| {
         // for cc in &count_constraints {
-        let cc_subtree: BindingBoxTree = cc.to_subtree("X".to_string(), variable.to_inner(), 1);
+        let cc_subtree: BindingBoxTree = cc.to_subtree("Y".to_string(), variable.to_inner(), 1);
         let cc_labeled_bindings = label_bindings(ocel, &bindings, &cc_subtree);
         let cc_sat_count = cc_labeled_bindings.iter().filter(|x| **x).count();
+
+        // First check EF constraints
         let ef_constraints: Vec<EFConstraint> = discover_ef_constraints_for_supporting_instances(
             ocel,
             0.9 * coverage,
@@ -756,8 +758,7 @@ pub fn discover_or_constraints_new(
                 .flat_map(|i| match i {
                     EventOrObjectIndex::Object(oi) => Some(oi),
                     EventOrObjectIndex::Event(_) => None,
-                })
-                .cloned(),
+                }),
             object_type,
         );
         ef_constraints.into_iter().take(20).for_each(|ef_c| {
@@ -786,7 +787,48 @@ pub fn discover_or_constraints_new(
                         or_tree,
                     ));
             }
-        })
+        });
+        // Count constraints
+        let cc2_constraints: Vec<CountConstraint> =
+            discover_count_constraints_for_supporting_instances(
+                ocel,
+                0.9 * coverage,
+                cc_labeled_bindings
+                    .iter()
+                    .zip(b_instances.iter())
+                    .filter(|(satisfied, _instance)| !**satisfied)
+                    .flat_map(|(_satisfied, instance)| instance),
+                &ocel_type,
+            );
+        cc2_constraints
+            .into_iter()
+            .filter(|cc2| cc2.related_type != cc.related_type)
+            .for_each(|cc_2| {
+                // Check if cc OR ef_c is a good candidate
+                // for that, first get labeled results for ef_c
+                let cc2_subtree = cc_2.to_subtree("X".to_string(), variable.to_inner(), 2);
+                if let Some(or_tree) = check_or_compat(
+                    ocel,
+                    &bindings,
+                    &cc_labeled_bindings,
+                    &cc_subtree,
+                    cc_sat_count,
+                    cc2_subtree,
+                    &ocel_type,
+                    &coverage,
+                ) {
+                    ret
+                        // .write().unwrap()
+                        .push((
+                            format!(
+                                "{} OR {}",
+                                cc_2.get_constraint_name(),
+                                cc.get_constraint_name(),
+                            ),
+                            or_tree,
+                        ));
+                }
+            })
     });
 
     println!("Count OR EF Graph Discovery took {:?}", now.elapsed());
@@ -801,61 +843,60 @@ pub fn discover_or_constraints_new(
         }),
         object_type,
     );
-        ef_constraints.into_iter().take(20).for_each(|ef_1| {
-            let ef1_subtree = ef_1.to_subtree("X".to_string(), variable.to_inner(), 2, 3);
-            let ef1_labeled_bindings = label_bindings(ocel, &bindings, &ef1_subtree);
-            let ef1_sat_count: usize = ef1_labeled_bindings.iter().filter(|x| **x).count();
-            if ef1_sat_count < max_sat_count {
-                let ef2_constraints: Vec<EFConstraint> =
-                    discover_ef_constraints_for_supporting_instances(
-                        ocel,
-                        0.9,
-                        ef1_labeled_bindings
-                            .iter()
-                            .zip(b_instances.iter())
-                            .filter(|(satisfied, _instance)| !**satisfied)
-                            .flat_map(|(_satisfied, instance)| instance)
-                            .flat_map(|i| match i {
-                                EventOrObjectIndex::Object(oi) => Some(oi),
-                                EventOrObjectIndex::Event(_) => None,
-                            })
-                            .cloned(),
-                        object_type,
-                    );
-                    // println!("\t{} ef2_constraints",ef2_constraints.len());
-                    ef2_constraints.into_iter().take(20).for_each(|ef_2| {
-                        // println!("Next EF combination");
-                        // Check if cc OR ef_c is a good candidate
-                        // for that, first get labeled results for ef_c
-                        let ef2_subtree =
-                            ef_2.to_subtree("X".to_string(), variable.to_inner(), 2, 3);
-                        if let Some(or_tree) = check_or_compat(
-                            ocel,
-                            &bindings,
-                            &ef1_labeled_bindings,
-                            &ef1_subtree,
-                            ef1_sat_count,
-                            ef2_subtree,
-                            &ocel_type,
-                            &coverage,
-                        ) {
-                            ret
-                                // .write().unwrap()
-                                .push((
-                                    format!(
-                                        "Quick '{}' after '{}' OR Quick '{}' after '{}' for '{}'",
-                                        ef_2.to_ev_type,
-                                        ef_2.from_ev_type,
-                                        ef_1.to_ev_type,
-                                        ef_1.from_ev_type,
-                                        object_type
-                                    ),
-                                    or_tree,
-                                ));
-                        }
-                    })
+    ef_constraints.into_iter().take(20).for_each(|ef_1| {
+        let ef1_subtree = ef_1.to_subtree("Y".to_string(), variable.to_inner(), 2, 3);
+        let ef1_labeled_bindings = label_bindings(ocel, &bindings, &ef1_subtree);
+        let ef1_sat_count: usize = ef1_labeled_bindings.iter().filter(|x| **x).count();
+        if ef1_sat_count < max_sat_count {
+            let ef2_constraints: Vec<EFConstraint> =
+                discover_ef_constraints_for_supporting_instances(
+                    ocel,
+                    0.9,
+                    ef1_labeled_bindings
+                        .iter()
+                        .zip(b_instances.iter())
+                        .filter(|(satisfied, _instance)| !**satisfied)
+                        .flat_map(|(_satisfied, instance)| instance)
+                        .flat_map(|i| match i {
+                            EventOrObjectIndex::Object(oi) => Some(oi),
+                            EventOrObjectIndex::Event(_) => None,
+                        })
+                        .cloned(),
+                    object_type,
+                );
+            // println!("\t{} ef2_constraints",ef2_constraints.len());
+            ef2_constraints.into_iter().take(20).for_each(|ef_2| {
+                // println!("Next EF combination");
+                // Check if cc OR ef_c is a good candidate
+                // for that, first get labeled results for ef_c
+                let ef2_subtree = ef_2.to_subtree("X".to_string(), variable.to_inner(), 2, 3);
+                if let Some(or_tree) = check_or_compat(
+                    ocel,
+                    &bindings,
+                    &ef1_labeled_bindings,
+                    &ef1_subtree,
+                    ef1_sat_count,
+                    ef2_subtree,
+                    &ocel_type,
+                    &coverage,
+                ) {
+                    ret
+                        // .write().unwrap()
+                        .push((
+                            format!(
+                                "Quick '{}' after '{}' OR Quick '{}' after '{}' for '{}'",
+                                ef_2.to_ev_type,
+                                ef_2.from_ev_type,
+                                ef_1.to_ev_type,
+                                ef_1.from_ev_type,
+                                object_type
+                            ),
+                            or_tree,
+                        ));
                 }
-        });
+            })
+        }
+    });
     //
 
     println!("EF OR EF Graph Discovery took {:?}", now.elapsed());
@@ -880,9 +921,16 @@ pub fn check_or_compat(
         .filter(|(ef_sat, cc_sat)| **ef_sat || **cc_sat)
         .count();
     let st2_sat_count = ef_c_labeled_bindings.iter().filter(|x| **x).count();
+    let n = bindings.len() as f32;
     let good_or_frac = or_sat_count as f32 / usize::max(st1_sat_count, st2_sat_count) as f32;
+    // If both subtrees are completely independent, we could expect violation1% * violation2% to be the violation percentage
+    // of the combined OR
+    // Notice: This might be nan if one of the subtrees is perfectly fitting the sample
+    let independent_factor = (1.0 - (or_sat_count as f32 / n))
+        / ((1.0 - (st1_sat_count as f32 / n)) * (1.0 - (st2_sat_count as f32 / n)));
     let good_sat_frac = or_sat_count as f32 / bindings.len() as f32;
-    if good_sat_frac >= *coverage && good_or_frac >= 1.15 {
+    // println!("Independent Factor: {independent_factor} {good_sat_frac} {good_or_frac}");
+    if good_sat_frac >= *coverage && good_or_frac >= 1.15 && independent_factor <= 0.66 {
         let or_tree = merge_or_tree(
             st2,
             st1.clone(),

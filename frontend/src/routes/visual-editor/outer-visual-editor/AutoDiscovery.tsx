@@ -64,18 +64,18 @@ export default function AutoDiscoveryButton({
       initialData={
         {
           countConstraints: {
-            coverFraction: 0.8,
+            coverFraction: 0.85,
             objectTypes: [ocelInfo.object_types[0].name],
             enabled: true,
           },
           eventuallyFollowsConstraints: {
             objectTypes: [ocelInfo.object_types[0].name],
-            coverFraction: 0.8,
+            coverFraction: 0.85,
             enabled: true,
           },
           orConstraints: {
             objectTypes: [ocelInfo.object_types[0].name],
-            coverFraction: 0.8,
+            coverFraction: 0.85,
             enabled: true,
           },
         } satisfies DiscoverConstraintsRequestWrapper as DiscoverConstraintsRequestWrapper
@@ -93,7 +93,7 @@ export default function AutoDiscoveryButton({
                 <AccordionTrigger>
                   <h3 className="text-lg text-gray-900 flex gap-x-2 items-center">
                     Count Constraints
-                    <Switch
+                    <Switch className="scale-125 ml-2"
                       checked={data.countConstraints.enabled}
                       onClick={(ev) => {
                         ev.preventDefault();
@@ -194,7 +194,7 @@ export default function AutoDiscoveryButton({
                 <AccordionTrigger>
                   <h3 className="text-lg text-gray-900 flex gap-x-2 items-center">
                     Eventually Follows Constraints
-                    <Switch
+                    <Switch className="scale-125 ml-2"
                       checked={data.eventuallyFollowsConstraints.enabled}
                       onClick={(ev) => {
                         ev.preventDefault();
@@ -303,7 +303,7 @@ export default function AutoDiscoveryButton({
                 <AccordionTrigger>
                   <h3 className="text-lg text-gray-900 flex gap-x-2 items-center">
                     OR-Gate Constraints
-                    <Switch
+                    <Switch className="scale-125 ml-2"
                       checked={data.orConstraints.enabled}
                       onClick={(ev) => {
                         ev.preventDefault();

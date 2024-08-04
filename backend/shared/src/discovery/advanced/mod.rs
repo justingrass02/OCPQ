@@ -18,7 +18,7 @@ use crate::{
 };
 
 use super::{
-    graph_discovery::discover_count_constraints_for_supporting_instances, RNG_SEED, SAMPLE_FRAC,
+    graph_discovery::{self, discover_count_constraints_for_supporting_instances}, RNG_SEED, SAMPLE_FRAC,
     SAMPLE_MIN_NUM_INSTANCES,
 };
 
@@ -119,7 +119,8 @@ pub fn get_labeled_instances(
     violated_instances
 }
 
-// 2nd Step
+// 2nd Step: Test Combination of Trees
+// 
 pub fn test_tree_combinations(
     ocel: &IndexLinkedOCEL,
     subtrees: Vec<BindingBoxTree>,
@@ -247,7 +248,12 @@ pub fn test_tree_combinations(
     ret
 }
 
-pub fn discover_or_constraints(
+/// Previous version of OR constraint discovery by combining previously discovered constraints
+/// For the new version see [`graph_discovery::discover_or_constraints_new`]
+/// 
+/// 
+/// The new version (as did the first) _specifically_ discovers constraints for violating/non-supporting bindings
+pub fn discover_or_constraints_old(
     ocel: &IndexLinkedOCEL,
     ocel_type: &EventOrObjectType,
     input_variable: Variable,
@@ -268,7 +274,7 @@ pub fn discover_or_constraints(
             ocel,
             0.85,
             violated_instances.iter(),
-            ocel_type.clone(),
+            ocel_type,
         );
         for cc in count_constraints {
             all_subtrees.push(cc.to_subtree("A".to_string(), input_variable.to_inner(), 850))
@@ -277,27 +283,6 @@ pub fn discover_or_constraints(
     test_tree_combinations(ocel, all_subtrees, bindings, input_variable, ocel_type)
 }
 
-// // TODO: This is not great
-// // I think it would be better to _specifically_ discover constraints for violating/non-supporting bindings
-// pub fn discover_for_input_bindings(
-//     ocel: &IndexLinkedOCEL,
-//     positive_bindings: Vec<Binding>,
-//     negative_bindings: Vec<Binding>,
-// ) -> Vec<BindingBoxTree> {
-//     // Any input bindings; For now, we assume that the positive/negative bindings bind exactly the same variables
-//     let b = positive_bindings
-//         .first()
-//         .or(negative_bindings.first())
-//         .unwrap();
-//     // For now, we simply use the first Event/Object Variable we see
-//     let v = b
-//         .event_map
-//         .keys()
-//         .next()
-//         .map(|ev| Variable::Event(*ev))
-//         .or(b.object_map.keys().next().map(|ov| Variable::Object(*ov)))
-//         .unwrap();
-// }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EventOrObjectType {

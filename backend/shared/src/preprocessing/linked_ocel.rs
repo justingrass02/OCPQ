@@ -11,7 +11,7 @@ use process_mining::{
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::{ocel_qualifiers::qualifiers::QualifierAndObjectType};
+use crate::ocel_qualifiers::qualifiers::QualifierAndObjectType;
 
 pub fn get_object_events_map(
     ocel: &OCEL,

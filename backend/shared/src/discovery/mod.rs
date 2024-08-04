@@ -1,22 +1,15 @@
 use core::f32;
-use std::{
-    collections::{HashMap, HashSet},
-};
+use std::collections::HashMap;
 
-use advanced::{EventOrObjectType};
+use advanced::EventOrObjectType;
 use graph_discovery::{discover_count_constraints, discover_ef_constraints, discover_or_constraints_new};
 use itertools::Itertools;
 
-use rayon::iter::{ParallelIterator};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    binding_box::{
-        BindingBoxTree,
-    },
-    preprocessing::{
-        linked_ocel::{IndexLinkedOCEL},
-    },
+    binding_box::BindingBoxTree,
+    preprocessing::linked_ocel::IndexLinkedOCEL,
 };
 
 // use self::evaluation::{get_count_constraint_fraction, get_ef_constraint_fraction};
@@ -29,32 +22,6 @@ pub static SAMPLE_MIN_NUM_INSTANCES: usize = 1000;
 pub static SAMPLE_FRAC: f32 = 0.1;
 pub static RNG_SEED: u64 = 13375050;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct EventuallyFollowsConstraints {
-    pub min_seconds: f64,
-    pub max_seconds: f64,
-    pub object_types: Vec<String>,
-    pub from_event_type: String,
-    pub to_event_type: String,
-}
-
-#[derive(Debug)]
-pub struct EFConstraintInfo {
-    pub constraint: EventuallyFollowsConstraints,
-    pub supporting_object_ids: HashSet<String>,
-    pub cover_fraction: f32,
-}
-impl EventuallyFollowsConstraints {
-    fn get_constraint_name(&self) -> String {
-        format!(
-            "{} -> {} for {}",
-            self.from_event_type,
-            self.to_event_type,
-            self.object_types.join(", "),
-        )
-    }
-}
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
