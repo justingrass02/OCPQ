@@ -76,6 +76,7 @@ export default function AutoDiscoveryButton({
           },
           orConstraints: {
             objectTypes: [ocelInfo.object_types[0].name],
+            eventTypes: [ocelInfo.event_types[0].name],
             coverFraction: 0.85,
             enabled: true,
           },
@@ -445,6 +446,56 @@ export default function AutoDiscoveryButton({
                       name={"Add object type..."}
                       value={""}
                     />
+                    <Label className="mt-3 mb-1 block">Event Types</Label>
+                    <ul className="flex flex-col mb-1 list-disc ml-6 text-base">
+                      {data.orConstraints.eventTypes.map((ot, i) => (
+                        <li key={i}>
+                          <div className="flex gap-x-2 items-center">
+                            {ot}
+                            <button
+                              disabled={!data.orConstraints.enabled}
+                              className="enabled:hover:text-red-500"
+                              onClick={() => {
+                                const newData = { ...data };
+                                data.orConstraints.eventTypes.splice(i, 1);
+                                setData(newData);
+                              }}
+                            >
+                              <LuDelete className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    <Combobox
+                      disabled={!data.orConstraints.enabled}
+                      options={ocelInfo.event_types
+                        .filter(
+                          (ot) =>
+                            !data.orConstraints.eventTypes.includes(
+                              ot.name,
+                            ),
+                        )
+                        .map((ot) => ({
+                          value: ot.name,
+                          label: ot.name,
+                        }))}
+                      onChange={(value) => {
+                        setData({
+                          ...data,
+                          orConstraints: {
+                            ...data.orConstraints,
+                            eventTypes: [
+                              ...data.orConstraints.eventTypes,
+                              value,
+                            ],
+                          },
+                        });
+                      }}
+                      name={"Add event type..."}
+                      value={""}
+                    />
+
                   </div>
                 </AccordionContent>
               </AccordionItem>

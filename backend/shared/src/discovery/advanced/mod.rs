@@ -18,7 +18,7 @@ use crate::{
 };
 
 use super::{
-    graph_discovery::{self, discover_count_constraints_for_supporting_instances}, RNG_SEED, SAMPLE_FRAC,
+    graph_discovery::discover_count_constraints_for_supporting_instances, RNG_SEED, SAMPLE_FRAC,
     SAMPLE_MIN_NUM_INSTANCES,
 };
 

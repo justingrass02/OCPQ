@@ -40,6 +40,7 @@ pub struct EventuallyFollowsConstraintOptions {
 #[serde(rename_all = "camelCase")]
 pub struct ORConstraintOptions {
     pub object_types: Vec<String>,
+    pub event_types: Vec<String>,
     pub cover_fraction: f32,
 }
 
@@ -85,7 +86,7 @@ pub fn auto_discover_constraints_with_options(
 
         types.extend(
             count_opts
-            .event_types
+                .event_types
                 .iter()
                 .map(|et| EventOrObjectType::Event(et.clone())),
         );
@@ -102,11 +103,21 @@ pub fn auto_discover_constraints_with_options(
         }
     }
     if let Some(or_constraint_option) = options.or_constraints {
-        for ot in or_constraint_option.object_types {
-            for or_c in discover_or_constraints_new(ocel, &ot, or_constraint_option.cover_fraction)
-            {
-                ret.constraints.push(or_c);
-            }
+        for ot in &or_constraint_option.object_types {
+            let ocel_type = EventOrObjectType::Object(ot.clone());
+            ret.constraints.extend(discover_or_constraints_new(
+                ocel,
+                &ocel_type,
+                or_constraint_option.cover_fraction,
+            ));
+        }
+        for et in &or_constraint_option.event_types {
+            let ocel_type = EventOrObjectType::Event(et.clone());
+            ret.constraints.extend(discover_or_constraints_new(
+                ocel,
+                &ocel_type,
+                or_constraint_option.cover_fraction,
+            ));
         }
     }
 

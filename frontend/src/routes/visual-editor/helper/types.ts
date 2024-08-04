@@ -39,6 +39,7 @@ export type DiscoverConstraintsRequest = {
   };
   orConstraints?: {
     objectTypes: string[];
+    eventTypes: string[];
     coverFraction: number;
   };
 };
