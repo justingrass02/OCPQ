@@ -353,7 +353,7 @@ impl BindingBoxTreeNode {
                             }
                         }
                         Constraint::SAT { child_names } => {
-                            let violated = child_names.iter().all(|child_name| {
+                            let violated = child_names.iter().any(|child_name| {
                                 if let Some(c_res) = child_res.get(child_name) {
                                     c_res.iter().any(|(_b, v)| v.is_some())
                                 } else {

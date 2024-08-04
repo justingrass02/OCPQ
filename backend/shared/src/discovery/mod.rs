@@ -971,7 +971,7 @@ pub fn auto_discover_constraints_with_options(
     if let Some(or_constraint_option) = options.or_constraints {
         for ot in or_constraint_option.object_types {
             for or_c in discover_or_constraints_new(ocel, &ot) {
-                ret.constraints.push(("AUTO OR".to_string(),or_c));
+                ret.constraints.push(or_c);
             }
         }
         // for (t,trees) in trees_per_type {

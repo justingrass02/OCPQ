@@ -69,11 +69,39 @@ pub fn generate_sample_bindings(
     }
 }
 
+pub fn binding_to_instances(
+    bindings: &Vec<Binding>,
+    variable: Variable,
+) -> Vec<Option<EventOrObjectIndex>> {
+    bindings
+        .iter()
+        .map(|b| b.get_any_index(&variable))
+        .collect_vec()
+}
+
+// Given a list of bindings, check if the given subtree is violated (in some child binding)
+// Results are a list of bools of the same size as the input bindings
+// True: Subtree was satisfied for Binding, False: Subtree was violated for Binding
+pub fn label_bindings(
+    ocel: &IndexLinkedOCEL,
+    bindings: &Vec<Binding>,
+    subtree: &BindingBoxTree,
+) -> Vec<bool> {
+    bindings
+        .par_iter()
+        .map(|b| {
+            let (_x, y) = subtree.nodes[0].evaluate(0, 0, (*b).clone(), &subtree, ocel);
+            let is_violated = y.iter().any(|(_, v)| v.is_some());
+            !is_violated
+        })
+        .collect()
+}
+
 pub fn get_labeled_instances(
     ocel: &IndexLinkedOCEL,
     ocel_type: &EventOrObjectType,
     subtree: BindingBoxTree,
-) -> Vec<(EventOrObjectIndex,bool)> {
+) -> Vec<(EventOrObjectIndex, bool)> {
     let variable = match ocel_type {
         EventOrObjectType::Event(_) => Variable::Event(EventVariable(0)),
         EventOrObjectType::Object(_) => Variable::Object(ObjectVariable(0)),
@@ -86,8 +114,8 @@ pub fn get_labeled_instances(
             let (_x, y) = subtree.nodes[0].evaluate(0, 0, (*b).clone(), &subtree, ocel);
             let is_violated = y.iter().any(|(_, v)| v.is_some());
             if let Some(instance) = b.get_any_index(&variable) {
-                Some((instance,!is_violated))
-            }else{
+                Some((instance, !is_violated))
+            } else {
                 None
             }
         })
@@ -244,7 +272,7 @@ pub fn discover_or_constraints(
         let count_constraints = discover_count_constraints_for_supporting_instances(
             ocel,
             0.85,
-            violated_instances.into_iter(),
+            violated_instances.iter(),
             ocel_type.clone(),
         );
         for cc in count_constraints {
