@@ -30,6 +30,7 @@ export type EventTypeLinkData = {
 export type DiscoverConstraintsRequest = {
   countConstraints?: {
     objectTypes: string[];
+    eventTypes: string[];
     coverFraction: number;
   };
   eventuallyFollowsConstraints?: {

@@ -66,6 +66,7 @@ export default function AutoDiscoveryButton({
           countConstraints: {
             coverFraction: 0.85,
             objectTypes: [ocelInfo.object_types[0].name],
+            eventTypes: [ocelInfo.event_types[0].name],
             enabled: true,
           },
           eventuallyFollowsConstraints: {
@@ -184,6 +185,55 @@ export default function AutoDiscoveryButton({
                         });
                       }}
                       name={"Add object type..."}
+                      value={""}
+                    />
+                    <Label className="mt-3 mb-1 block">Event Types</Label>
+                    <ul className="flex flex-col mb-1 list-disc ml-6 text-base">
+                      {data.countConstraints.eventTypes.map((ot, i) => (
+                        <li key={i}>
+                          <div className="flex gap-x-2 items-center">
+                            {ot}
+                            <button
+                              disabled={!data.countConstraints.enabled}
+                              className="enabled:hover:text-red-500"
+                              onClick={() => {
+                                const newData = { ...data };
+                                data.countConstraints.eventTypes.splice(i, 1);
+                                setData(newData);
+                              }}
+                            >
+                              <LuDelete className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    <Combobox
+                      disabled={!data.countConstraints.enabled}
+                      options={ocelInfo.event_types
+                        .filter(
+                          (ot) =>
+                            !data.countConstraints.eventTypes.includes(
+                              ot.name,
+                            ),
+                        )
+                        .map((ot) => ({
+                          value: ot.name,
+                          label: ot.name,
+                        }))}
+                      onChange={(value) => {
+                        setData({
+                          ...data,
+                          countConstraints: {
+                            ...data.countConstraints,
+                            eventTypes: [
+                              ...data.countConstraints.eventTypes,
+                              value,
+                            ],
+                          },
+                        });
+                      }}
+                      name={"Add event type..."}
                       value={""}
                     />
                   </div>
@@ -449,17 +499,17 @@ export default function AutoDiscoveryButton({
                 }
                 setConstraints(updatedConstraints);
                 return json;
-              })
-              .catch((err) => {
-                console.error(err);
-                return undefined;
               }),
             {
               loading: "Executing Auto-Discovery...",
-              success: (s) => `Discovered ${s?.constraints.length} Constraints`,
+              success: (s) =>  `Discovered ${s?.constraints.length} Constraints`,
               error: "Failed to Discover Constraints",
             },
           )
+          .catch((err) => {
+            console.error(err);
+            return undefined;
+          })
           .finally(() => {});
       }}
     />
