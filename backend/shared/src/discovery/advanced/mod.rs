@@ -90,7 +90,7 @@ pub fn label_bindings(
     bindings
         .par_iter()
         .map(|b| {
-            let (_x, y) = subtree.nodes[0].evaluate(0, 0, (*b).clone(), &subtree, ocel);
+            let (_x, y) = subtree.nodes[0].evaluate(0, 0, (*b).clone(), subtree, ocel);
             let is_violated = y.iter().any(|(_, v)| v.is_some());
             !is_violated
         })
@@ -113,11 +113,7 @@ pub fn get_labeled_instances(
         .flat_map(|b| {
             let (_x, y) = subtree.nodes[0].evaluate(0, 0, (*b).clone(), &subtree, ocel);
             let is_violated = y.iter().any(|(_, v)| v.is_some());
-            if let Some(instance) = b.get_any_index(&variable) {
-                Some((instance, !is_violated))
-            } else {
-                None
-            }
+            b.get_any_index(&variable).map(|instance| (instance, !is_violated))
         })
         .collect_vec();
     violated_instances
@@ -169,7 +165,7 @@ pub fn test_tree_combinations(
                 .count();
             let good_or_frac = num_or_sat as f32 / max(num_tree_sat[i], num_tree_sat[j]) as f32;
             let good_sat_frac = num_or_sat as f32 / input_bindings.len() as f32;
-            if good_sat_frac >= 0.8 && good_sat_frac < 0.98 && good_or_frac >= 1.33 {
+            if (0.8..0.98).contains(&good_sat_frac) && good_or_frac >= 1.33 {
                 let tree1 = &subtrees[i];
                 let tree2 = &subtrees[j];
                 let name1 = "A".to_string();
@@ -266,8 +262,7 @@ pub fn discover_or_constraints(
                 let (_x, y) = st.nodes[0].evaluate(0, 0, (*b).clone(), st, ocel);
                 y.iter().any(|(_, v)| v.is_some())
             })
-            .map(|b| b.get_any_index(&input_variable))
-            .flatten()
+            .filter_map(|b| b.get_any_index(&input_variable))
             .collect_vec();
         let count_constraints = discover_count_constraints_for_supporting_instances(
             ocel,

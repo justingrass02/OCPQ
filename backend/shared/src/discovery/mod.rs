@@ -1,28 +1,21 @@
 use core::f32;
 use std::{
     collections::{HashMap, HashSet},
-    f64::MAX,
-    sync::Mutex,
 };
 
-use advanced::{discover_or_constraints, EventOrObjectType};
+use advanced::{EventOrObjectType};
 use graph_discovery::{discover_count_constraints, discover_ef_constraints, discover_or_constraints_new};
 use itertools::Itertools;
-use process_mining::OCEL;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+
+use rayon::iter::{ParallelIterator};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     binding_box::{
-        structs::{
-            BindingBoxTreeNode, Constraint, EventVariable, Filter, ObjectVariable, SizeFilter,
-            Variable,
-        },
-        BindingBox, BindingBoxTree,
+        BindingBoxTree,
     },
     preprocessing::{
-        linked_ocel::{IndexLinkedOCEL, ObjectIndex},
-        preprocess::LinkedOCEL,
+        linked_ocel::{IndexLinkedOCEL},
     },
 };
 
@@ -107,7 +100,7 @@ pub fn auto_discover_constraints_with_options(
     };
     if let Some(eventually_follows_options) = options.eventually_follows_constraints {
         for ot in &eventually_follows_options.object_types {
-            for c in discover_ef_constraints(&ocel, eventually_follows_options.cover_fraction, ot) {
+            for c in discover_ef_constraints(ocel, eventually_follows_options.cover_fraction, ot) {
                 ret.constraints
                     .push((c.get_constraint_name(), c.get_full_tree()));
                 trees_per_type

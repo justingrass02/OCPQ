@@ -354,8 +354,8 @@ pub struct CountConstraint {
 impl CountConstraint {
     pub fn get_constraint_name(&self) -> String {
         let range = match (self.min_count, self.max_count) {
-            (None, None) => format!("any number of"),
-            (_, Some(0)) => format!("=0"),
+            (None, None) => "any number of".to_string(),
+            (_, Some(0)) => "=0".to_string(),
             (None, Some(max)) => format!("≤{max}"),
             (Some(0), Some(max)) => format!("≤{max}"),
             (Some(min), Some(max)) if min == max => format!("={min}"),
@@ -495,7 +495,7 @@ pub fn discover_ef_constraints(
     coverage: f32,
     object_type: &String,
 ) -> Vec<EFConstraint> {
-    let now = Instant::now();
+    let _now = Instant::now();
     let mut ret = Vec::new();
     let instances: Vec<_> = get_instances(ocel, &EventOrObjectType::Object(object_type.clone()));
     ret.extend(discover_ef_constraints_for_supporting_instances(
@@ -505,7 +505,7 @@ pub fn discover_ef_constraints(
             EventOrObjectIndex::Object(oi) => Some(oi),
             _ => None,
         }),
-        &object_type,
+        object_type,
     ));
 
     // println!("Graph Count Discovery took {:?}", now.elapsed());
@@ -521,14 +521,14 @@ pub fn discover_ef_constraints_for_supporting_instances<
     supporting_instances: I,
     supporting_object_type: &String,
 ) -> Vec<EFConstraint> {
-    let now = Instant::now();
+    let _now = Instant::now();
     let mut ret = Vec::new();
     let mut rng = StdRng::seed_from_u64(RNG_SEED);
     let mut total_map: HashMap<(&String, &String), Vec<Option<f64>>> = HashMap::new();
     for o_index in supporting_instances {
         if let Some(rels) = ocel.get_symmetric_rels_ob(o_index.borrow()) {
             let evs = rels
-                .into_iter()
+                .iter()
                 .flat_map(|(o_or_e_index, _reverse, _qualifier)| match o_or_e_index {
                     EventOrObjectIndex::Event(ei) => ocel.ev_by_index(ei),
                     EventOrObjectIndex::Object(_) => None,
@@ -584,7 +584,7 @@ pub fn discover_ef_constraints_for_supporting_instances<
                     .iter()
                     .flatten()
                     .map(|c| {
-                        let diff = mean - *c as f64;
+                        let diff = mean - *c;
                         diff * diff
                     })
                     .sum::<f64>()
@@ -866,14 +866,14 @@ pub fn discover_or_constraints_new(
 pub fn check_or_compat(
     ocel: &IndexLinkedOCEL,
     bindings: &Vec<Binding>,
-    st1_labeled_bindings: &Vec<bool>,
+    st1_labeled_bindings: &[bool],
     st1: &BindingBoxTree,
     st1_sat_count: usize,
     st2: BindingBoxTree,
     ocel_type: &EventOrObjectType,
     coverage: &f32,
 ) -> Option<BindingBoxTree> {
-    let ef_c_labeled_bindings = label_bindings(ocel, &bindings, &st2);
+    let ef_c_labeled_bindings = label_bindings(ocel, bindings, &st2);
     let or_sat_count = ef_c_labeled_bindings
         .iter()
         .zip(st1_labeled_bindings.iter())
