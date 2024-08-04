@@ -344,7 +344,7 @@ function bindingTreeToTikzTree(tree: BindingBoxTree) {
   root -> v0,
 `;
   for (const [[from, to], name] of edgeNames) {
-    s += String.raw`  v${from} -> ["\texttt{${name}"}${
+    s += String.raw`  v${from} -> ["\texttt{${name}}"${
       i % 2 === 0 ? ",swap" : ""
     }] v${to},`;
     s += "\n";
