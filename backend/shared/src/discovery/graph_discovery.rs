@@ -9,7 +9,11 @@ use std::{
 
 use itertools::Itertools;
 
-use rand::{rngs::StdRng, seq::IteratorRandom, SeedableRng};
+use plotly::{
+    common::Marker,
+    layout::{Axis, ColorAxis}, Layout, Plot, Scatter,
+};
+use rand::{random, rngs::StdRng, seq::IteratorRandom, SeedableRng};
 
 use crate::{
     binding_box::{
@@ -173,6 +177,13 @@ pub fn discover_count_constraints_for_supporting_instances<
                     .sqrt();
                 // TODO: Decide if > 0?
                 if std_deviation >= 0.0 {
+                    // if mean > 2.0 {
+                    //     plot_histogram(
+                    //         counts,
+                    //         format!("{supporting_instance_type:?} {ref_type:?} {ocel_type:?} MEAN: {mean}"),
+                    //         format!("{supporting_instance_type:?} {ref_type:?} {ocel_type:?}.svg"),
+                    //     );
+                    // }
                     // Otherwise, not interesting (no deviation between values)
                     for (c_min, c_max) in
                         get_range_with_coverage(counts, coverage, mean, std_deviation)
@@ -330,23 +341,39 @@ fn get_seconds_range_with_coverage(
     Some((min, max))
 }
 
-// fn plot_histogram<S: AsRef<str>, P: AsRef<std::path::Path>>(
-//     counts: &Vec<usize>,
-//     title: S,
-//     filename: P,
-// ) {
-//     let mut plot = Plot::new();
-//     let trace = Histogram::new(counts.clone());
-//     plot.add_trace(trace);
-//     let layout = Layout::new()
-//         .title(Title::new(title.as_ref()))
-//         .x_axis(Axis::new().dtick(1.0).title(Title::new("Value")))
-//         .y_axis(Axis::new().title(Title::new("Count")))
-//         .bar_gap(0.05)
-//         .bar_group_gap(0.05);
-//     plot.set_layout(layout);
-//     plot.write_image(filename, plotly::ImageFormat::SVG, 800, 600, 1.0)
-// }
+fn plot_scatter<S: AsRef<str>, P: AsRef<std::path::Path>>(
+    counts: &Vec<usize>,
+    title: S,
+    filename: P,
+) {
+    let mut plot = Plot::new();
+    let y = counts.iter().map(|c| random::<f32>()).collect();
+    let trace = Scatter::new(counts.clone(), y)
+        .marker(Marker::new().color("black").size(3))
+        .mode(plotly::common::Mode::Markers);
+    plot.add_trace(trace);
+    println!("{}",title.as_ref());
+    let layout = Layout::new()
+        .color_axis(ColorAxis::new().auto_color_scale(true))
+        // .title(title.as_ref())
+        .x_axis(Axis::new().dtick(1.0).title("Count").show_grid(false))
+        .y_axis(
+            Axis::new()
+                .range(vec![-0.1, 1.1])
+                .n_ticks(0)
+                .tick_values(vec![])
+                .show_grid(false)
+                .show_dividers(false)
+                .show_line(false)
+                .zero_line(false)
+                .title(""),
+        );
+
+    // .bar_gap(0.05)
+    // .bar_group_gap(0.05);
+    plot.set_layout(layout);
+    plot.write_image(filename, plotly::ImageFormat::SVG, 800, 300, 1.0)
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CountConstraint {
