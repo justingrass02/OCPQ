@@ -160,20 +160,20 @@ function bindingTreeToLaTeXSchema(tree: BindingBoxTree) {
     if ("Box" in node) {
       const [box, children] = node.Box;
       s += String.raw`
-\begin{schema}{\boxFunc(v_{${i}}) \text{ with } \mathrm{sc}_{v_{${i}}} \text{ and } constr_{v_{${i}}}}
+\begin{schema}{\boxFunc(v_{${i}}) \text{ with } \constrFunc{v_{${i}}}}
       ${Object.entries(box.newObjectVars)
         .map(
           ([key, val]) =>
-            `\\texttt{o${
-              parseInt(key) + 1
-            }}: \\textsc{Object} (\\texttt{${val.join(",")}})\\\\`,
+            `\\texttt{o${parseInt(key) + 1}}: \\textsc{Object} (${val
+              .map((v) => `\\texttt{${v}}`)
+              .join(", ")})\\\\`,
         )
         .join("\n      ")} ${Object.entries(box.newEventVars)
         .map(
           ([key, val]) =>
-            `\\texttt{e${
-              parseInt(key) + 1
-            }}: \\textsc{Event} (\\texttt{${val.join(",")}})\\\\`,
+            `\\texttt{e${parseInt(key) + 1}}: \\textsc{Event} (${val
+              .map((v) => `\\texttt{${v}}`)
+              .join(", ")})\\\\`,
         )
         .join("\n      ")}
       \where ${[...box.filters, ...box.sizeFilters]
@@ -261,55 +261,83 @@ function predicateToLaTeX<T extends Filter | SizeFilter | Constraint>(
       return predicateToLaTeX(value.filter);
     case "SizeFilter":
       return predicateToLaTeX(value.filter);
-    case "EventAttributeValueFilter": {
-      const valPart =
-        String.raw`\texttt{${varName({ Event: value.event })}}.\texttt{${value.attribute_name}}`;
-      let complete = "";
-      switch (value.value_filter.type) {
-        case "Float":
-        case "Integer":
-          if(value.value_filter.min !== null && value.value_filter.min === value.value_filter.max){
-            return String.raw`${valPart} = ${value.value_filter.min}`
-          }else if(value.value_filter.min === null && value.value_filter.max !== null){
-            return String.raw`${valPart} \leq ${value.value_filter.max}`
-        }else if(value.value_filter.min !== null && value.value_filter.max === null){
-          return String.raw`${valPart} \geq ${value.value_filter.min}`
-        }else{
-          return String.raw`${value.value_filter.min} \leq ${valPart} \leq ${value.value_filter.max}`
+    case "EventAttributeValueFilter":
+      {
+        const valPart = String.raw`\texttt{${varName({
+          Event: value.event,
+        })}}.\texttt{${value.attribute_name}}`;
+        let complete = "";
+        switch (value.value_filter.type) {
+          case "Float":
+          case "Integer":
+            if (
+              value.value_filter.min !== null &&
+              value.value_filter.min === value.value_filter.max
+            ) {
+              return String.raw`${valPart} = ${value.value_filter.min}`;
+            } else if (
+              value.value_filter.min === null &&
+              value.value_filter.max !== null
+            ) {
+              return String.raw`${valPart} \leq ${value.value_filter.max}`;
+            } else if (
+              value.value_filter.min !== null &&
+              value.value_filter.max === null
+            ) {
+              return String.raw`${valPart} \geq ${value.value_filter.min}`;
+            } else {
+              return String.raw`${value.value_filter.min} \leq ${valPart} \leq ${value.value_filter.max}`;
+            }
+          case "Boolean":
+          case "String":
+          case "Time":
+            complete = valPart + "TODO";
+            return complete;
         }
-        case "Boolean":
-        case "String":
-        case "Time":
-          complete = valPart + "TODO";
-          return complete;
       }
-    }
-    break;
-    case "ObjectAttributeValueFilter": {
-      const valPart =
-        String.raw`\texttt{${varName({ Object: value.object })}}.\texttt{${value.attribute_name}}`;
-        const timePart = String.raw`\;\;(\at\,\texttt{${value.at_time.type === "Always" ? "always" : value.at_time.type === "Sometime" ? "sometime" : varName({Event: value.at_time.event})})}`
-      let complete = "";
-      switch (value.value_filter.type) {
-        case "Float":
-        case "Integer":
-          if(value.value_filter.min !== null && value.value_filter.min === value.value_filter.max){
-            return String.raw`${valPart} = ${value.value_filter.min} ${timePart}`
-          }else if(value.value_filter.min === null && value.value_filter.max !== null){
-            return String.raw`${valPart} \leq ${value.value_filter.max} ${timePart}`
-        }else if(value.value_filter.min !== null && value.value_filter.max === null){
-          return String.raw`${valPart} \geq ${value.value_filter.min} ${timePart}`
-        }else{
-          return String.raw`${value.value_filter.min} \leq ${valPart} \leq ${value.value_filter.max} ${timePart}`
+      break;
+    case "ObjectAttributeValueFilter":
+      {
+        const valPart = String.raw`\texttt{${varName({
+          Object: value.object,
+        })}}.\texttt{${value.attribute_name}}`;
+        const timePart = String.raw`\;\;(\at\,\texttt{${
+          value.at_time.type === "Always"
+            ? "always"
+            : value.at_time.type === "Sometime"
+            ? "sometime"
+            : varName({ Event: value.at_time.event })
+        })}`;
+        let complete = "";
+        switch (value.value_filter.type) {
+          case "Float":
+          case "Integer":
+            if (
+              value.value_filter.min !== null &&
+              value.value_filter.min === value.value_filter.max
+            ) {
+              return String.raw`${valPart} = ${value.value_filter.min} ${timePart}`;
+            } else if (
+              value.value_filter.min === null &&
+              value.value_filter.max !== null
+            ) {
+              return String.raw`${valPart} \leq ${value.value_filter.max} ${timePart}`;
+            } else if (
+              value.value_filter.min !== null &&
+              value.value_filter.max === null
+            ) {
+              return String.raw`${valPart} \geq ${value.value_filter.min} ${timePart}`;
+            } else {
+              return String.raw`${value.value_filter.min} \leq ${valPart} \leq ${value.value_filter.max} ${timePart}`;
+            }
+          case "Boolean":
+          case "String":
+          case "Time":
+            complete = valPart + "TODO" + timePart;
+            return complete;
         }
-        case "Boolean":
-        case "String":
-        case "Time":
-          complete = valPart + "TODO" + timePart ;
-          return complete;
       }
-    }
-    break;
+      break;
     default:
       return "TODO";
   }
