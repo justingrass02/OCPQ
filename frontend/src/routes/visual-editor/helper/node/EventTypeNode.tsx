@@ -49,10 +49,10 @@ function EventTypeNode({ data, id, selected }: NodeProps<EventTypeNodeData>) {
         )}
       </Toggle> */}
       {violations !== undefined && (
-        <SituationIndicator violationsPerNode={violations} hasNoConstraints={data.box.constraints.length === 0} />
+        <SituationIndicator violationsPerNode={violations} hasNoConstraints={data.box.constraints.length === 0} nodeID={id} />
       )}
       {violations !== undefined && (violations.situationViolatedCount > 0 ||  data.box.constraints.length >= 1) && (
-        <ViolationIndicator violationsPerNode={violations} />
+        <ViolationIndicator violationsPerNode={violations} nodeID={id} />
       )}
 
       <AlertHelper

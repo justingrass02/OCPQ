@@ -6,10 +6,12 @@ import { VisualEditorContext } from "../VisualEditorContext";
 
 export default function SituationIndicator({
   violationsPerNode,
-  hasNoConstraints
+  hasNoConstraints,
+  nodeID
 }: {
   violationsPerNode: EvaluationRes;
-  hasNoConstraints?: boolean
+  hasNoConstraints?: boolean;
+  nodeID: string,
 }) {
   const { showViolationsFor } = useContext(VisualEditorContext);
   return (
@@ -19,7 +21,7 @@ export default function SituationIndicator({
           violationsPerNode !== undefined &&
           showViolationsFor !== undefined
         ) {
-          showViolationsFor(violationsPerNode,"situations");
+          showViolationsFor(nodeID,"situations");
         }
       }}
       className={`absolute right-1 top-1 text-xs flex flex-col items-center gap-x-1 border border-transparent px-0.5 py-0.5 rounded-sm hover:bg-blue-100/70 hover:border-blue-400/50`}

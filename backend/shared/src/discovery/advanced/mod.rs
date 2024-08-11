@@ -90,7 +90,7 @@ pub fn label_bindings(
     bindings
         .par_iter()
         .map(|b| {
-            let (_x, y) = subtree.nodes[0].evaluate(0, 0, (*b).clone(), subtree, ocel);
+            let (_x, y) = subtree.nodes[0].evaluate(0, (*b).clone(), subtree, ocel);
             let is_violated = y.iter().any(|(_, v)| v.is_some());
             !is_violated
         })
@@ -111,16 +111,17 @@ pub fn get_labeled_instances(
     let violated_instances = bindings
         .iter()
         .flat_map(|b| {
-            let (_x, y) = subtree.nodes[0].evaluate(0, 0, (*b).clone(), &subtree, ocel);
+            let (_x, y) = subtree.nodes[0].evaluate(0, (*b).clone(), &subtree, ocel);
             let is_violated = y.iter().any(|(_, v)| v.is_some());
-            b.get_any_index(&variable).map(|instance| (instance, !is_violated))
+            b.get_any_index(&variable)
+                .map(|instance| (instance, !is_violated))
         })
         .collect_vec();
     violated_instances
 }
 
 // 2nd Step: Test Combination of Trees
-// 
+//
 pub fn test_tree_combinations(
     ocel: &IndexLinkedOCEL,
     subtrees: Vec<BindingBoxTree>,
@@ -140,7 +141,7 @@ pub fn test_tree_combinations(
                     let (_overall_res, root_res): (
                         Vec<(usize, Binding, Option<crate::binding_box::ViolationReason>)>,
                         Vec<(Binding, Option<crate::binding_box::ViolationReason>)>,
-                    ) = t.nodes[0].evaluate(0, 0, b.clone(), t, ocel);
+                    ) = t.nodes[0].evaluate(0, b.clone(), t, ocel);
                     root_res.iter().any(|(_, v)| v.is_some())
                 })
                 .collect_vec()
@@ -250,8 +251,8 @@ pub fn test_tree_combinations(
 
 /// Previous version of OR constraint discovery by combining previously discovered constraints
 /// For the new version see [`graph_discovery::discover_or_constraints_new`]
-/// 
-/// 
+///
+///
 /// The new version (as did the first) _specifically_ discovers constraints for violating/non-supporting bindings
 pub fn discover_or_constraints_old(
     ocel: &IndexLinkedOCEL,
@@ -265,7 +266,7 @@ pub fn discover_or_constraints_old(
         let violated_instances = bindings
             .iter()
             .filter(|b| {
-                let (_x, y) = st.nodes[0].evaluate(0, 0, (*b).clone(), st, ocel);
+                let (_x, y) = st.nodes[0].evaluate(0, (*b).clone(), st, ocel);
                 y.iter().any(|(_, v)| v.is_some())
             })
             .filter_map(|b| b.get_any_index(&input_variable))
@@ -282,7 +283,6 @@ pub fn discover_or_constraints_old(
     }
     test_tree_combinations(ocel, all_subtrees, bindings, input_variable, ocel_type)
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EventOrObjectType {

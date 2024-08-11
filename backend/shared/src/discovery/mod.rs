@@ -17,7 +17,7 @@ pub mod advanced;
 pub mod evaluation;
 pub mod graph_discovery;
 
-pub static SAMPLE_MIN_NUM_INSTANCES: usize = 1000;
+pub static SAMPLE_MIN_NUM_INSTANCES: usize = 3000;
 pub static SAMPLE_FRAC: f32 = 0.1;
 pub static RNG_SEED: u64 = 13375050;
 

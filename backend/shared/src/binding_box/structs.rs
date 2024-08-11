@@ -147,7 +147,7 @@ pub struct BindingBoxTree {
 impl BindingBoxTree {
     pub fn evaluate(&self, ocel: &IndexLinkedOCEL) -> EvaluationResults {
         if let Some(root) = self.nodes.first() {
-            let (ret, _violation) = root.evaluate(0, 0, Binding::default(), self, ocel);
+            let (ret, _violation) = root.evaluate(0, Binding::default(), self, ocel);
             // ret.push((0, Binding::default(), violation));
             ret
         } else {
@@ -264,7 +264,6 @@ impl BindingBoxTreeNode {
     pub fn evaluate(
         &self,
         own_index: usize,
-        _parent_index: usize,
         parent_binding: Binding,
         tree: &BindingBoxTree,
         ocel: &IndexLinkedOCEL,
@@ -297,7 +296,7 @@ impl BindingBoxTreeNode {
                         .unwrap_or(format!("{UNNAMED}{c}"));
                     let (c_res, violations) =
                         // Evaluate Child
-                            tree.nodes[*c].evaluate(*c, own_index, b.clone(), tree, ocel);
+                            tree.nodes[*c].evaluate(*c, b.clone(), tree, ocel);
                     // Check if size binding count is passes size filters
                     // passed_size_filter =
                     //     bbox.size_filters

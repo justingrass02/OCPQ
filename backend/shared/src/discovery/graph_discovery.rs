@@ -11,7 +11,8 @@ use itertools::Itertools;
 
 use plotly::{
     common::Marker,
-    layout::{Axis, ColorAxis}, Layout, Plot, Scatter,
+    layout::{Axis, ColorAxis},
+    Layout, Plot, Scatter,
 };
 use rand::{random, rngs::StdRng, seq::IteratorRandom, SeedableRng};
 
@@ -352,7 +353,7 @@ fn plot_scatter<S: AsRef<str>, P: AsRef<std::path::Path>>(
         .marker(Marker::new().color("black").size(3))
         .mode(plotly::common::Mode::Markers);
     plot.add_trace(trace);
-    println!("{}",title.as_ref());
+    println!("{}", title.as_ref());
     let layout = Layout::new()
         .color_axis(ColorAxis::new().auto_color_scale(true))
         // .title(title.as_ref())
@@ -758,13 +759,13 @@ pub fn discover_or_constraints_new(
         .collect();
     count_constraints.extend(discover_count_constraints_for_supporting_instances(
         ocel,
-        0.55 * coverage,
+        0.7 * coverage,
         instances.iter(),
         &ocel_type,
     ));
     count_constraints.extend(discover_count_constraints_for_supporting_instances(
         ocel,
-        0.9 * coverage,
+        coverage,
         instances.iter(),
         &ocel_type,
     ));
@@ -773,7 +774,7 @@ pub fn discover_or_constraints_new(
         EventOrObjectType::Object(_) => Variable::Object(ObjectVariable(0)),
     };
     let bindings = generate_sample_bindings(ocel, &vec![ocel_type.clone()], variable.clone());
-    let max_sat_count: usize = (0.95 * coverage * bindings.len() as f32).ceil() as usize;
+    let max_sat_count: usize = (1.1*coverage * bindings.len() as f32).ceil() as usize;
     let b_instances = binding_to_instances(&bindings, variable.clone());
     count_constraints.into_iter().for_each(|cc| {
         // for cc in &count_constraints {
@@ -830,7 +831,7 @@ pub fn discover_or_constraints_new(
         let cc2_constraints: Vec<CountConstraint> =
             discover_count_constraints_for_supporting_instances(
                 ocel,
-                0.9 * coverage,
+                coverage,
                 cc_labeled_bindings
                     .iter()
                     .zip(b_instances.iter())
@@ -875,7 +876,7 @@ pub fn discover_or_constraints_new(
         //
         let ef_constraints = discover_ef_constraints_for_supporting_instances(
             ocel,
-            0.6,
+            0.8 * coverage,
             instances.iter().flat_map(|i| match i {
                 EventOrObjectIndex::Object(oi) => Some(oi),
                 EventOrObjectIndex::Event(_) => None,
@@ -890,7 +891,7 @@ pub fn discover_or_constraints_new(
                 let ef2_constraints: Vec<EFConstraint> =
                     discover_ef_constraints_for_supporting_instances(
                         ocel,
-                        0.9,
+                        coverage,
                         ef1_labeled_bindings
                             .iter()
                             .zip(b_instances.iter())
@@ -962,15 +963,18 @@ pub fn check_or_compat(
         .count();
     let st2_sat_count = ef_c_labeled_bindings.iter().filter(|x| **x).count();
     let n = bindings.len() as f32;
-    let good_or_frac = or_sat_count as f32 / usize::max(st1_sat_count, st2_sat_count) as f32;
+    // let good_or_frac = or_sat_count as f32 / usize::max(st1_sat_count, st2_sat_count) as f32;
     // If both subtrees are completely independent, we could expect violation1% * violation2% to be the violation percentage
     // of the combined OR
     // Notice: This might be nan if one of the subtrees is perfectly fitting the sample
-    let independent_factor = (1.0 - (or_sat_count as f32 / n))
-        / ((1.0 - (st1_sat_count as f32 / n)) * (1.0 - (st2_sat_count as f32 / n)));
+    // let independent_factor2 = (1.0 - (or_sat_count as f32 / n))
+    // / ((1.0 - (st1_sat_count as f32 / n)) * (1.0 - (st2_sat_count as f32 / n)));
+    let independent_factor = (or_sat_count as f32 / n)
+        / (1.0 - ((1.0 - (st1_sat_count as f32 / n)) * (1.0 - (st2_sat_count as f32 / n))));
     let good_sat_frac = or_sat_count as f32 / bindings.len() as f32;
-    // println!("Independent Factor: {independent_factor} {good_sat_frac} {good_or_frac}");
-    if good_sat_frac >= *coverage && good_or_frac >= 1.15 && independent_factor <= 0.66 {
+    // println!("Independent Factor: {independent_factor} {good_or_frac} {good_sat_frac} {coverage}");
+    if good_sat_frac >= *coverage && independent_factor >= 1.1  {
+        println!("Pass");
         let or_tree = merge_or_tree(
             st2,
             st1.clone(),

@@ -1,11 +1,13 @@
 import type { BindingBox } from "@/types/generated/BindingBox";
 import type { BindingBoxTree } from "@/types/generated/BindingBoxTree";
+import type { BindingBoxTreeNode } from "@/types/generated/BindingBoxTreeNode";
 import type { EvaluationResultWithCount } from "@/types/generated/EvaluationResultWithCount";
 
 export type EvaluationResPerNodes = {
   evalRes: Record<string, EvaluationRes>;
   objectIds: string[];
   eventIds: string[];
+  evalNodes: Record<string,BindingBoxTreeNode>;
 };
 export type EvaluationRes = EvaluationResultWithCount;
 

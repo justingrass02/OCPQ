@@ -10,20 +10,23 @@ import { getViolationTextColor } from "../violation-styles";
 
 export default function ViolationIndicator({
   violationsPerNode,
-  hasNoConstraints
+  hasNoConstraints,
+  nodeID
 }: {
   violationsPerNode: EvaluationRes;
-  hasNoConstraints?: boolean
+  hasNoConstraints?: boolean;
+  nodeID: string;
 }) {
   const { showViolationsFor } = useContext(VisualEditorContext);
   return (
     <button
       onClick={() => {
+        console.log({violationsPerNode,showViolationsFor});
         if (
           violationsPerNode !== undefined &&
           showViolationsFor !== undefined
         ) {
-          showViolationsFor(violationsPerNode,"violations");
+          showViolationsFor(nodeID,"violations");
         }
       }}
       className={`absolute right-1 bottom-1 text-xs flex flex-col items-center gap-x-1 border border-transparent px-1 py-0.5 rounded-sm hover:bg-blue-100/70 hover:border-blue-400/50`}

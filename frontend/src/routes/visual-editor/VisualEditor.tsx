@@ -77,6 +77,8 @@ import {
   type EventTypeNodeData,
   type GateNodeData,
 } from "./helper/types";
+import type { BindingBoxTreeNode } from "@/types/generated/BindingBoxTreeNode";
+import { FilterOrConstraintDisplay } from "./helper/box/FilterOrConstraintEditor";
 function isEditorElementTarget(el: HTMLElement | EventTarget | null) {
   return (
     el === document.body ||
@@ -99,20 +101,36 @@ export default function VisualEditor(props: VisualEditorProps) {
   const [violationDetails, setViolationDetails] = useState<{
     res: EvaluationRes;
     initialMode?: "violations" | "situations" | "satisfied-situations";
+    node: BindingBoxTreeNode;
   }>();
 
   const [violationInfo, setViolationInfo] = useState<{
     violationsPerNode?: EvaluationResPerNodes;
+    evalNodes?: Record<string, BindingBoxTreeNode>;
     showViolationsFor?: (
-      data: EvaluationRes,
+      nodeID: string,
       initialMode?: "violations" | "situations" | "satisfied-situations",
     ) => unknown;
   }>({
-    showViolationsFor: (d, im) => {
-      setViolationDetails({ res: d, initialMode: im });
-    },
+    showViolationsFor,
     violationsPerNode: otherData?.violations,
   });
+  function showViolationsFor(nodeID: string, im?: "violations" | "situations" | "satisfied-situations"){
+    console.log({nodeID, im});
+    console.log("?",violationInfo.violationsPerNode)
+    if (
+      violationInfo.violationsPerNode != null &&
+      nodeID in violationInfo.violationsPerNode.evalRes &&
+      violationInfo.violationsPerNode.evalNodes != null &&
+      nodeID in violationInfo.violationsPerNode.evalNodes
+    ) {
+      setViolationDetails({
+        res: violationInfo.violationsPerNode.evalRes[nodeID],
+        initialMode: im,
+        node: violationInfo.violationsPerNode.evalNodes[nodeID],
+      });
+    }
+  }
 
   useEffect(() => {
     instance.setNodes(otherData?.nodes ?? []);
@@ -572,8 +590,7 @@ export default function VisualEditor(props: VisualEditorProps) {
       value={{
         ocelInfo: props.ocelInfo,
         violationsPerNode: violationInfo.violationsPerNode,
-        showViolationsFor: (d, im) =>
-          setViolationDetails({ res: d, initialMode: im }),
+        showViolationsFor,
         getAvailableVars,
         getAvailableChildNames,
         getTypesForVariable,
@@ -821,6 +838,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                   instance.getEdges(),
                 );
                 const evalRes: Record<string, EvaluationRes> = {};
+                const evalNodes: Record<string, BindingBoxTreeNode> = {};
                 let objectIDs: string[] = [];
                 let eventIDs: string[] = [];
                 await Promise.allSettled(
@@ -858,6 +876,9 @@ export default function VisualEditor(props: VisualEditorProps) {
                     res.evaluationResults.forEach((evRes, i) => {
                       evalRes[nodesOrder[i].id] = evRes;
                     });
+                    tree.nodes.forEach((node, i) => {
+                      evalNodes[nodesOrder[i].id] = node;
+                    });
                     objectIDs = res.objectIds;
                     eventIDs = res.eventIds;
                     setViolationInfo((vi) => ({
@@ -866,6 +887,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                         evalRes,
                         objectIds: res.objectIds,
                         eventIds: res.eventIds,
+                        evalNodes,
                       },
                     }));
                   }),
@@ -876,6 +898,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                       evalRes,
                       objectIds: objectIDs,
                       eventIds: eventIDs,
+                      evalNodes,
                     },
                   });
                 });
@@ -903,8 +926,9 @@ export default function VisualEditor(props: VisualEditorProps) {
           <ViolationDetailsSheet
             initialMode={violationDetails.initialMode}
             violationDetails={violationDetails.res}
-            setViolationDetails={setViolationDetails}
+            reset={() => setViolationDetails(undefined)}
             violationResPerNodes={violationInfo.violationsPerNode}
+            node={violationDetails.node}
           />
         )}
     </VisualEditorContext.Provider>
@@ -914,21 +938,15 @@ export default function VisualEditor(props: VisualEditorProps) {
 const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
   violationDetails,
   violationResPerNodes,
-  setViolationDetails,
+  reset,
   initialMode,
+  node,
 }: {
   violationDetails: EvaluationRes;
   violationResPerNodes: EvaluationResPerNodes;
   initialMode: "violations" | "situations" | "satisfied-situations" | undefined;
-  setViolationDetails: React.Dispatch<
-    React.SetStateAction<
-      | {
-          res: EvaluationRes;
-          initialMode?: "violations" | "situations" | "satisfied-situations";
-        }
-      | undefined
-    >
-  >;
+  node: BindingBoxTreeNode;
+  reset: () => unknown;
 }) {
   const varRef = useRef<VariableSizeList>(null);
   function getItemHeight([binding, reason]: [Binding, ViolationReason | null]) {
@@ -945,10 +963,10 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
     "violations" | "situations" | "satisfied-situations"
   >(initialMode ?? "violations");
   useEffect(() => {
-    if(initialMode !== undefined){
+    if (initialMode !== undefined) {
       setMode(initialMode);
     }
-  },[initialMode])
+  }, [initialMode]);
   const items =
     mode === "violations"
       ? violationDetails.situations.filter(
@@ -969,7 +987,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
         <div className="h-full border px-1 py-1 rounded-sm bg-blue-50 text-lg">
           <div>
             {reason !== null && (
-              <p className="text-orange-600 h-6 block">
+              <div className="text-red-500 h-6 block">
                 {typeof reason === "string" && reason}
                 {typeof reason === "object" &&
                   "TooFewMatchingEvents" in reason &&
@@ -977,10 +995,30 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                 {typeof reason === "object" &&
                   "TooManyMatchingEvents" in reason &&
                   `TooManyMatchingEvents (#${reason.TooManyMatchingEvents})`}
-                {typeof reason === "object" &&
+                {/* {typeof reason === "object" &&
                   "ConstraintNotSatisfied" in reason &&
-                  `ConstraintNotSatisfied (at index ${reason.ConstraintNotSatisfied})`}
-              </p>
+                  `ConstraintNotSatisfied (at index ${reason.ConstraintNotSatisfied})`} */}
+                {
+                  typeof reason === "object" &&
+                    "Box" in node &&
+                    "ConstraintNotSatisfied" in reason && (
+                      <div className="flex items-center gap-x-2 justify-between mx-0 font-medium tracking-tighter flex-nowrap whitespace-nowrap">
+                      Violated Constraint
+                        <FilterOrConstraintDisplay
+                          value={
+                            node.Box[0].constraints[
+                              reason.ConstraintNotSatisfied
+                            ]
+                          }
+                        />
+                        <div className="text-xs">
+                           #{reason.ConstraintNotSatisfied}
+                          </div>
+                      </div>
+                    )
+                  // `ConstraintNotSatisfied (at index ${})`
+                }
+              </div>
             )}
             <span className="text-emerald-700 font-bold h-6 block">
               Events:
@@ -1041,7 +1079,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
       open={violationDetails !== undefined}
       onOpenChange={(o) => {
         if (!o) {
-          setViolationDetails(undefined);
+          reset();
         }
       }}
     >

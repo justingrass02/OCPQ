@@ -5,11 +5,11 @@ import type {
   EventTypeNodeData,
   GateNodeData,
 } from "../types";
-import { Filter } from "@/types/generated/Filter";
-import { SizeFilter } from "@/types/generated/SizeFilter";
-import { Constraint } from "@/types/generated/Constraint";
+import type { Filter } from "@/types/generated/Filter";
+import type { SizeFilter } from "@/types/generated/SizeFilter";
+import type { Constraint } from "@/types/generated/Constraint";
 import { formatSeconds } from "@/components/TimeDurationInput";
-import { Variable } from "@/types/generated/Variable";
+import type { Variable } from "@/types/generated/Variable";
 
 export function getParentNodeID(
   nodeID: string,

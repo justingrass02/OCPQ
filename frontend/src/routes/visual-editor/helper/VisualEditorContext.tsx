@@ -1,6 +1,5 @@
 import { createContext } from "react";
 import type {
-  EvaluationRes,
   EvaluationResPerNodes,
   EventTypeLinkData,
   EventTypeNodeData,
@@ -12,7 +11,7 @@ import type { ObjectVariable } from "@/types/generated/ObjectVariable";
 
 export type VisualEditorContextValue = {
   violationsPerNode?: EvaluationResPerNodes;
-  showViolationsFor?: (data: EvaluationRes, mode?: "violations" | "situations" | "satisfied-situations") => unknown;
+  showViolationsFor?: (nodeID: string, mode?: "violations" | "situations" | "satisfied-situations") => unknown;
   onNodeDataChange: (
     id: string,
     newData: Partial<EventTypeNodeData | GateNodeData> | undefined,
