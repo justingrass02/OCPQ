@@ -69,7 +69,7 @@ fn check_with_box_tree(
     state: State<OCELStore>,
 ) -> Result<EvaluateBoxTreeResult, String> {
     match state.lock().unwrap().as_ref() {
-        Some(ocel) => Ok(evaluate_box_tree(req.tree, &ocel)),
+        Some(ocel) => Ok(evaluate_box_tree(req.tree, &ocel,req.measure_performance.unwrap_or(false))),
         None => Err("No OCEL loaded".to_string()),
     }
 }

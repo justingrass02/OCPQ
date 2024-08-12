@@ -181,7 +181,7 @@ pub async fn check_with_box_tree_req<'a>(
     with_ocel_from_state(&state, |ocel| {
         (
             StatusCode::OK,
-            Json(Some(evaluate_box_tree(req.tree, ocel))),
+            Json(Some(evaluate_box_tree(req.tree, ocel,req.measure_performance.unwrap_or(false)))),
         )
     })
     .unwrap_or((StatusCode::INTERNAL_SERVER_ERROR, Json(None)))

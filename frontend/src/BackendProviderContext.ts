@@ -21,6 +21,7 @@ export type BackendProvider = {
   "ocel/picker"?: () => Promise<OCELInfo>;
   "ocel/check-constraints-box": (
     tree: BindingBoxTree,
+    measurePerformance?: boolean,
   ) => Promise<EvaluateBoxTreeResult>;
   "ocel/event-qualifiers": () => Promise<EventTypeQualifiers>;
   "ocel/object-qualifiers": () => Promise<ObjectTypeQualifiers>;
@@ -86,11 +87,11 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
       })
     ).json();
   },
-  "ocel/check-constraints-box": async (tree) => {
+  "ocel/check-constraints-box": async (tree,measurePerformance) => {
     return await (
       await fetch(BACKEND_URL + "/ocel/check-constraints-box", {
         method: "post",
-        body: JSON.stringify({ tree }),
+        body: JSON.stringify({ tree, measurePerformance }),
         headers: { "Content-Type": "application/json" },
       })
     ).json();

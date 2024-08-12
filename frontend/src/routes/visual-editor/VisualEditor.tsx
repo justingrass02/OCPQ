@@ -115,9 +115,10 @@ export default function VisualEditor(props: VisualEditorProps) {
     showViolationsFor,
     violationsPerNode: otherData?.violations,
   });
-  function showViolationsFor(nodeID: string, im?: "violations" | "situations" | "satisfied-situations"){
-    console.log({nodeID, im});
-    console.log("?",violationInfo.violationsPerNode)
+  function showViolationsFor(
+    nodeID: string,
+    im?: "violations" | "situations" | "satisfied-situations",
+  ) {
     if (
       violationInfo.violationsPerNode != null &&
       nodeID in violationInfo.violationsPerNode.evalRes &&
@@ -829,9 +830,9 @@ export default function VisualEditor(props: VisualEditorProps) {
             <Button
               disabled={isEvaluationLoading}
               variant="outline"
-              title="Evaluate"
+              title="Evaluate (Hold Shift for Performance Evaluation)"
               className="relative bg-fuchsia-100 disabled:bg-fuchsia-200 border-fuchsia-300 hover:bg-fuchsia-200 hover:border-fuchsia-300"
-              onClick={async () => {
+              onClick={async (ev) => {
                 setEvaluationLoading(true);
                 const subTrees = evaluateConstraints(
                   instance.getNodes(),
@@ -839,12 +840,16 @@ export default function VisualEditor(props: VisualEditorProps) {
                 );
                 const evalRes: Record<string, EvaluationRes> = {};
                 const evalNodes: Record<string, BindingBoxTreeNode> = {};
+                const measurePerformance = ev.shiftKey;
                 let objectIDs: string[] = [];
                 let eventIDs: string[] = [];
                 await Promise.allSettled(
                   subTrees.map(async ({ tree, nodesOrder }) => {
                     const res = await toast.promise(
-                      backend["ocel/check-constraints-box"](tree),
+                      backend["ocel/check-constraints-box"](
+                        tree,
+                        measurePerformance,
+                      ),
                       {
                         loading: "Evaluating...",
                         success: (res) => (
@@ -1003,7 +1008,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                     "Box" in node &&
                     "ConstraintNotSatisfied" in reason && (
                       <div className="flex items-center gap-x-2 justify-between mx-0 font-medium tracking-tighter flex-nowrap whitespace-nowrap">
-                      Violated Constraint
+                        Violated Constraint
                         <FilterOrConstraintDisplay
                           value={
                             node.Box[0].constraints[
@@ -1012,8 +1017,8 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                           }
                         />
                         <div className="text-xs">
-                           #{reason.ConstraintNotSatisfied}
-                          </div>
+                          #{reason.ConstraintNotSatisfied}
+                        </div>
                       </div>
                     )
                   // `ConstraintNotSatisfied (at index ${})`
