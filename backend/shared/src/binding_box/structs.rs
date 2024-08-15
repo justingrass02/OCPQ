@@ -785,6 +785,12 @@ pub enum SizeFilter {
     BindingSetProjectionEqual {
         child_name_with_var_name: Vec<(NodeEdgeName, Variable)>,
     },
+    NumChildsProj {
+        child_name: NodeEdgeName,
+        var_name: Variable,
+        min: Option<usize>,
+        max: Option<usize>,
+    }
 }
 
 impl SizeFilter {
@@ -804,6 +810,18 @@ impl SizeFilter {
                         false
                     } else {
                         !max.is_some_and(|max| c_res.len() > max)
+                    }
+                } else {
+                    false
+                }
+            }
+            SizeFilter::NumChildsProj { child_name, var_name, min, max } => {
+                if let Some(c_res) = child_res.get(child_name) {
+                    let set: HashSet<_> = c_res.iter().flat_map(|(b,_)| b.get_any_index(var_name)).collect();
+                    if min.is_some_and(|min| set.len() < min) {
+                        false
+                    } else {
+                        !max.is_some_and(|max| set.len() > max)
                     }
                 } else {
                     false

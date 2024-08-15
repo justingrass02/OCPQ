@@ -307,6 +307,70 @@ export default function FilterOrConstraintEditor<
           </Button>
         </>
       );
+    case "NumChildsProj":
+      return (
+        <>
+          <ChildSetSelector
+            availableChildSets={availableChildSets}
+            value={value.child_name}
+            onChange={(v) => {
+              if (v !== undefined) {
+                value.child_name = v;
+                updateValue({ ...value });
+              }
+            }}
+          />
+          <ObjectOrEventVarSelector
+            objectVars={getAvailableVars(
+              getNodeIDByName(value.child_name) ?? "-",
+              "object",
+            )}
+            eventVars={getAvailableVars(
+              getNodeIDByName(value.child_name) ?? "-",
+              "event",
+            )}
+            value={
+              "Event" in value.var_name
+                ? { type: "event", value: value.var_name.Event }
+                : { type: "object", value: value.var_name.Object }
+            }
+            onChange={(v) => {
+              if (v !== undefined) {
+                value.var_name =
+                  v.type === "event" ? { Event: v.value } : { Object: v.value };
+                updateValue({ ...value });
+              }
+            }}
+          />
+          <Input
+            type="number"
+            value={value.min ?? ""}
+            onChange={(ev) => {
+              const val = ev.currentTarget.valueAsNumber;
+              if (isFinite(val)) {
+                value.min = val;
+              } else {
+                value.min = null;
+              }
+              updateValue({ ...value });
+            }}
+          />
+
+          <Input
+            type="number"
+            value={value.max ?? ""}
+            onChange={(ev) => {
+              const val = ev.currentTarget.valueAsNumber;
+              if (isFinite(val)) {
+                value.max = val;
+              } else {
+                value.max = null;
+              }
+              updateValue({ ...value });
+            }}
+          />
+        </>
+      );
     case "Filter":
       return (
         <FilterOrConstraintEditor
@@ -693,6 +757,24 @@ export function FilterOrConstraintDisplay<
               {i < value.child_name_with_var_name.length - 1 ? "=" : ""}
             </div>
           ))}
+        </div>
+      );
+    case "NumChildsProj":
+      return (
+        <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
+          <MinMaxDisplayWithSugar min={value.min} max={value.max}>
+            |{value.child_name}
+            <span className="-mx-1">
+              {"["}
+              {"Event" in value.var_name ? (
+                <EvVarName eventVar={value.var_name.Event} />
+              ) : (
+                <ObVarName obVar={value.var_name.Object} />
+              )}
+              {"]"}
+            </span>
+            |
+          </MinMaxDisplayWithSugar>
         </div>
       );
     case "Filter":

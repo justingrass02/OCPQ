@@ -194,6 +194,10 @@ export default function FilterChooser({
                             label: "Child Binding Set Projects Equal",
                             value: "BindingSetProjectionEqual",
                           },
+                          {
+                            label: "Number of Projected Child Bindings",
+                            value: "NumChildsProj",
+                          },
                         ]
                       : []),
 
@@ -262,6 +266,17 @@ export default function FilterChooser({
                         value: {
                           type: "BindingSetProjectionEqual",
                           child_name_with_var_name: [["A", { Object: 0 }]],
+                        },
+                      });
+                    } else if (val === "NumChildsProj") {
+                      setAlertState({
+                        ...alertState,
+                        value: {
+                          type: "NumChildsProj",
+                          child_name: "A",
+                          var_name: { Object: 0 },
+                          min: 1,
+                          max: 10,
                         },
                       });
                     } else if (
@@ -371,6 +386,7 @@ export default function FilterChooser({
                         "NumChilds",
                         "BindingSetEqual",
                         "BindingSetProjectionEqual",
+                        "NumChildsProj",
                       ].includes(alertState.value.type)
                     ) {
                       alertState.type = "sizeFilter";
@@ -396,6 +412,7 @@ export default function FilterChooser({
                           "NumChilds",
                           "BindingSetEqual",
                           "BindingSetProjectionEqual",
+                          "NumChildsProj",
                         ].includes(alertState.value.type)
                       ) {
                         newBox.constraints[index] = {
@@ -415,9 +432,13 @@ export default function FilterChooser({
                         newBox.constraints[index] =
                           alertState.value as Constraint;
                       } else if (
-                        ["O2E", "O2O", "TimeBetweenEvents","ObjectAttributeValueFilter","EventAttributeValueFilter"].includes(
-                          alertState.value.type,
-                        )
+                        [
+                          "O2E",
+                          "O2O",
+                          "TimeBetweenEvents",
+                          "ObjectAttributeValueFilter",
+                          "EventAttributeValueFilter",
+                        ].includes(alertState.value.type)
                       ) {
                         newBox.constraints[index] = {
                           type: "Filter",

@@ -19,7 +19,7 @@ export default function OcelInfoViewer() {
         <br />
       </div>
       <div className="bg-green-100 py-4 px-2 my-4 rounded-lg shadow border border-emerald-200">
-        <h3 className="text-2xl font-semibold">Event Types</h3>
+        <h3 className="text-2xl font-semibold">Event Types <span className="text-gray-600 text-xl ml-2">{ocelInfo.event_types.length}</span></h3>
         <div className="flex flex-wrap">
           {ocelInfo.event_types.map((et) => (
             <OcelTypeViewer key={et.name} typeInfo={et} type="event" />
@@ -27,7 +27,7 @@ export default function OcelInfoViewer() {
         </div>
       </div>
       <div className="bg-blue-100 py-4 px-2 my-4 rounded-lg shadow border border-sky-200">
-        <h3 className="text-2xl font-semibold">Object Types</h3>
+        <h3 className="text-2xl font-semibold">Object Types <span className="text-gray-600 text-xl ml-2">{ocelInfo.object_types.length}</span></h3>
         <div className="flex flex-wrap">
           {ocelInfo.object_types.map((et) => (
             <OcelTypeViewer key={et.name} typeInfo={et} type="object" />
