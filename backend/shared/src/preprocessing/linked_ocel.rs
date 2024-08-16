@@ -225,6 +225,11 @@ impl IndexLinkedOCEL {
             .and_then(|ob_index| self.ob_by_index(ob_index))
     }
 
+    pub fn ev_by_id<'a>(&'a self, ev_id: &String) -> Option<&'a OCELEvent> {
+        self.index_of_ev(ev_id)
+            .and_then(|ev_index| self.ev_by_index(ev_index))
+    }
+
     pub fn index_of_ev<'a>(&'a self, ev_id: &String) -> Option<&'a EventIndex> {
         self.event_index_map.get(ev_id)
     }

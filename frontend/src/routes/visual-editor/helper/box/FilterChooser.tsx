@@ -171,6 +171,10 @@ export default function FilterChooser({
                       value: "TimeBetweenEvents",
                     },
                     {
+                      label: "Variables not equal",
+                      value: "NotEqual"
+                    },
+                    {
                       label: "Event Attribute Value",
                       value: "EventAttributeValueFilter",
                     },
@@ -240,6 +244,15 @@ export default function FilterChooser({
                           to_event: 1,
                           min_seconds: null,
                           max_seconds: null,
+                        },
+                      });
+                    } else if (val === "NotEqual") {
+                      setAlertState({
+                        ...alertState,
+                        value: {
+                          type: "NotEqual",
+                          var_1: {Object: 0},
+                          var_2: {Object: 1}
                         },
                       });
                     } else if (val === "NumChilds") {
@@ -436,6 +449,7 @@ export default function FilterChooser({
                           "O2E",
                           "O2O",
                           "TimeBetweenEvents",
+                          "NotEqual",
                           "ObjectAttributeValueFilter",
                           "EventAttributeValueFilter",
                         ].includes(alertState.value.type)

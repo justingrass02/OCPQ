@@ -1,7 +1,7 @@
 use axum::{
     body::Bytes,
-    extract::{DefaultBodyLimit, State},
-    http::{StatusCode},
+    extract::{DefaultBodyLimit, Path, State},
+    http::StatusCode,
     routing::{get, post},
     Json, Router,
 };
@@ -26,7 +26,11 @@ use ocedeclare_shared::{
     preprocessing::{linked_ocel::IndexLinkedOCEL, preprocess::link_ocel_info},
     OCELInfo,
 };
-use process_mining::{event_log::ocel::ocel_struct::OCEL, import_ocel_xml_slice};
+use process_mining::{
+    event_log::{ocel::ocel_struct::OCEL, Event},
+    import_ocel_xml_slice,
+    ocel::ocel_struct::OCELEvent,
+};
 use tower_http::cors::CorsLayer;
 
 use crate::load_ocel::{
@@ -47,9 +51,9 @@ async fn main() {
         ocel: Arc::new(RwLock::new(None)),
     };
     let cors = CorsLayer::permissive();
-        // .allow_methods([Method::GET, Method::POST])
-        // .allow_headers([CONTENT_TYPE])
-        // .allow_origin(tower_http::cors::Any);
+    // .allow_methods([Method::GET, Method::POST])
+    // .allow_headers([CONTENT_TYPE])
+    // .allow_origin(tower_http::cors::Any);
 
     load_ocel_file_to_state(DEFAULT_OCEL_FILE, &state);
 
@@ -80,6 +84,7 @@ async fn main() {
             "/ocel/discover-constraints",
             post(auto_discover_constraints_handler),
         )
+        .route("/ocel/event/:event_id", get(get_event_info))
         .with_state(state)
         .route("/", get(|| async { "Hello, Aaron!" }))
         .layer(cors);
@@ -181,7 +186,11 @@ pub async fn check_with_box_tree_req<'a>(
     with_ocel_from_state(&state, |ocel| {
         (
             StatusCode::OK,
-            Json(Some(evaluate_box_tree(req.tree, ocel,req.measure_performance.unwrap_or(false)))),
+            Json(Some(evaluate_box_tree(
+                req.tree,
+                ocel,
+                req.measure_performance.unwrap_or(false),
+            ))),
         )
     })
     .unwrap_or((StatusCode::INTERNAL_SERVER_ERROR, Json(None)))
@@ -194,4 +203,12 @@ pub async fn auto_discover_constraints_handler<'a>(
     Json(with_ocel_from_state(&state, |ocel| {
         auto_discover_constraints_with_options(ocel, req)
     }))
+}
+
+pub async fn get_event_info<'a>(
+    state: State<AppState>,
+    Path(event_id): Path<String>
+) -> Json<Option<OCELEvent>> {
+    println!("{:?}",event_id);
+    Json(with_ocel_from_state(&state, |ocel| ocel.ev_by_id(&event_id).cloned()).unwrap_or_default())
 }

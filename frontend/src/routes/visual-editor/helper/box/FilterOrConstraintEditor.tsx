@@ -15,7 +15,7 @@ import {
   ObjectOrEventVarSelector,
   ObjectVarSelector,
 } from "./FilterChooser";
-import { EvVarName, ObVarName } from "./variable-names";
+import { EvOrObVarName, EvVarName, ObVarName } from "./variable-names";
 import type { ValueFilter } from "@/types/generated/ValueFilter";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -115,6 +115,44 @@ export default function FilterOrConstraintEditor<
                 updateValue({ ...value });
               } else {
                 value.qualifier = null;
+                updateValue({ ...value });
+              }
+            }}
+          />
+        </>
+      );
+    case "NotEqual":
+      return (
+        <>
+          <ObjectOrEventVarSelector
+            objectVars={availableObjectVars}
+            eventVars={availableEventVars}
+            value={
+              "Event" in value.var_1
+                ? { type: "event", value: value.var_1.Event }
+                : { type: "object", value: value.var_1.Object }
+            }
+            onChange={(v) => {
+              if (v !== undefined) {
+                value.var_1 =
+                  v.type === "event" ? { Event: v.value } : { Object: v.value };
+                updateValue({ ...value });
+              }
+            }}
+          />
+          ≠
+          <ObjectOrEventVarSelector
+            objectVars={availableObjectVars}
+            eventVars={availableEventVars}
+            value={
+              "Event" in value.var_2
+                ? { type: "event", value: value.var_2.Event }
+                : { type: "object", value: value.var_2.Object }
+            }
+            onChange={(v) => {
+              if (v !== undefined) {
+                value.var_2 =
+                  v.type === "event" ? { Event: v.value } : { Object: v.value };
                 updateValue({ ...value });
               }
             }}
@@ -723,6 +761,14 @@ export function FilterOrConstraintDisplay<
             <span className="mx-1">-</span>{" "}
             {formatSeconds(value.max_seconds ?? Infinity)}
           </div>
+        </div>
+      );
+    case "NotEqual":
+      return (
+        <div className="flex items-center gap-x-1 font-normal text-sm">
+          <EvOrObVarName varName={value.var_1} />
+          ≠
+          <EvOrObVarName varName={value.var_2} />
         </div>
       );
     case "NumChilds":

@@ -1,10 +1,34 @@
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use crate::preprocessing::linked_ocel::{
-    get_events_of_type_associated_with_objects, IndexLinkedOCEL,
+use crate::{
+    ocel_qualifiers::qualifiers,
+    preprocessing::linked_ocel::{
+        get_events_of_type_associated_with_objects, EventOrObjectIndex, IndexLinkedOCEL,
+        ObjectIndex,
+    },
 };
 
 use super::structs::{Binding, BindingBox, BindingStep};
+
+fn check_next_filters(
+    b: Binding,
+    next_step: usize,
+    steps: &[BindingStep],
+    ocel: &IndexLinkedOCEL,
+) -> Option<Binding> {
+    for i in next_step..steps.len() {
+        if let BindingStep::Filter(f) = &steps[i] {
+            if f.check_binding(&b, ocel) {
+                continue;
+            } else {
+                return None;
+            }
+        } else {
+            break;
+        }
+    }
+    Some(b)
+}
 
 impl BindingBox {
     pub fn expand_empty(&self, ocel: &IndexLinkedOCEL) -> Vec<Binding> {
@@ -20,7 +44,9 @@ impl BindingBox {
     }
 
     pub fn expand(&self, parent_bindings: Vec<Binding>, ocel: &IndexLinkedOCEL) -> Vec<Binding> {
-        self.expand_with_steps(parent_bindings, ocel, &BindingStep::get_binding_order(self))
+        let order = BindingStep::get_binding_order(self);
+        // return Vec::default();
+        self.expand_with_steps(parent_bindings, ocel, &order)
     }
 
     pub fn expand_with_steps(
@@ -31,7 +57,8 @@ impl BindingBox {
     ) -> Vec<Binding> {
         let mut ret = parent_bindings;
         let mut sizes_per_step: Vec<usize> = Vec::with_capacity(steps.len());
-        for step in steps {
+        for step_index in 0..steps.len() {
+            let step = &steps[step_index];
             match &step {
                 BindingStep::BindEv(ev_var, time_constr) => {
                     let ev_types = self.new_event_vars.get(ev_var).unwrap();
@@ -60,7 +87,12 @@ impl BindingBox {
                                             },
                                         )
                                     {
-                                        Some(b.clone().expand_with_ev(*ev_var, *e_index))
+                                        check_next_filters(
+                                            b.clone().expand_with_ev(*ev_var, *e_index),
+                                            step_index + 1,
+                                            steps,
+                                            ocel,
+                                        )
                                     } else {
                                         None
                                     }
@@ -76,7 +108,14 @@ impl BindingBox {
                             ob_types
                                 .iter()
                                 .flat_map(|ob_type| ocel.objects_of_type.get(ob_type).unwrap())
-                                .map(move |o_index| b.clone().expand_with_ob(*ob_var, *o_index))
+                                .filter_map(move |o_index| {
+                                    check_next_filters(
+                                        b.clone().expand_with_ob(*ob_var, *o_index),
+                                        step_index + 1,
+                                        steps,
+                                        ocel,
+                                    )
+                                })
                         })
                         .collect();
                 }
@@ -95,40 +134,67 @@ impl BindingBox {
                                     ) && (qualifier.is_none()
                                         || qualifier.as_ref().unwrap() == &rel.qualifier)
                                 })
-                                .map(move |rel| {
-                                    b.clone().expand_with_ob(
-                                        *ob_var,
-                                        *ocel.object_index_map.get(&rel.object_id).unwrap(),
+                                .filter_map(move |rel| {
+                                    check_next_filters(
+                                        b.clone().expand_with_ob(
+                                            *ob_var,
+                                            *ocel.object_index_map.get(&rel.object_id).unwrap(),
+                                        ),
+                                        step_index + 1,
+                                        steps,
+                                        ocel,
                                     )
                                 })
                         })
                         .collect();
                 }
-                BindingStep::BindObFromOb(ob_var_name, from_ob_var_name, qualifier) => {
+                BindingStep::BindObFromOb(ob_var_name, from_ob_var_name, qualifier, reversed) => {
                     ret = ret
                         .into_par_iter()
                         .flat_map_iter(|b| {
-                            let ob = b.get_ob(from_ob_var_name, ocel).unwrap();
-                            ob.relationships
-                                .as_ref()
-                                .into_iter()
-                                .flatten()
-                                .filter(|rel| {
-                                    (qualifier.is_none()
-                                        || &rel.qualifier == qualifier.as_ref().unwrap())
-                                        && self.new_object_vars.get(ob_var_name).is_some_and(|v| {
-                                            if let Some(o) = ocel.ob_by_id(&rel.object_id) {
-                                                v.contains(&o.object_type)
+                            let ob_index = b.get_ob_index(from_ob_var_name).unwrap();
+                            ocel.get_symmetric_rels_ob(ob_index)
+                                .unwrap()
+                                .iter()
+                                .filter_map(move |(to_index, rev, qual)| {
+                                    if let EventOrObjectIndex::Object(to_ob_index) = to_index {
+                                        if rev != reversed {
+                                            None
+                                        } else {
+                                            if qualifier.is_none()
+                                                || qual == qualifier.as_ref().unwrap()
+                                            {
+                                                if let Some(allowed_types) =
+                                                    self.new_object_vars.get(ob_var_name)
+                                                {
+                                                    if let Some(o) = ocel.ob_by_index(&to_ob_index)
+                                                    {
+                                                        if allowed_types.contains(&o.object_type) {
+                                                            check_next_filters(
+                                                                b.clone().expand_with_ob(
+                                                                    *ob_var_name,
+                                                                    *to_ob_index,
+                                                                ),
+                                                                step_index + 1,
+                                                                steps,
+                                                                ocel,
+                                                            )
+                                                        } else {
+                                                            None
+                                                        }
+                                                    } else {
+                                                        None
+                                                    }
+                                                } else {
+                                                    None
+                                                }
                                             } else {
-                                                false
+                                                None
                                             }
-                                        })
-                                })
-                                .map(move |rel| {
-                                    b.clone().expand_with_ob(
-                                        *ob_var_name,
-                                        *ocel.object_index_map.get(&rel.object_id).unwrap(),
-                                    )
+                                        }
+                                    } else {
+                                        None
+                                    }
                                 })
                         })
                         .collect()
@@ -138,25 +204,36 @@ impl BindingBox {
                         .into_par_iter()
                         .flat_map_iter(|b| {
                             let ob_index = b.get_ob_index(from_ob_var_name).unwrap();
-                            let ob = ocel.ob_by_index(ob_index).unwrap();
+                            // let ob = ocel.ob_by_index(ob_index).unwrap();
                             let ev_types = self.new_event_vars.get(ev_var_name).unwrap();
-                            get_events_of_type_associated_with_objects(ocel, ev_types, &[*ob_index])
-                                .into_iter()
-                                .filter_map(move |e_index| {
-                                    // TODO: Better to also have an relationship index in IndexLinkedOCEL
-                                    let e = ocel.ev_by_index(&e_index).unwrap();
+                            ocel.get_symmetric_rels_ob(ob_index)
+                                .unwrap()
+                                .iter()
+                                .filter_map(move |(rel_to, _reversed, q)| {
                                     if qualifier.is_none()
-                                        || e.relationships.as_ref().is_some_and(|rels| {
-                                            rels.iter().any(|rel| {
-                                                rel.object_id == ob.id
-                                                    && &rel.qualifier == qualifier.as_ref().unwrap()
-                                            })
-                                        })
+                                        || qualifier.as_ref().unwrap().contains(q)
                                     {
-                                        Some(b.clone().expand_with_ev(
-                                            *ev_var_name,
-                                            *ocel.event_index_map.get(&e.id).unwrap(),
-                                        ))
+                                        if let EventOrObjectIndex::Event(rel_to_ev) = rel_to {
+                                            if let Some(to_ev) = ocel.ev_by_index(rel_to_ev) {
+                                                if ev_types.contains(&to_ev.event_type) {
+                                                    check_next_filters(
+                                                        b.clone().expand_with_ev(
+                                                            *ev_var_name,
+                                                            *rel_to_ev,
+                                                        ),
+                                                        step_index + 1,
+                                                        steps,
+                                                        ocel,
+                                                    )
+                                                } else {
+                                                    None
+                                                }
+                                            } else {
+                                                None
+                                            }
+                                        } else {
+                                            None
+                                        }
                                     } else {
                                         None
                                     }
@@ -164,12 +241,13 @@ impl BindingBox {
                         })
                         .collect();
                 }
-                BindingStep::Filter(f) => {
-                    ret = ret
-                        .into_par_iter()
-                        .filter(|b| f.check_binding(b, ocel))
-                        .collect()
-                }
+                _ => {}
+                // BindingStep::Filter(f) => {
+                //     ret = ret
+                //         .into_par_iter()
+                //         .filter(|b| f.check_binding(b, ocel))
+                //         .collect()
+                // }
             }
             sizes_per_step.push(ret.len())
         }

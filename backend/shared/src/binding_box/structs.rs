@@ -569,6 +569,10 @@ pub enum Filter {
         min_seconds: Option<f64>,
         max_seconds: Option<f64>,
     },
+    NotEqual {
+        var_1: Variable,
+        var_2: Variable,
+    },
     EventAttributeValueFilter {
         event: EventVariable,
         attribute_name: String,
@@ -634,6 +638,11 @@ impl Filter {
                 let duration_diff = (e2.time - e1.time).num_milliseconds() as f64 / 1000.0;
                 !min_sec.is_some_and(|min_sec| duration_diff < min_sec)
                     && !max_sec.is_some_and(|max_sec| duration_diff > max_sec)
+            },
+            Filter::NotEqual { var_1, var_2 } => {
+                let val_1 = b.get_any_index(var_1);
+                let val_2 = b.get_any_index(var_2);
+                !(val_1.is_none() || val_2.is_none() || val_1 == val_2)
             }
             Filter::EventAttributeValueFilter {
                 event,
@@ -930,6 +939,7 @@ impl Filter {
             } => vec![Variable::Event(*from_event), Variable::Event(*to_event)]
                 .into_iter()
                 .collect(),
+                Filter::NotEqual { var_1, var_2 } => vec![var_1.clone(),var_2.clone()].into_iter().collect(),
             Filter::EventAttributeValueFilter {
                 event,
                 attribute_name: _,
@@ -965,7 +975,8 @@ pub enum BindingStep {
     BindOb(ObjectVariable),
     /// Bind ob
     BindObFromEv(ObjectVariable, EventVariable, Qualifier),
-    BindObFromOb(ObjectVariable, ObjectVariable, Qualifier),
+    // bool: reversed?
+    BindObFromOb(ObjectVariable, ObjectVariable, Qualifier,bool),
     BindEvFromOb(EventVariable, ObjectVariable, Qualifier),
     Filter(Filter),
 }

@@ -2,6 +2,7 @@ import { useContext } from "react";
 import { VisualEditorContext } from "../VisualEditorContext";
 import { MdEvent } from "react-icons/md";
 import { LuBox } from "react-icons/lu";
+import { Variable } from "@/types/generated/Variable";
 
 export function getEvVarName(eventVar: number) {
   return function GetEvVarName() {
@@ -33,4 +34,11 @@ export function ObVarName({ obVar }: { obVar: number }) {
       <LuBox className="inline-block -mr-1.5" /> {varInfo.name}
     </span>
   );
+}
+
+export function EvOrObVarName({ varName }: { varName: Variable }) {
+  if ("Event" in varName) {
+    return <EvVarName eventVar={varName.Event} />;
+  }
+  return <ObVarName obVar={varName.Object} />;
 }
