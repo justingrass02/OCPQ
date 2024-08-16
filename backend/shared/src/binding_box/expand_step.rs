@@ -1,23 +1,20 @@
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use crate::{
-    ocel_qualifiers::qualifiers,
-    preprocessing::linked_ocel::{
-        get_events_of_type_associated_with_objects, EventOrObjectIndex, IndexLinkedOCEL,
-        ObjectIndex,
-    },
-};
+use crate::preprocessing::linked_ocel::{EventOrObjectIndex, IndexLinkedOCEL};
 
 use super::structs::{Binding, BindingBox, BindingStep};
 
+/// This can slightly reduce memory usage by filtering out unfitting bindings before collecting into a vec
+/// However, the filters may be checked multiple times
+#[inline(always)]
 fn check_next_filters(
     b: Binding,
     next_step: usize,
     steps: &[BindingStep],
     ocel: &IndexLinkedOCEL,
 ) -> Option<Binding> {
-    for i in next_step..steps.len() {
-        if let BindingStep::Filter(f) = &steps[i] {
+    for step in steps.iter().skip(next_step) {
+        if let BindingStep::Filter(f) = &step {
             if f.check_binding(&b, ocel) {
                 continue;
             } else {
@@ -45,7 +42,6 @@ impl BindingBox {
 
     pub fn expand(&self, parent_bindings: Vec<Binding>, ocel: &IndexLinkedOCEL) -> Vec<Binding> {
         let order = BindingStep::get_binding_order(self);
-        // return Vec::default();
         self.expand_with_steps(parent_bindings, ocel, &order)
     }
 
@@ -158,39 +154,26 @@ impl BindingBox {
                                 .iter()
                                 .filter_map(move |(to_index, rev, qual)| {
                                     if let EventOrObjectIndex::Object(to_ob_index) = to_index {
-                                        if rev != reversed {
-                                            None
-                                        } else {
-                                            if qualifier.is_none()
-                                                || qual == qualifier.as_ref().unwrap()
-                                            {
-                                                if let Some(allowed_types) =
-                                                    self.new_object_vars.get(ob_var_name)
-                                                {
-                                                    if let Some(o) = ocel.ob_by_index(&to_ob_index)
-                                                    {
-                                                        if allowed_types.contains(&o.object_type) {
-                                                            check_next_filters(
-                                                                b.clone().expand_with_ob(
-                                                                    *ob_var_name,
-                                                                    *to_ob_index,
-                                                                ),
-                                                                step_index + 1,
-                                                                steps,
-                                                                ocel,
-                                                            )
-                                                        } else {
-                                                            None
-                                                        }
-                                                    } else {
-                                                        None
-                                                    }
-                                                } else {
-                                                    None
-                                                }
+                                        if rev == reversed
+                                            && (qualifier.is_none()
+                                                || qual == qualifier.as_ref().unwrap())
+                                        {
+                                            let allowed_types =
+                                                self.new_object_vars.get(ob_var_name)?;
+                                            let o = ocel.ob_by_index(to_ob_index)?;
+                                            if allowed_types.contains(&o.object_type) {
+                                                check_next_filters(
+                                                    b.clone()
+                                                        .expand_with_ob(*ob_var_name, *to_ob_index),
+                                                    step_index + 1,
+                                                    steps,
+                                                    ocel,
+                                                )
                                             } else {
                                                 None
                                             }
+                                        } else {
+                                            None
                                         }
                                     } else {
                                         None
@@ -214,20 +197,15 @@ impl BindingBox {
                                         || qualifier.as_ref().unwrap().contains(q)
                                     {
                                         if let EventOrObjectIndex::Event(rel_to_ev) = rel_to {
-                                            if let Some(to_ev) = ocel.ev_by_index(rel_to_ev) {
-                                                if ev_types.contains(&to_ev.event_type) {
-                                                    check_next_filters(
-                                                        b.clone().expand_with_ev(
-                                                            *ev_var_name,
-                                                            *rel_to_ev,
-                                                        ),
-                                                        step_index + 1,
-                                                        steps,
-                                                        ocel,
-                                                    )
-                                                } else {
-                                                    None
-                                                }
+                                            let to_ev = ocel.ev_by_index(rel_to_ev)?;
+                                            if ev_types.contains(&to_ev.event_type) {
+                                                check_next_filters(
+                                                    b.clone()
+                                                        .expand_with_ev(*ev_var_name, *rel_to_ev),
+                                                    step_index + 1,
+                                                    steps,
+                                                    ocel,
+                                                )
                                             } else {
                                                 None
                                             }
@@ -241,13 +219,13 @@ impl BindingBox {
                         })
                         .collect();
                 }
-                _ => {}
-                // BindingStep::Filter(f) => {
-                //     ret = ret
-                //         .into_par_iter()
-                //         .filter(|b| f.check_binding(b, ocel))
-                //         .collect()
-                // }
+                // _ => {}
+                BindingStep::Filter(f) => {
+                    ret = ret
+                        .into_par_iter()
+                        .filter(|b| f.check_binding(b, ocel))
+                        .collect()
+                }
             }
             sizes_per_step.push(ret.len())
         }

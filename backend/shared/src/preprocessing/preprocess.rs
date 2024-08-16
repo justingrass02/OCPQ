@@ -37,12 +37,11 @@ pub fn get_events_of_type_associated_with_objects(
     object_ids: &[ObjectIndex],
 ) -> Vec<EventIndex> {
     if object_ids.is_empty() {
-        return event_types.iter().flat_map(|et| 
-            linked_ocel
-            .events_of_type.get(*et).unwrap()
-        )
+        return event_types
+            .iter()
+            .flat_map(|et| linked_ocel.events_of_type.get(*et).unwrap())
             .copied()
-            .collect()
+            .collect();
     }
     // let mut sorted_object_ids = object_ids.clone();
     let mut sorted_object_ids_iter = object_ids.iter().sorted_by(|a, b| {
@@ -66,22 +65,20 @@ pub fn get_events_of_type_associated_with_objects(
         .get(sorted_object_ids_iter.next().unwrap())
         .unwrap()
         .iter()
-        .filter(|ev_id| {
-            event_types.contains(&&linked_ocel.ev_by_index(ev_id).unwrap().event_type)
-        }).copied()
+        .filter(|ev_id| event_types.contains(&&linked_ocel.ev_by_index(ev_id).unwrap().event_type))
+        .copied()
         .collect();
     for other in sorted_object_ids_iter {
         let other_map: HashSet<EventIndex> = linked_ocel
             .object_events_map
             .get(other)
             .unwrap()
-            .iter().copied()
+            .iter()
+            .copied()
             .collect();
         intersection.retain(|ev| other_map.contains(ev))
     }
-    intersection
-        .into_iter()
-        .collect()
+    intersection.into_iter().collect()
 }
 
 pub fn get_event_relationships(ev: &OCELEvent) -> Vec<OCELRelationship> {

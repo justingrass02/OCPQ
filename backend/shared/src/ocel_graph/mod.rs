@@ -2,7 +2,7 @@ use process_mining::ocel::ocel_struct::{OCELEvent, OCELObject};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::preprocessing::linked_ocel::{IndexLinkedOCEL, EventOrObjectIndex};
+use crate::preprocessing::linked_ocel::{EventOrObjectIndex, IndexLinkedOCEL};
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(untagged)]

@@ -348,7 +348,7 @@ fn plot_scatter<S: AsRef<str>, P: AsRef<std::path::Path>>(
     filename: P,
 ) {
     let mut plot = Plot::new();
-    let y = counts.iter().map(|c| random::<f32>()).collect();
+    let y = counts.iter().map(|_c| random::<f32>()).collect();
     let trace = Scatter::new(counts.clone(), y)
         .marker(Marker::new().color("black").size(3))
         .mode(plotly::common::Mode::Markers);
@@ -747,13 +747,13 @@ pub fn discover_or_constraints_new(
 ) -> Vec<(String, BindingBoxTree)> {
     let mut now = Instant::now();
     let mut ret = Vec::new();
-    let instances: Vec<_> = get_instances(ocel, &ocel_type);
+    let instances: Vec<_> = get_instances(ocel, ocel_type);
     let mut count_constraints: HashSet<CountConstraint> =
         discover_count_constraints_for_supporting_instances(
             ocel,
             0.11 * coverage,
             instances.iter(),
-            &ocel_type,
+            ocel_type,
         )
         .into_iter()
         .collect();
@@ -761,20 +761,20 @@ pub fn discover_or_constraints_new(
         ocel,
         0.7 * coverage,
         instances.iter(),
-        &ocel_type,
+        ocel_type,
     ));
     count_constraints.extend(discover_count_constraints_for_supporting_instances(
         ocel,
         coverage,
         instances.iter(),
-        &ocel_type,
+        ocel_type,
     ));
     let variable = match ocel_type {
         EventOrObjectType::Event(_) => Variable::Event(EventVariable(0)),
         EventOrObjectType::Object(_) => Variable::Object(ObjectVariable(0)),
     };
     let bindings = generate_sample_bindings(ocel, &vec![ocel_type.clone()], variable.clone());
-    let max_sat_count: usize = (1.1*coverage * bindings.len() as f32).ceil() as usize;
+    let max_sat_count: usize = (1.1 * coverage * bindings.len() as f32).ceil() as usize;
     let b_instances = binding_to_instances(&bindings, variable.clone());
     count_constraints.into_iter().for_each(|cc| {
         // for cc in &count_constraints {
@@ -810,7 +810,7 @@ pub fn discover_or_constraints_new(
                     &cc_subtree,
                     cc_sat_count,
                     ef_c_subtree,
-                    &ocel_type,
+                    ocel_type,
                     &coverage,
                 ) {
                     ret
@@ -837,7 +837,7 @@ pub fn discover_or_constraints_new(
                     .zip(b_instances.iter())
                     .filter(|(satisfied, _instance)| !**satisfied)
                     .flat_map(|(_satisfied, instance)| instance),
-                &ocel_type,
+                ocel_type,
             );
         cc2_constraints
             .into_iter()
@@ -853,7 +853,7 @@ pub fn discover_or_constraints_new(
                     &cc_subtree,
                     cc_sat_count,
                     cc2_subtree,
-                    &ocel_type,
+                    ocel_type,
                     &coverage,
                 ) {
                     ret
@@ -917,7 +917,7 @@ pub fn discover_or_constraints_new(
                         &ef1_subtree,
                         ef1_sat_count,
                         ef2_subtree,
-                        &ocel_type,
+                        ocel_type,
                         &coverage,
                     ) {
                         ret
@@ -973,7 +973,7 @@ pub fn check_or_compat(
         / (1.0 - ((1.0 - (st1_sat_count as f32 / n)) * (1.0 - (st2_sat_count as f32 / n))));
     let good_sat_frac = or_sat_count as f32 / bindings.len() as f32;
     // println!("Independent Factor: {independent_factor} {good_or_frac} {good_sat_frac} {coverage}");
-    if good_sat_frac >= *coverage && independent_factor >= 1.1  {
+    if good_sat_frac >= *coverage && independent_factor >= 1.1 {
         println!("Pass");
         let or_tree = merge_or_tree(
             st2,

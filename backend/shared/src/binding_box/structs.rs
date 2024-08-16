@@ -4,17 +4,13 @@ use std::{
 };
 
 use itertools::Itertools;
-use process_mining::{
-    ocel::{
-        ocel_struct::{OCELAttributeValue, OCELEvent, OCELObject},
-    },
-};
+use process_mining::ocel::ocel_struct::{OCELAttributeValue, OCELEvent, OCELObject};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use ts_rs::TS;
 
-use crate::{
-    preprocessing::linked_ocel::{EventIndex, IndexLinkedOCEL, ObjectIndex, EventOrObjectIndex},
+use crate::preprocessing::linked_ocel::{
+    EventIndex, EventOrObjectIndex, IndexLinkedOCEL, ObjectIndex,
 };
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
@@ -102,9 +98,7 @@ impl Binding {
 
     pub fn get_any_index(&self, var: &Variable) -> Option<EventOrObjectIndex> {
         match var {
-            Variable::Event(ev) => self
-                .get_ev_index(ev)
-                .map(|r| EventOrObjectIndex::Event(*r)),
+            Variable::Event(ev) => self.get_ev_index(ev).map(|r| EventOrObjectIndex::Event(*r)),
             Variable::Object(ov) => self
                 .get_ob_index(ov)
                 .map(|r: &ObjectIndex| EventOrObjectIndex::Object(*r)),
@@ -638,7 +632,7 @@ impl Filter {
                 let duration_diff = (e2.time - e1.time).num_milliseconds() as f64 / 1000.0;
                 !min_sec.is_some_and(|min_sec| duration_diff < min_sec)
                     && !max_sec.is_some_and(|max_sec| duration_diff > max_sec)
-            },
+            }
             Filter::NotEqual { var_1, var_2 } => {
                 let val_1 = b.get_any_index(var_1);
                 let val_2 = b.get_any_index(var_2);
@@ -799,7 +793,7 @@ pub enum SizeFilter {
         var_name: Variable,
         min: Option<usize>,
         max: Option<usize>,
-    }
+    },
 }
 
 impl SizeFilter {
@@ -824,9 +818,17 @@ impl SizeFilter {
                     false
                 }
             }
-            SizeFilter::NumChildsProj { child_name, var_name, min, max } => {
+            SizeFilter::NumChildsProj {
+                child_name,
+                var_name,
+                min,
+                max,
+            } => {
                 if let Some(c_res) = child_res.get(child_name) {
-                    let set: HashSet<_> = c_res.iter().flat_map(|(b,_)| b.get_any_index(var_name)).collect();
+                    let set: HashSet<_> = c_res
+                        .iter()
+                        .flat_map(|(b, _)| b.get_any_index(var_name))
+                        .collect();
                     if min.is_some_and(|min| set.len() < min) {
                         false
                     } else {
@@ -939,7 +941,9 @@ impl Filter {
             } => vec![Variable::Event(*from_event), Variable::Event(*to_event)]
                 .into_iter()
                 .collect(),
-                Filter::NotEqual { var_1, var_2 } => vec![var_1.clone(),var_2.clone()].into_iter().collect(),
+            Filter::NotEqual { var_1, var_2 } => {
+                vec![var_1.clone(), var_2.clone()].into_iter().collect()
+            }
             Filter::EventAttributeValueFilter {
                 event,
                 attribute_name: _,
@@ -976,7 +980,7 @@ pub enum BindingStep {
     /// Bind ob
     BindObFromEv(ObjectVariable, EventVariable, Qualifier),
     // bool: reversed?
-    BindObFromOb(ObjectVariable, ObjectVariable, Qualifier,bool),
+    BindObFromOb(ObjectVariable, ObjectVariable, Qualifier, bool),
     BindEvFromOb(EventVariable, ObjectVariable, Qualifier),
     Filter(Filter),
 }

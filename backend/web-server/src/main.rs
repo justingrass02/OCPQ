@@ -27,9 +27,7 @@ use ocedeclare_shared::{
     OCELInfo,
 };
 use process_mining::{
-    event_log::{ocel::ocel_struct::OCEL, Event},
-    import_ocel_xml_slice,
-    ocel::ocel_struct::OCELEvent,
+    event_log::ocel::ocel_struct::OCEL, import_ocel_xml_slice, ocel::ocel_struct::OCELEvent,
 };
 use tower_http::cors::CorsLayer;
 
@@ -207,8 +205,8 @@ pub async fn auto_discover_constraints_handler<'a>(
 
 pub async fn get_event_info<'a>(
     state: State<AppState>,
-    Path(event_id): Path<String>
+    Path(event_id): Path<String>,
 ) -> Json<Option<OCELEvent>> {
-    println!("{:?}",event_id);
+    println!("{:?}", event_id);
     Json(with_ocel_from_state(&state, |ocel| ocel.ev_by_id(&event_id).cloned()).unwrap_or_default())
 }

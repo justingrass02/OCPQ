@@ -256,7 +256,7 @@ impl IndexLinkedOCEL {
     ) -> Option<&HashSet<(EventOrObjectIndex, bool, String)>> {
         self.symmetric_rels.get(&EventOrObjectIndex::Event(*index))
     }
-    
+
     // pub fn get_ocel_type_of_index(&self, index: &EventOrObjectIndex) -> Option<EventOrObjectType> {
     //     match index {
     //         EventOrObjectIndex::Object(obi) => {
@@ -271,7 +271,7 @@ impl IndexLinkedOCEL {
     //                 Some(EventOrObjectType::Object(ob.event_type.clone()))
     //             }else {
     //                 None
-    //             } 
+    //             }
     //         },
     //     }
     // }
