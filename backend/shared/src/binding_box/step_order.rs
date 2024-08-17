@@ -1,9 +1,65 @@
 use std::collections::{HashMap, HashSet};
 
 use itertools::Itertools;
+use rand::random;
 
-use super::structs::{BindingBox, BindingStep, Filter, Qualifier, Variable};
+use crate::{discovery::advanced::EventOrObjectType, preprocessing::linked_ocel::IndexLinkedOCEL};
 
+use super::{
+    structs::{BindingBox, BindingStep, Filter, Qualifier, Variable},
+    Binding,
+};
+
+pub fn get_expected_relation_count(
+    var: &Variable,
+    bound_by: &Variable,
+    bbox: &BindingBox,
+    parent_binding_opt: Option<&Binding>,
+    ocel: Option<&IndexLinkedOCEL>,
+) -> Option<f32> {
+    if ocel.is_none() {
+        eprintln!("NO OCEL?! for step order");
+        return None;
+    }
+    let mut bound_by_types = Vec::new();
+    // First check if bound_by is already bound by parent
+    if let Some(bound_by_index) = parent_binding_opt.and_then(|b| b.get_any_index(bound_by)) {
+        if let Some(ocel) = ocel {
+            if let Some(bound_by_type) = ocel.get_type_of(bound_by_index) {
+                bound_by_types.push(bound_by_type)
+            }
+        }
+    } else {
+        bound_by_types = match bound_by {
+            Variable::Event(var_ev) => bbox
+                .new_event_vars
+                .get(var_ev)
+                .unwrap()
+                .iter()
+                .map(|t| EventOrObjectType::Event(t.clone()))
+                .collect(),
+            Variable::Object(var_ob) => bbox
+                .new_object_vars
+                .get(var_ob)
+                .unwrap()
+                .iter()
+                .map(|t| EventOrObjectType::Object(t.clone()))
+                .collect(),
+        }
+    }
+    let res = bound_by_types
+        .into_iter()
+        .map(|(bound_by_type)| {
+            ocel.unwrap()
+                .avg_rels_of_type_per_type
+                .get(&bound_by_type)
+                .copied()
+                .unwrap_or_default()
+        })
+        .sum();
+    // println!("{res} for {var:?} {bound_by:?}");
+    Some(res)
+}
 impl BindingStep {
     /// Get a binding order from a binding box
     ///
@@ -13,7 +69,11 @@ impl BindingStep {
     /// * The order should enable fast construction, i.e., it should create as few unnecessary bindings in between as possible
     ///
     /// For that, it e.g., could make sense to first bind an event variable and then use the bound event to bind object variables
-    pub fn get_binding_order(bbox: &BindingBox) -> Vec<Self> {
+    pub fn get_binding_order(
+        bbox: &BindingBox,
+        parent_binding_opt: Option<&Binding>,
+        ocel: Option<&IndexLinkedOCEL>,
+    ) -> Vec<Self> {
         let mut ret = Vec::new();
 
         let mut var_requiring_bindings: HashSet<Variable> = bbox
@@ -184,6 +244,17 @@ impl BindingStep {
                             .find(|(x, _q, _filter_index, _reversed)| x == &var)
                             .map(|t| (v, t))
                     })
+                    .sorted_by_cached_key(|(bound_by_var, (_v, _q, _filter_index, _reversed))| {
+                        get_expected_relation_count(
+                            &var,
+                            bound_by_var,
+                            bbox,
+                            parent_binding_opt,
+                            ocel,
+                        )
+                        .unwrap_or(10.0)
+                        .round() as usize
+                    })
                     .next()
                 {
                     // `var` can be bound based on `v`!
@@ -257,6 +328,7 @@ impl BindingStep {
                 .filter(|(i, _)| !filter_indices_incoporated.contains(i))
                 .map(|(_, f)| BindingStep::Filter(f.clone())),
         );
+        // println!("Steps: {ret:?}");
         ret
     }
 }

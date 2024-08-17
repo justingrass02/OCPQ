@@ -1,6 +1,8 @@
 use std::{
     collections::{HashMap, HashSet},
+    f32::consts::PI,
     fmt::Display,
+    time::Instant,
 };
 
 use itertools::Itertools;
@@ -11,7 +13,9 @@ use process_mining::{
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::ocel_qualifiers::qualifiers::QualifierAndObjectType;
+use crate::{
+    discovery::advanced::EventOrObjectType, ocel_qualifiers::qualifiers::QualifierAndObjectType,
+};
 
 pub fn get_object_events_map(
     ocel: &OCEL,
@@ -203,6 +207,8 @@ pub struct IndexLinkedOCEL {
     pub rels: HashMap<EventOrObjectIndex, Vec<(ObjectIndex, String)>>,
     // Symmetric relations: Object/Event Index maps to set of associated Object/Event index; boolean flag is true if the relation is reversed and a String for the qualifier
     pub symmetric_rels: HashMap<EventOrObjectIndex, HashSet<(EventOrObjectIndex, bool, String)>>,
+
+    pub avg_rels_of_type_per_type: HashMap<EventOrObjectType, f32>,
 }
 
 impl IndexLinkedOCEL {
@@ -257,6 +263,22 @@ impl IndexLinkedOCEL {
         self.symmetric_rels.get(&EventOrObjectIndex::Event(*index))
     }
 
+    pub fn get_type_of(&self, index: EventOrObjectIndex) -> Option<EventOrObjectType> {
+        if let Some(x) = self.ob_or_ev_by_index(index) {
+            let res = match x {
+                OCELNodeRef::Event(ev) => EventOrObjectType::Event(ev.event_type.clone()),
+                OCELNodeRef::Object(ob) => EventOrObjectType::Object(ob.object_type.clone()),
+            };
+            Some(res)
+        } else {
+            None
+        }
+        // match self.e {
+        //     EventOrObjectIndex::Object(o_index) => self.get,
+        //     EventOrObjectIndex::Event(_) => todo!(),
+        // }
+    }
+
     // pub fn get_ocel_type_of_index(&self, index: &EventOrObjectIndex) -> Option<EventOrObjectType> {
     //     match index {
     //         EventOrObjectIndex::Object(obi) => {
@@ -278,13 +300,14 @@ impl IndexLinkedOCEL {
 }
 
 pub fn link_ocel_info(ocel: OCEL) -> IndexLinkedOCEL {
+    let now = Instant::now();
     let object_map: HashMap<String, &OCELObject> = ocel
         .objects
         .iter()
         .map(|obj| (obj.id.clone(), obj))
         .collect();
 
-    let events_of_type = ocel
+    let events_of_type: HashMap<String, Vec<EventIndex>> = ocel
         .event_types
         .iter()
         .map(|ev_type| {
@@ -300,7 +323,7 @@ pub fn link_ocel_info(ocel: OCEL) -> IndexLinkedOCEL {
         })
         .collect();
 
-    let objects_of_type = ocel
+    let objects_of_type: HashMap<String, Vec<ObjectIndex>> = ocel
         .object_types
         .iter()
         .map(|obj_type| {
@@ -335,6 +358,7 @@ pub fn link_ocel_info(ocel: OCEL) -> IndexLinkedOCEL {
         EventOrObjectIndex,
         HashSet<(EventOrObjectIndex, bool, String)>,
     > = HashMap::new();
+    let mut types_rel_counts: HashMap<EventOrObjectType, usize> = HashMap::new();
     for (e_index_usize, e) in ocel.events.iter().enumerate() {
         let e_index = EventOrObjectIndex::Event(EventIndex(e_index_usize));
         for r in e.relationships.iter().flatten() {
@@ -353,6 +377,14 @@ pub fn link_ocel_info(ocel: OCEL) -> IndexLinkedOCEL {
                 rels.entry(e_index)
                     .or_default()
                     .push((*object_index, r.qualifier.clone()));
+                *types_rel_counts
+                    .entry(EventOrObjectType::Event(e.event_type.clone()))
+                    .or_default() += 1;
+                *types_rel_counts
+                    .entry(EventOrObjectType::Object(
+                        ocel.objects[object_index.0].object_type.clone(),
+                    ))
+                    .or_default() += 1;
             }
         }
     }
@@ -374,9 +406,31 @@ pub fn link_ocel_info(ocel: OCEL) -> IndexLinkedOCEL {
                 rels.entry(o_index)
                     .or_default()
                     .push((*object_index, r.qualifier.clone()));
+                *types_rel_counts
+                    .entry(EventOrObjectType::Object(o.object_type.clone()))
+                    .or_default() += 1;
+                *types_rel_counts
+                    .entry(EventOrObjectType::Object(
+                        ocel.objects[object_index.0].object_type.clone(),
+                    ))
+                    .or_default() += 1;
             }
         }
     }
+    println!("{:?}", types_rel_counts);
+    let avg_rels_of_type_per_type = types_rel_counts
+        .into_iter()
+        .map(|(t, count)| {
+            let n = match &t {
+                EventOrObjectType::Event(et1) => events_of_type.get(et1).unwrap().len(),
+                EventOrObjectType::Object(ot1) => objects_of_type.get(ot1).unwrap().len(),
+            };
+
+            (t, count as f32 / n as f32)
+        })
+        .collect();
+    println!("{:?}", avg_rels_of_type_per_type);
+    println!("Linking OCEL took {:?}", now.elapsed());
     IndexLinkedOCEL {
         events_of_type,
         objects_of_type,
@@ -387,5 +441,6 @@ pub fn link_ocel_info(ocel: OCEL) -> IndexLinkedOCEL {
         object_index_map,
         rels,
         symmetric_rels,
+        avg_rels_of_type_per_type,
     }
 }

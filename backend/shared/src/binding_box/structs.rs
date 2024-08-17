@@ -268,7 +268,7 @@ impl BindingBoxTreeNode {
         };
         // match self {
         //     BindingBoxTreeNode::Box(bbox, children) => {
-        let expanded: Vec<Binding> = bbox.expand(vec![parent_binding.clone()], ocel);
+        let expanded: Vec<Binding> = bbox.expand(parent_binding.clone(), ocel);
         enum BindingResult {
             FilteredOutBySizeFilter(Binding, EvaluationResults),
             Sat(Binding, EvaluationResults),

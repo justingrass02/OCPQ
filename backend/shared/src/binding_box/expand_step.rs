@@ -29,7 +29,7 @@ fn check_next_filters(
 
 impl BindingBox {
     pub fn expand_empty(&self, ocel: &IndexLinkedOCEL) -> Vec<Binding> {
-        self.expand(vec![Binding::default()], ocel)
+        self.expand(Binding::default(), ocel)
     }
 
     pub fn expand_with_steps_empty(
@@ -37,21 +37,21 @@ impl BindingBox {
         ocel: &IndexLinkedOCEL,
         steps: &[BindingStep],
     ) -> Vec<Binding> {
-        self.expand_with_steps(vec![Binding::default()], ocel, steps)
+        self.expand_with_steps(Binding::default(), ocel, steps)
     }
 
-    pub fn expand(&self, parent_bindings: Vec<Binding>, ocel: &IndexLinkedOCEL) -> Vec<Binding> {
-        let order = BindingStep::get_binding_order(self);
-        self.expand_with_steps(parent_bindings, ocel, &order)
+    pub fn expand(&self, parent_binding: Binding, ocel: &IndexLinkedOCEL) -> Vec<Binding> {
+        let order = BindingStep::get_binding_order(self,Some(&parent_binding), Some(&ocel));
+        self.expand_with_steps(parent_binding, ocel, &order)
     }
 
     pub fn expand_with_steps(
         &self,
-        parent_bindings: Vec<Binding>,
+        parent_binding: Binding,
         ocel: &IndexLinkedOCEL,
         steps: &[BindingStep],
     ) -> Vec<Binding> {
-        let mut ret = parent_bindings;
+        let mut ret = vec![parent_binding];
         let mut sizes_per_step: Vec<usize> = Vec::with_capacity(steps.len());
         for step_index in 0..steps.len() {
             let step = &steps[step_index];
