@@ -156,7 +156,7 @@ impl Display for ObjectIndex {
     }
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub enum EventOrObjectIndex {
     Object(ObjectIndex),
     Event(EventIndex),
@@ -178,6 +178,7 @@ impl OCELNode {
     }
 }
 
+#[derive(Debug)]
 pub enum OCELNodeRef<'a> {
     Event(&'a OCELEvent),
     Object(&'a OCELObject),

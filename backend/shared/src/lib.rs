@@ -13,6 +13,7 @@ pub mod preprocessing {
     pub mod preprocess;
     pub mod tests;
 }
+pub mod cel;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OCELInfo {

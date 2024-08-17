@@ -175,6 +175,10 @@ export default function FilterChooser({
                       value: "NotEqual"
                     },
                     {
+                      label: "Common Expression Language Script (Basic)",
+                      value: "BasicFilterCEL"
+                    },
+                    {
                       label: "Event Attribute Value",
                       value: "EventAttributeValueFilter",
                     },
@@ -255,6 +259,14 @@ export default function FilterChooser({
                           var_2: {Object: 1}
                         },
                       });
+                    } else if (val === "BasicFilterCEL") {
+                        setAlertState({
+                          ...alertState,
+                          value: {
+                            type: "BasicFilterCEL",
+                            cel: "true"
+                          },
+                        });
                     } else if (val === "NumChilds") {
                       setAlertState({
                         ...alertState,
@@ -450,6 +462,7 @@ export default function FilterChooser({
                           "O2O",
                           "TimeBetweenEvents",
                           "NotEqual",
+                          "BasicFilterCEL",
                           "ObjectAttributeValueFilter",
                           "EventAttributeValueFilter",
                         ].includes(alertState.value.type)

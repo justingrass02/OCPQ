@@ -19,6 +19,8 @@ import { EvOrObVarName, EvVarName, ObVarName } from "./variable-names";
 import type { ValueFilter } from "@/types/generated/ValueFilter";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Editor } from "@monaco-editor/react";
+import CELEditor from "@/components/CELEditor";
 
 export default function FilterOrConstraintEditor<
   T extends Filter | SizeFilter | Constraint,
@@ -159,6 +161,12 @@ export default function FilterOrConstraintEditor<
           />
         </>
       );
+    case "BasicFilterCEL":
+      return <>
+      <CELEditor cel={value.cel} onChange={(newCel) => {
+        value.cel = newCel ?? "true";
+        updateValue({...value});
+      }}/></>
     case "TimeBetweenEvents":
       return (
         <>
@@ -769,6 +777,12 @@ export function FilterOrConstraintDisplay<
           <EvOrObVarName varName={value.var_1} />
           ≠
           <EvOrObVarName varName={value.var_2} />
+        </div>
+      );
+    case "BasicFilterCEL":
+      return (
+        <div className="flex items-center gap-x-1 font-normal text-sm">
+          CEL
         </div>
       );
     case "NumChilds":

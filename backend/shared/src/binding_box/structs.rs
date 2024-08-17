@@ -1,6 +1,6 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
-    fmt::Display,
+    fmt::Display, time::Instant,
 };
 
 use itertools::Itertools;
@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use ts_rs::TS;
 
-use crate::preprocessing::linked_ocel::{
+use crate::{cel::{evaluate_cel, get_vars_in_cel_program, lazy_compile_and_insert_into_cache, CEL_PROGRAM_CACHE}, preprocessing::linked_ocel::{
     EventIndex, EventOrObjectIndex, IndexLinkedOCEL, ObjectIndex,
-};
+}};
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
@@ -578,6 +578,9 @@ pub enum Filter {
         at_time: ObjectValueFilterTimepoint,
         value_filter: ValueFilter,
     },
+    BasicFilterCEL {
+        cel: String
+    }
 }
 
 impl Filter {
@@ -696,6 +699,12 @@ impl Filter {
                     false
                 }
             }
+            Filter::BasicFilterCEL { cel } => {
+                // let now = Instant::now();
+                let res = evaluate_cel(cel, b, ocel);
+                // println!("Took {:?}",now.elapsed());
+                res
+            },
         }
     }
 }
@@ -964,6 +973,9 @@ impl Filter {
                 }
                 ret
             }
+            Filter::BasicFilterCEL { cel } => {
+                get_vars_in_cel_program(&cel)
+            },
         }
     }
 }
