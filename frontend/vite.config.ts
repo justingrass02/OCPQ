@@ -10,6 +10,6 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    exclude: ["monaco-editor"]
+    // exclude: ["monaco-editor"]
   },
 });

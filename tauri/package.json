@@ -12,6 +12,7 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.6.0",
     "@radix-ui/react-accordion": "^1.1.2",
     "@radix-ui/react-alert-dialog": "^1.0.5",
     "@radix-ui/react-dialog": "^1.0.5",
@@ -31,6 +32,7 @@
     "elkjs": "^0.9.3",
     "html-to-image": "^1.11.11",
     "json5": "^2.2.3",
+    "monaco-editor": "^0.50.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.4.1",
@@ -41,6 +43,7 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^1.5.11",
     "@types/node": "^20.9.0",
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
@@ -61,7 +64,6 @@
     "prettier": "3.0.3",
     "tailwindcss": "^3.3.5",
     "typescript": "^5.2.2",
-    "vite": "^4.4.5",
-    "@tauri-apps/cli": "^1.5.11"
+    "vite": "^4.4.5"
   }
 }
