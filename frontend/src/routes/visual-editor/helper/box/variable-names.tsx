@@ -2,7 +2,7 @@ import { useContext } from "react";
 import { VisualEditorContext } from "../VisualEditorContext";
 import { MdEvent } from "react-icons/md";
 import { LuBox } from "react-icons/lu";
-import { Variable } from "@/types/generated/Variable";
+import type { Variable } from "@/types/generated/Variable";
 
 export function getEvVarName(eventVar: number) {
   return function GetEvVarName() {

@@ -19,8 +19,8 @@ import { EvOrObVarName, EvVarName, ObVarName } from "./variable-names";
 import type { ValueFilter } from "@/types/generated/ValueFilter";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Editor } from "@monaco-editor/react";
 import CELEditor from "@/components/CELEditor";
+import { PiCodeFill } from "react-icons/pi";
 
 export default function FilterOrConstraintEditor<
   T extends Filter | SizeFilter | Constraint,
@@ -162,11 +162,20 @@ export default function FilterOrConstraintEditor<
         </>
       );
     case "BasicFilterCEL":
-      return <>
-      <CELEditor cel={value.cel} onChange={(newCel) => {
-        value.cel = newCel ?? "true";
-        updateValue({...value});
-      }}/></>
+      return (
+        <>
+          <CELEditor
+            cel={value.cel}
+            onChange={(newCel) => {
+              value.cel = newCel ?? "true";
+              updateValue({ ...value });
+            }}
+            availableEventVars={availableEventVars}
+            availableObjectVars={availableObjectVars}
+            nodeID={nodeID}
+          />
+        </>
+      );
     case "TimeBetweenEvents":
       return (
         <>
@@ -781,8 +790,15 @@ export function FilterOrConstraintDisplay<
       );
     case "BasicFilterCEL":
       return (
-        <div className="flex items-center gap-x-1 font-normal text-sm">
-          CEL
+        <div className="flex items-center font-normal text-sm w-full">
+          {/* CEL */}
+          <pre
+            className="bg-white/50 font-semibold text-slate-800 border border-slate-600/10 text-[0.5rem] px-0.5 rounded-sm overflow-ellipsis overflow-hidden"
+            title={value.cel}
+          >
+            <PiCodeFill className="inline mr-0.5" size={12} />
+            {value.cel}
+          </pre>
         </div>
       );
     case "NumChilds":

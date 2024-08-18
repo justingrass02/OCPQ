@@ -11,7 +11,6 @@ import MiscNodeConstraints from "./MiscNodeConstraints";
 import ViolationIndicator from "./ViolationIndicator";
 import { getViolationStyles } from "../violation-styles";
 import SituationIndicator from "./SituationIndicator";
-import CELEditor from "@/components/CELEditor";
 export default memo(EventTypeNode);
 function EventTypeNode({ data, id, selected }: NodeProps<EventTypeNodeData>) {
   const { violationsPerNode, onNodeDataChange } =

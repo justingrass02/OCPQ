@@ -1007,8 +1007,9 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                   typeof reason === "object" &&
                     "Box" in node &&
                     "ConstraintNotSatisfied" in reason && (
-                      <div className="flex items-center gap-x-2 justify-between mx-0 font-medium tracking-tighter flex-nowrap whitespace-nowrap">
+                      <div className="flex items-center gap-x-2 justify-between mx-0 font-medium tracking-tighter flex-nowrap whitespace-nowrap pr-2">
                         Violated Constraint
+                        <div className="max-w-[7.66rem]">
                         <FilterOrConstraintDisplay
                           value={
                             node.Box[0].constraints[
@@ -1016,8 +1017,9 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                             ]
                           }
                         />
+                        </div>
                         <div className="text-xs">
-                          #{reason.ConstraintNotSatisfied}
+                          @{reason.ConstraintNotSatisfied}
                         </div>
                       </div>
                     )

@@ -1,11 +1,10 @@
 use std::{
     collections::{HashMap, HashSet},
-    fmt::format,
     sync::{Arc, RwLock},
-    time::Instant,
 };
 
 use cel_interpreter::{extractors::This, Context, FunctionContext, Program, ResolveResult, Value};
+use chrono::{DateTime, FixedOffset};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use process_mining::ocel::ocel_struct::OCELAttributeValue;
@@ -20,24 +19,16 @@ use crate::{
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, sync::Arc};
+    
 
-    use cel_interpreter::{
-        extractors::This,
-        objects::{Key, Map},
-        Context, FunctionContext, Program, ResolveResult, Value,
-    };
-    use process_mining::{
-        event_log::AttributeValue, import_ocel_json_from_path,
-        ocel::ocel_struct::OCELAttributeValue,
-    };
+    
+
+    use process_mining::import_ocel_json_from_path;
 
     use crate::{
-        binding_box::structs::{Binding, EventVariable, ObjectVariable, Variable},
-        cel::var_string_to_val,
-        ocel_graph::GraphNode,
+        binding_box::structs::{Binding, EventVariable, ObjectVariable},
         preprocessing::linked_ocel::{
-            link_ocel_info, EventIndex, EventOrObjectIndex, IndexLinkedOCEL, OCELNodeRef,
+            link_ocel_info, EventIndex,
             ObjectIndex,
         },
     };
@@ -173,9 +164,9 @@ pub fn evaluate_cel<'a>(cel: &str, binding: &'a Binding, ocel: &'a IndexLinkedOC
     );
 
     context.add_function(
-        "get_attr",
+        "attr",
         move |ftx: &FunctionContext,
-              variable: Arc<String>,
+              This(variable): This<Arc<String>>,
               attr_name: Arc<String>|
               -> ResolveResult {
             let val = unsafe { var_string_to_val_raw(&variable, binding_raw, ocel_raw) };
@@ -210,6 +201,65 @@ pub fn evaluate_cel<'a>(cel: &str, binding: &'a Binding, ocel: &'a IndexLinkedOC
                 None => ftx.error("Event or Object not found.").into(),
             };
             res
+        },
+    );
+
+    context.add_function(
+        "attr_at",
+        move |ftx: &FunctionContext,
+              This(variable): This<Arc<String>>,
+              attr_name: Arc<String>,
+              at: DateTime<FixedOffset>|
+              -> ResolveResult {
+            let val = unsafe { var_string_to_val_raw(&variable, binding_raw, ocel_raw) };
+            let res = match val {
+                Some(val_ref) => {
+                    let attr_val = match val_ref {
+                        OCELNodeRef::Event(ev) => ev
+                            .attributes
+                            .iter()
+                            .filter(|a| &a.name == attr_name.as_ref())
+                            .next()
+                            .map(|a| &a.value),
+                        OCELNodeRef::Object(ob) => ob
+                            .attributes
+                            .iter()
+                            .filter(|a| &a.name == attr_name.as_ref())
+                            .sorted_by_key(|a| a.time)
+                            .filter(|a| a.time <= at)
+                            .last()
+                            .map(|a| &a.value),
+                    }
+                    .unwrap_or(&OCELAttributeValue::Null);
+                    let cel_val = match attr_val {
+                        OCELAttributeValue::Float(f) => (*f).into(),
+                        OCELAttributeValue::Integer(i) => (*i).into(),
+                        OCELAttributeValue::String(s) => s.clone().into(),
+                        OCELAttributeValue::Time(t) => t.fixed_offset().into(),
+                        OCELAttributeValue::Boolean(b) => (*b).into(),
+                        OCELAttributeValue::Null => Value::Null,
+                    };
+                    Ok(cel_val)
+                }
+
+                None => ftx.error("Event or Object not found.").into(),
+            };
+            res
+        },
+    );
+
+    context.add_function(
+        "time",
+        move |ftx: &FunctionContext, This(variable): This<Arc<String>>| -> ResolveResult {
+            let val = unsafe { var_string_to_val_raw(&variable, binding_raw, ocel_raw) };
+            match val {
+                Some(val_ref) => match val_ref {
+                    OCELNodeRef::Event(ev) => Ok(ev.time.fixed_offset().into()),
+                    _ => ftx.error("Event not found.").into(),
+                },
+
+                None => ftx.error("Event not found.").into(),
+            }
         },
     );
 

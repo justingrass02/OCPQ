@@ -75,7 +75,7 @@ export default function FilterChooser({
           box.filters.map((fc, i) => (
             <li key={i}>
               <button
-                className="hover:bg-blue-200/50 px-0.5 rounded-sm text-left w-fit max-w-full"
+                className="hover:bg-blue-200/50 rounded-sm text-left w-fit max-w-full"
                 onClick={() => {
                   setAlertState({
                     editIndex: i,
@@ -94,7 +94,7 @@ export default function FilterChooser({
           box.sizeFilters.map((sf, i) => (
             <li key={"sizeFilters" + i}>
               <button
-                className="hover:bg-blue-200/50 px-0.5 rounded-sm text-left w-fit max-w-full"
+                className="hover:bg-blue-200/50 rounded-sm text-left w-fit max-w-full"
                 onClick={() => {
                   setAlertState({
                     editIndex: i,
@@ -111,9 +111,9 @@ export default function FilterChooser({
           ))}
         {type === "constraint" &&
           box.constraints.map((c, i) => (
-            <li key={"constraints" + i}>
+            <li key={"constraints" + i} className="w-full pr-[2.33rem]">
               <button
-                className="hover:bg-blue-200/50 px-0.5 rounded-sm text-left  w-fit max-w-full"
+                className="hover:bg-blue-200/50 rounded-sm text-left w-fit max-w-full"
                 onClick={() => {
                   setAlertState({
                     editIndex: i,

@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use itertools::Itertools;
-use rand::random;
+
 
 use crate::{discovery::advanced::EventOrObjectType, preprocessing::linked_ocel::IndexLinkedOCEL};
 
@@ -11,7 +11,6 @@ use super::{
 };
 
 pub fn get_expected_relation_count(
-    var: &Variable,
     bound_by: &Variable,
     bbox: &BindingBox,
     parent_binding_opt: Option<&Binding>,
@@ -49,7 +48,7 @@ pub fn get_expected_relation_count(
     }
     let res = bound_by_types
         .into_iter()
-        .map(|(bound_by_type)| {
+        .map(|bound_by_type| {
             ocel.unwrap()
                 .avg_rels_of_type_per_type
                 .get(&bound_by_type)
@@ -246,7 +245,6 @@ impl BindingStep {
                     })
                     .sorted_by_cached_key(|(bound_by_var, (_v, _q, _filter_index, _reversed))| {
                         get_expected_relation_count(
-                            &var,
                             bound_by_var,
                             bbox,
                             parent_binding_opt,

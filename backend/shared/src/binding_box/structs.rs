@@ -1,6 +1,6 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
-    fmt::Display, time::Instant,
+    fmt::Display,
 };
 
 use itertools::Itertools;
@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use ts_rs::TS;
 
-use crate::{cel::{evaluate_cel, get_vars_in_cel_program, lazy_compile_and_insert_into_cache, CEL_PROGRAM_CACHE}, preprocessing::linked_ocel::{
+use crate::{cel::{evaluate_cel, get_vars_in_cel_program}, preprocessing::linked_ocel::{
     EventIndex, EventOrObjectIndex, IndexLinkedOCEL, ObjectIndex,
 }};
 #[derive(TS)]
