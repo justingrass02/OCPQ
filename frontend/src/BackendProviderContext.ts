@@ -32,6 +32,8 @@ export type BackendProvider = {
     nodes: (OCELEvent | OCELObject)[];
     links: { source: string; target: string; qualifier: string }[];
   }>;
+  "ocel/get-object": (specifier: {id: string}|{index: number}) => Promise<{index: number, object: OCELObject}>;
+  "ocel/get-event": (specifier: {id: string}|{index: number}) => Promise<{index: number, event: OCELEvent}>;
 };
 
 export async function warnForNoBackendProvider<T>(): Promise<T> {
@@ -48,6 +50,8 @@ export const BackendProviderContext = createContext<BackendProvider>({
   "ocel/object-qualifiers": warnForNoBackendProvider,
   "ocel/discover-constraints": warnForNoBackendProvider,
   "ocel/graph": warnForNoBackendProvider,
+  "ocel/get-event": warnForNoBackendProvider,
+  "ocel/get-object": warnForNoBackendProvider,
 });
 
 export const BACKEND_URL = "http://localhost:3000";
@@ -126,6 +130,32 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
       method: "post",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(options),
+    });
+    console.log({ res });
+    if (res.ok) {
+      return await res.json();
+    } else {
+      throw new Error(res.statusText);
+    }
+  },
+  "ocel/get-event": async (specifier) => {
+    const res = await fetch(BACKEND_URL + "/ocel/get-event", {
+      method: "post",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(specifier),
+    });
+    console.log({ res });
+    if (res.ok) {
+      return await res.json();
+    } else {
+      throw new Error(res.statusText);
+    }
+  },
+  "ocel/get-object": async (specifier) => {
+    const res = await fetch(BACKEND_URL + "/ocel/get-object", {
+      method: "post",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(specifier),
     });
     console.log({ res });
     if (res.ok) {

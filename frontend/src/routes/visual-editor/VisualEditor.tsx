@@ -79,6 +79,7 @@ import {
 } from "./helper/types";
 import type { BindingBoxTreeNode } from "@/types/generated/BindingBoxTreeNode";
 import { FilterOrConstraintDisplay } from "./helper/box/FilterOrConstraintEditor";
+import { Link } from "react-router-dom";
 function isEditorElementTarget(el: HTMLElement | EventTarget | null) {
   return (
     el === document.body ||
@@ -1010,13 +1011,13 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                       <div className="flex items-center gap-x-2 justify-between mx-0 font-medium tracking-tighter flex-nowrap whitespace-nowrap pr-2">
                         Violated Constraint
                         <div className="max-w-[7.66rem]">
-                        <FilterOrConstraintDisplay
-                          value={
-                            node.Box[0].constraints[
-                              reason.ConstraintNotSatisfied
-                            ]
-                          }
-                        />
+                          <FilterOrConstraintDisplay
+                            value={
+                              node.Box[0].constraints[
+                                reason.ConstraintNotSatisfied
+                              ]
+                            }
+                          />
                         </div>
                         <div className="text-xs">
                           @{reason.ConstraintNotSatisfied}
@@ -1034,8 +1035,16 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
               {Object.entries(binding.eventMap).map(([evVarName, evIndex]) => (
                 <li key={evVarName} className="h-6">
                   <EvVarName eventVar={parseInt(evVarName)} />:{" "}
-                  <span
-                    className="w-[16ch] align-top whitespace-nowrap inline-block text-ellipsis overflow-hidden"
+                  <Link
+                    to={{
+                      pathname: "/ocel-element",
+                      search: `?id=${encodeURIComponent(
+                        violationResPerNodes.eventIds[evIndex],
+                      )}&type=event`,
+                    }}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="max-w-[16ch] align-top whitespace-nowrap inline-block text-ellipsis overflow-hidden underline decoration decoration-blue-500/60 hover:decoration-blue-500"
                     title={violationResPerNodes.eventIds[evIndex]}
                     onDoubleClick={(ev) => {
                       const range = document.createRange();
@@ -1048,7 +1057,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                     }}
                   >
                     {violationResPerNodes.eventIds[evIndex]}
-                  </span>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -1057,8 +1066,16 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
               {Object.entries(binding.objectMap).map(([obVarName, obIndex]) => (
                 <li key={obVarName} className="h-6">
                   <ObVarName obVar={parseInt(obVarName)} />:{" "}
-                  <span
-                    className="w-[16ch] align-top whitespace-nowrap inline-block text-ellipsis overflow-hidden"
+                  <Link
+                    to={{
+                      pathname: "/ocel-element",
+                      search: `?id=${encodeURIComponent(
+                        violationResPerNodes.objectIds[obIndex],
+                      )}&type=object`,
+                    }}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="max-w-[16ch] align-top whitespace-nowrap inline-block text-ellipsis overflow-hidden underline decoration decoration-blue-500/60 hover:decoration-blue-500"
                     title={violationResPerNodes.objectIds[obIndex]}
                     onDoubleClick={(ev) => {
                       const range = document.createRange();
@@ -1071,7 +1088,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                     }}
                   >
                     {violationResPerNodes.objectIds[obIndex]}
-                  </span>
+                  </Link>
                 </li>
               ))}
             </ul>

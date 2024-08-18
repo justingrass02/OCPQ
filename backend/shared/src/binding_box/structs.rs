@@ -9,9 +9,10 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use ts_rs::TS;
 
-use crate::{cel::{evaluate_cel, get_vars_in_cel_program}, preprocessing::linked_ocel::{
-    EventIndex, EventOrObjectIndex, IndexLinkedOCEL, ObjectIndex,
-}};
+use crate::{
+    cel::{evaluate_cel, get_vars_in_cel_program},
+    preprocessing::linked_ocel::{EventIndex, EventOrObjectIndex, IndexLinkedOCEL, ObjectIndex},
+};
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
@@ -325,7 +326,7 @@ impl BindingBoxTreeNode {
                     all_res.extend(c_res);
                 }
                 for sf in &bbox.size_filters {
-                    if !sf.check(&child_res) {
+                    if !sf.check(&b, &child_res, ocel) {
                         return BindingResult::FilteredOutBySizeFilter(b.clone(), all_res);
                     }
                 }
@@ -339,7 +340,7 @@ impl BindingBoxTreeNode {
                             }
                         }
                         Constraint::SizeFilter { filter } => {
-                            if filter.check(&child_res) {
+                            if filter.check(&b, &child_res, ocel) {
                                 None
                             } else {
                                 Some(ViolationReason::ConstraintNotSatisfied(constr_index))
@@ -579,8 +580,8 @@ pub enum Filter {
         value_filter: ValueFilter,
     },
     BasicFilterCEL {
-        cel: String
-    }
+        cel: String,
+    },
 }
 
 impl Filter {
@@ -701,10 +702,10 @@ impl Filter {
             }
             Filter::BasicFilterCEL { cel } => {
                 // let now = Instant::now();
-                let res = evaluate_cel(cel, b, ocel);
+                
                 // println!("Took {:?}",now.elapsed());
-                res
-            },
+                evaluate_cel(cel, b, None, ocel)
+            }
         }
     }
 }
@@ -803,12 +804,17 @@ pub enum SizeFilter {
         min: Option<usize>,
         max: Option<usize>,
     },
+    AdvancedCEL {
+        cel: String,
+    },
 }
 
 impl SizeFilter {
     pub fn check(
         &self,
+        binding: &Binding,
         child_res: &HashMap<String, Vec<(Binding, Option<ViolationReason>)>>,
+        ocel: &IndexLinkedOCEL,
     ) -> bool {
         match self {
             SizeFilter::NumChilds {
@@ -906,6 +912,7 @@ impl SizeFilter {
                     false
                 }
             }
+            SizeFilter::AdvancedCEL { cel } => evaluate_cel(cel, binding, Some(child_res), ocel),
         }
     }
 }
@@ -973,9 +980,7 @@ impl Filter {
                 }
                 ret
             }
-            Filter::BasicFilterCEL { cel } => {
-                get_vars_in_cel_program(&cel)
-            },
+            Filter::BasicFilterCEL { cel } => get_vars_in_cel_program(cel),
         }
     }
 }

@@ -4,6 +4,7 @@ import OuterVisualEditor from "./routes/visual-editor/outer-visual-editor/OuterV
 import OcelInfoViewer from "./routes/ocel-info/OcelInfoViewer.tsx";
 import ErrorPage from "./ErrorPage.tsx";
 import OcelGraphViewer from "./routes/OcelGraphViewer.tsx";
+import OcelElementViewer from "./routes/OcelElementViewer.tsx";
 
 const router = createBrowserRouter([
   {
@@ -14,6 +15,7 @@ const router = createBrowserRouter([
       { path: "/constraints", element: <OuterVisualEditor /> },
       { path: "/ocel-info", element: <OcelInfoViewer /> },
       { path: "/graph", element: <OcelGraphViewer /> },
+      { path: "/ocel-element", element: <OcelElementViewer /> },
     ],
   },
 ]);

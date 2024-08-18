@@ -6,6 +6,7 @@ use axum::{
     Json, Router,
 };
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 
 use std::{
     collections::{HashMap, HashSet},
@@ -27,7 +28,9 @@ use ocedeclare_shared::{
     OCELInfo,
 };
 use process_mining::{
-    event_log::ocel::ocel_struct::OCEL, import_ocel_xml_slice, ocel::ocel_struct::OCELEvent,
+    event_log::ocel::ocel_struct::OCEL,
+    import_ocel_xml_slice,
+    ocel::ocel_struct::{OCELEvent, OCELObject},
 };
 use tower_http::cors::CorsLayer;
 
@@ -83,6 +86,8 @@ async fn main() {
             post(auto_discover_constraints_handler),
         )
         .route("/ocel/event/:event_id", get(get_event_info))
+        .route("/ocel/get-event", post(get_event))
+        .route("/ocel/get-object", post(get_object))
         .with_state(state)
         .route("/", get(|| async { "Hello, Aaron!" }))
         .layer(cors);
@@ -209,4 +214,64 @@ pub async fn get_event_info<'a>(
 ) -> Json<Option<OCELEvent>> {
     println!("{:?}", event_id);
     Json(with_ocel_from_state(&state, |ocel| ocel.ev_by_id(&event_id).cloned()).unwrap_or_default())
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+enum IndexOrID {
+    #[serde(rename = "id")]
+    ID(String),
+    #[serde(rename = "index")]
+    Index(usize),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ObjectWithIndex {
+    object: OCELObject,
+    index: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct EventWithIndex {
+    event: OCELEvent,
+    index: usize,
+}
+
+async fn get_event<'a>(
+    state: State<AppState>,
+    Json(req): Json<IndexOrID>,
+) -> Json<Option<EventWithIndex>> {
+    let res = with_ocel_from_state(&state, |ocel| {
+        let ev_with_index = match req {
+            IndexOrID::ID(id) => ocel
+                .ev_by_id(&id)
+                .cloned()
+                .and_then(|ev| ocel.index_of_ev(&id).map(|ev_index| (ev, ev_index.0))),
+            IndexOrID::Index(index) => ocel.ocel.events.get(index).cloned().map(|ev| (ev, index)),
+        };
+        ev_with_index.map(|(event, index)| EventWithIndex { event, index })
+    })
+    .flatten();
+
+    Json(res)
+}
+
+async fn get_object<'a>(
+    state: State<AppState>,
+    Json(req): Json<IndexOrID>,
+) -> Json<Option<ObjectWithIndex>> {
+    let res = with_ocel_from_state(&state, |ocel| {
+        let ev_with_index = match req {
+            IndexOrID::ID(id) => ocel
+                .ob_by_id(&id)
+                .cloned()
+                .and_then(|ob| ocel.index_of_ob(&id).map(|ob_index| (ob, ob_index.0))),
+            IndexOrID::Index(index) => ocel.ocel.objects.get(index).cloned().map(|ev| (ev, index)),
+        };
+        ev_with_index.map(|(object, index)| ObjectWithIndex { object, index })
+    })
+    .flatten();
+
+    Json(res)
 }

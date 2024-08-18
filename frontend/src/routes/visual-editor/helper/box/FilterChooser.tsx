@@ -175,7 +175,7 @@ export default function FilterChooser({
                       value: "NotEqual"
                     },
                     {
-                      label: "Common Expression Language Script (Basic)",
+                      label: "CEL Script (Basic Filter)",
                       value: "BasicFilterCEL"
                     },
                     {
@@ -205,6 +205,10 @@ export default function FilterChooser({
                           {
                             label: "Number of Projected Child Bindings",
                             value: "NumChildsProj",
+                          },
+                          {
+                            label: "CEL Script (Advanced Filter/Constraint)",
+                            value: "AdvancedCEL",
                           },
                         ]
                       : []),
@@ -302,6 +306,14 @@ export default function FilterChooser({
                           var_name: { Object: 0 },
                           min: 1,
                           max: 10,
+                        },
+                      });
+                    } else if (val === "AdvancedCEL") {
+                      setAlertState({
+                        ...alertState,
+                        value: {
+                          type: "AdvancedCEL",
+                          cel: "true"
                         },
                       });
                     } else if (
@@ -412,6 +424,7 @@ export default function FilterChooser({
                         "BindingSetEqual",
                         "BindingSetProjectionEqual",
                         "NumChildsProj",
+                        "AdvancedCEL",
                       ].includes(alertState.value.type)
                     ) {
                       alertState.type = "sizeFilter";
@@ -438,6 +451,7 @@ export default function FilterChooser({
                           "BindingSetEqual",
                           "BindingSetProjectionEqual",
                           "NumChildsProj",
+                          "AdvancedCEL",
                         ].includes(alertState.value.type)
                       ) {
                         newBox.constraints[index] = {

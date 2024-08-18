@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 
 use itertools::Itertools;
 
-
 use crate::{discovery::advanced::EventOrObjectType, preprocessing::linked_ocel::IndexLinkedOCEL};
 
 use super::{
@@ -244,14 +243,9 @@ impl BindingStep {
                             .map(|t| (v, t))
                     })
                     .sorted_by_cached_key(|(bound_by_var, (_v, _q, _filter_index, _reversed))| {
-                        get_expected_relation_count(
-                            bound_by_var,
-                            bbox,
-                            parent_binding_opt,
-                            ocel,
-                        )
-                        .unwrap_or(10.0)
-                        .round() as usize
+                        get_expected_relation_count(bound_by_var, bbox, parent_binding_opt, ocel)
+                            .unwrap_or(10.0)
+                            .round() as usize
                     })
                     .next()
                 {

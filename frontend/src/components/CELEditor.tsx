@@ -10,12 +10,14 @@ export default function CELEditor({
   onChange,
   availableEventVars,
   availableObjectVars,
+  availableChildSets,
   nodeID,
 }: {
   cel?: string;
   onChange?: (newCel: string | undefined) => unknown;
   availableEventVars: number[];
   availableObjectVars: number[];
+  availableChildSets?: string[];
   nodeID: string;
 }) {
   const monaco = useMonaco();
@@ -30,7 +32,7 @@ export default function CELEditor({
   const specialFunctions = [
     {
       name: "attr",
-      for_type: ["object", "event"],
+      for_type: ["object", "event", "value"],
       insertTemplate: "attr(${1:attr_name})",
       signatureLabel: "value attr(attr_name: string)",
       parameters: [
@@ -40,18 +42,18 @@ export default function CELEditor({
         },
       ],
       description:
-        "**attr**\n\nRetrieve an object/event attribute value.\n\nExample:\n`o1.attr('price') >= 100`<br/><br/>For objects the first encountered attribute value is picked, regardless of the associated timestamp. Use `attrAt` to retrieve the attribute value of an object at a specific timestamp. ",
+        "Retrieve an object/event attribute value.\n\nExample:\n`o1.attr('price') >= 100`<br/><br/>For objects the first encountered attribute value is picked, regardless of the associated timestamp. Use `attrAt` to retrieve the attribute value of an object at a specific timestamp. ",
     },
     {
       name: "attrs",
-      for_type: ["object", "event"],
+      for_type: ["object", "event", "value"],
       insertTemplate: "attrs()",
       description:
-        "**attrs**\n\nRetrieves all attributes of an event or object. Returns a list containing all attributes represented as lists of size 3: name, value, timestamp. The timestamp is only present for object attributes, otherwise it is set to `null`.\n\nExamples:\n`e1.attrs() == [['resource',1000.0,null]]`<br/>`o1.attrs().filter(x,x[0] == 'price').all(x,x[1] >= 100)`",
+        "Retrieves all attributes of an event or object. Returns a list containing all attributes represented as lists of size 3: name, value, timestamp. The timestamp is only present for object attributes, otherwise it is set to `null`.\n\nExamples:\n`e1.attrs() == [['resource',1000.0,null]]`<br/>`o1.attrs().filter(x,x[0] == 'price').all(x,x[1] >= 100)`",
     },
     {
       name: "attrAt",
-      for_type: ["object"],
+      for_type: ["object", "value"],
       insertTemplate: "attrAt(${1:attr_name},${2:at_time})",
 
       signatureLabel: "value attrAt(attr_name: string,at_time: timestamp)",
@@ -67,25 +69,67 @@ export default function CELEditor({
         },
       ],
       description:
-        "**attrAt**\n\nRetrieve an *object* attribute value.\n\nExamples:\n`o1.attr('price',e1.time()) >= 100`,\n\n`o1.attr('price',timestamp('2024-01-01T12:30:00+00:00')) >= 50.0`<br/><br/>The latest recorded attribute value before or at the specified timestamp is selected.<br/>See `attr` for also retrieving attributes of events.",
+        "Retrieve an *object* attribute value.\n\nExamples:\n`o1.attr('price',e1.time()) >= 100`,\n\n`o1.attr('price',timestamp('2024-01-01T12:30:00+00:00')) >= 50.0`<br/><br/>The latest recorded attribute value before or at the specified timestamp is selected.<br/>See `attr` for also retrieving attributes of events.",
     },
     {
       name: "time",
-      for_type: ["event"],
+      for_type: ["event", "value"],
       insertTemplate: "time()",
       description:
-        "**time**\n\nRetrieve the **timestamp of an event**.\n\nExample:\n`e2.time() - e1.time() <= duration('24h')`",
+        "Retrieve the **timestamp of an event**.\n\nExample:\n`e2.time() - e1.time() <= duration('24h')`",
     },
     {
       name: "type",
-      for_type: ["object", "event"],
+      for_type: ["object", "event", "value"],
       insertTemplate: "type()",
       description:
-        "**type**\n\nRetrieve the **type of an object/event**\n\nExample:\n`o1.type() == 'orders'`",
+        "Retrieve the **type of an object/event**\n\nExample:\n`o1.type() == 'orders'`",
+    },
+    {
+      name: "numEvents",
+      for_type: ["standalone"],
+      insertTemplate: "numEvents()",
+      description:
+        "Retrieves the **total number of events** in the loaded OCEL\n\nExample:\n`numEvents() >= 1000`",
+    },
+    {
+      name: "numObjects",
+      for_type: ["standalone"],
+      insertTemplate: "numObjects()",
+      description:
+        "Retrieves the **total number of objects** in the loaded OCEL\n\nExample:\n`numObjects() >= 1000`",
+    },
+    {
+      name: "events",
+      for_type: ["standalone"],
+      insertTemplate: "events()",
+      description:
+        "Retrieves a list of **all events** in the loaded OCEL.\n\nExample:\n`events().all(e,e.time() >= timestamp('2020-01-01T00:00:00+00:00'))`",
+    },
+    {
+      name: "objects",
+      for_type: ["standalone"],
+      insertTemplate: "objects()",
+      description:
+        "Retrieves a list of **all objects** in the loaded OCEL.\n\nExample:\n`objects().all(e,e.attr('price') >= 100)`",
     },
   ];
 
   const standardFunctions = [
+    {
+      name: "size",
+      for_type: ["standalone"],
+      insertTemplate: "size(${1:arg})",
+      signatureLabel: "int size(arg: string|list)",
+      parameters: [
+        {
+          label: "arg: string|list",
+          documentation: "The string or list to measure the size of.",
+        },
+      ],
+      description:
+        "Returns the size/length of a string or list.\n\nExamples:<br/>`size('456') == 3`<br/>`size([]) == 0`",
+    },
     {
       name: "contains",
       for_type: ["value"],
@@ -98,7 +142,7 @@ export default function CELEditor({
         },
       ],
       description:
-        "**contains**\n\nReturns if a string, list or map contains the provided value as a substring/element/key.\n\nExamples:<br/>`'test123'.contains('test') == true`<br/>`['test123','test456','test789'].contains('test456') == true`",
+        "Returns if a string, list or map contains the provided value as a substring/element/key.\n\nExamples:<br/>`'test123'.contains('test') == true`<br/>`['test123','test456','test789'].contains('test456') == true`",
     },
     {
       name: "string",
@@ -182,7 +226,7 @@ export default function CELEditor({
         },
       ],
       description:
-        "**startsWith**\n\nChecks if a string starts with a given prefix.\n\nExamples:<br/>`'abc'.startsWith('a') == true`<br/>`'abc'.startsWith('ac') == false`",
+        "Checks if a string starts with a given prefix.\n\nExamples:<br/>`'abc'.startsWith('a') == true`<br/>`'abc'.startsWith('ac') == false`",
     },
     {
       name: "endsWith",
@@ -196,7 +240,7 @@ export default function CELEditor({
         },
       ],
       description:
-        "**endsWith**\n\nChecks if a string ends with a given postfix.\n\nExamples:<br/>`'abc'.endsWith('c') == true`<br/>`'abc'.endsWith('cb') == false`",
+        "Checks if a string ends with a given postfix.\n\nExamples:<br/>`'abc'.endsWith('c') == true`<br/>`'abc'.endsWith('cb') == false`",
     },
     {
       name: "matches",
@@ -210,7 +254,7 @@ export default function CELEditor({
         },
       ],
       description:
-        "**matches**\n\nTest if a string matches a regular expression.\n\nExamples:<br/>`'abcd'.matches('abc?') == true`<br/>`'^abc$'.matches('abcd') == false`",
+        "Test if a string matches a regular expression.\n\nExamples:<br/>`'abcd'.matches('abc?') == true`<br/>`'^abc$'.matches('abcd') == false`",
     },
     {
       name: "has",
@@ -224,7 +268,7 @@ export default function CELEditor({
         },
       ],
       description:
-        "**has**\n\nChecks if the argument function can be resolved.\n\nExamples:<br/>`has(o1.attr) == true`<br/>`has(o1.nonExistingFunc) == false`",
+        "Checks if the argument function can be resolved.\n\nExamples:<br/>`has(o1.attr) == true`<br/>`has(o1.nonExistingFunc) == false`",
     },
     {
       name: "map",
@@ -244,7 +288,7 @@ export default function CELEditor({
         },
       ],
       description:
-        "**map**\n\nMaps entries of a list according to the provided expression, producing a new list.\n\nExamples:<br/>`[1,2,3].map(x, 2*x) == [2,4,6]`",
+        "Maps entries of a list according to the provided expression, producing a new list.\n\nExamples:<br/>`[1,2,3].map(x, 2*x) == [2,4,6]`",
     },
     {
       name: "filter",
@@ -264,7 +308,7 @@ export default function CELEditor({
         },
       ],
       description:
-        "**filter**\n\nFilters entries of a list according to the provided filter expression, producing a new list.\n\nExamples:<br/>`[1,2,3,4].filter(x, x>=3) == [3,4]`",
+        "Filters entries of a list according to the provided filter expression, producing a new list.\n\nExamples:<br/>`[1,2,3,4].filter(x, x>=3) == [3,4]`",
     },
     {
       name: "all",
@@ -284,7 +328,7 @@ export default function CELEditor({
         },
       ],
       description:
-        "**all**\n\nReturns if **all** entries of the list satisfy the filter expression.\n\nExamples:<br/>`[3,4,5].all(x, x>=3) == true`",
+        "Returns if **all** entries of the list satisfy the filter expression.\n\nExamples:<br/>`[3,4,5].all(x, x>=3) == true`",
     },
     {
       name: "exists",
@@ -304,7 +348,7 @@ export default function CELEditor({
         },
       ],
       description:
-        "**exists**\n\nReturns if **at least one** entry of the list satisfies the filter expression.\n\nExamples:<br/>`[3,4,5].exists(x, x>=5) == true`",
+        "Returns if **at least one** entry of the list satisfies the filter expression.\n\nExamples:<br/>`[3,4,5].exists(x, x>=5) == true`",
     },
     // exists_one skipped
     {
@@ -324,7 +368,21 @@ export default function CELEditor({
         },
       ],
       description:
-        "**max**\n\nReturns the maximum value of either all provided arguments or, if the first argument is a list, the maximum value in this list.\n\nExamples:<br/>`max([3,4,5]) == 5`<br/>`max(3,4,5) == 5`",
+        "Returns the maximum value of either all provided arguments or, if the first argument is a list, the maximum value in this list.\n\nExamples:<br/>`max([3,4,5]) == 5`<br/>`max(3,4,5) == 5`",
+    },
+    {
+      name: "sum",
+      for_type: ["value"],
+      insertTemplate: "sum()",
+      description:
+        "Sums up all entries of a list. Integer and floats are considered while other values are handled as 0.\n\nExamples:<br/>`[3,4,5].sum() == 12`",
+    },
+    {
+      name: "avg",
+      for_type: ["value"],
+      insertTemplate: "avg()",
+      description:
+        "Computes the average of all entries in a list. Integer and floats are considered while other values are handled as 0.\n\nExamples:<br/>`[3,4,5].avg() == 3`",
     },
   ];
   useEffect(() => {
@@ -332,8 +390,8 @@ export default function CELEditor({
       return;
     }
     const dispos: { dispose: () => unknown }[] = [];
-    const specialSymbols = varSymbols.map(
-      (s) => [s, "constant"] as [string, string],
+    const specialSymbols = [...varSymbols, ...(availableChildSets ?? [])].map(
+      (s) => [`${s}(?![a-zA-Z\\d])`, "constant"] as [string, string],
     );
     monaco.languages.register({ id: "cel" });
 
@@ -378,7 +436,7 @@ export default function CELEditor({
           // Custom :)
           ...specialSymbols,
           [
-            /[a-z_$][\w$]*/,
+            /[a-zA-Z_$][\w$]*/,
             {
               cases: {
                 "@customFunctions": "keyword.function.custom",
@@ -394,16 +452,16 @@ export default function CELEditor({
           // ...specialFunctionNames,
 
           // Object construction
-          [
-            /[a-zA-Z_]\w*\s*(\{)/,
-            [
-              "variable.object",
-              {
-                token: "punctuation.definition.object.begin",
-                bracket: "@open",
-              },
-            ],
-          ],
+          // [
+          //   /[a-zA-Z_]\w*\s*(\{)/,
+          //   [
+          //     "variable.object",
+          //     {
+          //       token: "punctuation.definition.object.begin",
+          //       bracket: "@open",
+          //     },
+          //   ],
+          // ],
 
           // Operators
           [
@@ -521,7 +579,6 @@ export default function CELEditor({
     dispos.push(
       monaco.languages.registerCompletionItemProvider("cel", {
         provideCompletionItems: (_model, _position) => {
-          console.log(varSymbols);
           return {
             suggestions: [
               ...varSymbols.map((s) => ({
@@ -534,7 +591,15 @@ export default function CELEditor({
                 range: null as any,
                 kind: monaco.languages.CompletionItemKind.Variable, // CompletionItemKind Variable
               })),
-              ...standardFunctions
+              ...(availableChildSets ?? []).map((s) => ({
+                label: s,
+                insertText: s,
+                filterText: s,
+                detail: "Child Binding Set",
+                range: null as any,
+                kind: monaco.languages.CompletionItemKind.Variable, // CompletionItemKind Variable
+              })),
+              ...[...standardFunctions, ...specialFunctions]
                 .filter((s) => s.for_type.includes("standalone"))
                 .map((s) => ({
                   // TODO: editor.action.triggerParameterHints
@@ -644,10 +709,17 @@ export default function CELEditor({
               startColumn: position.column - 2,
               endColumn: position.column - 1,
             }) ?? "";
-          if (varSymbols.includes(word) && lastChar === ".") {
-            const wordType = word.startsWith("o") ? "object" : "event";
+          if (
+            (varSymbols.includes(word) && lastChar === ".") ||
+            (prevToLastChar !== "" && lastChar === ".")
+          ) {
+            const wordType = varSymbols.includes(word)
+              ? word.startsWith("o")
+                ? "object"
+                : "event"
+              : "value";
             return {
-              suggestions: specialFunctions
+              suggestions: [...specialFunctions, ...standardFunctions]
                 .filter((s) => s.for_type.includes(wordType))
                 .map((s) => ({
                   label: s.name,
@@ -661,22 +733,22 @@ export default function CELEditor({
                       .InsertAsSnippet,
                 })),
             };
-          } else if (prevToLastChar !== "" && lastChar === ".") {
-            return {
-              suggestions: standardFunctions
-                .filter((s) => s.for_type.includes("value"))
-                .map((s) => ({
-                  label: s.name,
-                  insertText: s.insertTemplate ?? s.name,
-                  filterText: s.name,
-                  detail: s.description,
-                  range: null as any,
-                  kind: monaco.languages.CompletionItemKind.Function, // CompletionItemKind Function
-                  insertTextRules:
-                    monaco.languages.CompletionItemInsertTextRule
-                      .InsertAsSnippet,
-                })),
-            };
+            // else if (prevToLastChar !== "" && lastChar === ".") {
+            //   return {
+            //     suggestions: standardFunctions
+            //       .filter((s) => s.for_type.includes("value"))
+            //       .map((s) => ({
+            //         label: s.name,
+            //         insertText: s.insertTemplate ?? s.name,
+            //         filterText: s.name,
+            //         detail: s.description,
+            //         range: null as any,
+            //         kind: monaco.languages.CompletionItemKind.Function, // CompletionItemKind Function
+            //         insertTextRules:
+            //           monaco.languages.CompletionItemInsertTextRule
+            //             .InsertAsSnippet,
+            //       })),
+            //   };
           }
         },
       }),
@@ -707,12 +779,35 @@ export default function CELEditor({
             return {
               contents: [{ value: hintText, supportHtml: true }],
             };
+          } else if (availableChildSets?.includes(word) === true) {
+            return {
+              contents: [
+                {
+                  value: `**${word}**\n\nEvaluated Child Binding Set\n\nList that contains one entry for each child output binding. Variables in the binding can be accessed using the corresponding name strings (e.g., \`'o1'\`). Additionally, each map contains a field \`satisfied\` which indicates if this child binding was satisfied in the child.\n\nExample: \`${word}.all(b,b['satisfied'])\`\n\n\`${word}.all(b,b['o1'].attr('price') >= 100)\``,
+                  supportHtml: true,
+                },
+              ],
+            };
           } else if (specialFunctions.find((s) => s.name === word) != null) {
             const sf = specialFunctions.find((s) => s.name === word)!;
-            return { contents: [{ value: sf.description, supportHtml: true }] };
+            return {
+              contents: [
+                {
+                  value: `**${sf.name}**\n\n` + sf.description,
+                  supportHtml: true,
+                },
+              ],
+            };
           } else if (standardFunctions.find((s) => s.name === word) != null) {
             const sf = standardFunctions.find((s) => s.name === word)!;
-            return { contents: [{ value: sf.description, supportHtml: true }] };
+            return {
+              contents: [
+                {
+                  value: `**${sf.name}**\n\n` + sf.description,
+                  supportHtml: true,
+                },
+              ],
+            };
           }
         },
       }),

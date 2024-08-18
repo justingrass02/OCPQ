@@ -41,7 +41,7 @@ impl BindingBox {
     }
 
     pub fn expand(&self, parent_binding: Binding, ocel: &IndexLinkedOCEL) -> Vec<Binding> {
-        let order = BindingStep::get_binding_order(self,Some(&parent_binding), Some(&ocel));
+        let order = BindingStep::get_binding_order(self, Some(&parent_binding), Some(ocel));
         self.expand_with_steps(parent_binding, ocel, &order)
     }
 
