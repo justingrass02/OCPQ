@@ -11,7 +11,10 @@ import type { ObjectVariable } from "@/types/generated/ObjectVariable";
 
 export type VisualEditorContextValue = {
   violationsPerNode?: EvaluationResPerNodes;
-  showViolationsFor?: (nodeID: string, mode?: "violations" | "situations" | "satisfied-situations") => unknown;
+  showViolationsFor?: (
+    nodeID: string,
+    mode?: "violations" | "situations" | "satisfied-situations",
+  ) => unknown;
   onNodeDataChange: (
     id: string,
     newData: Partial<EventTypeNodeData | GateNodeData> | undefined,
@@ -36,6 +39,11 @@ export type VisualEditorContextValue = {
     variable: number,
     type: "object" | "event",
   ) => OCELType[];
+  showElementInfo: (
+    elInfo:
+      | { req: { id: string } | { index: number }; type: "object" | "event" }
+      | undefined,
+  ) => unknown;
 };
 
 export const VisualEditorContext = createContext<VisualEditorContextValue>({
@@ -50,4 +58,5 @@ export const VisualEditorContext = createContext<VisualEditorContextValue>({
     // name: type.substring(0, 2) + "_" + variable,
     color: "black",
   }),
+  showElementInfo: () => {},
 });

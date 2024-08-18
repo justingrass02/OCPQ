@@ -7,7 +7,6 @@ use axum::{
 };
 use itertools::Itertools;
 
-
 use std::{
     collections::{HashMap, HashSet},
     env,
@@ -220,9 +219,10 @@ pub async fn get_object_info_req<'a>(
     state: State<AppState>,
     Path(object_id): Path<String>,
 ) -> Json<Option<OCELObject>> {
-    Json(with_ocel_from_state(&state, |ocel| ocel.ob_by_id(&object_id).cloned()).unwrap_or_default())
+    Json(
+        with_ocel_from_state(&state, |ocel| ocel.ob_by_id(&object_id).cloned()).unwrap_or_default(),
+    )
 }
-
 
 async fn get_event_req<'a>(
     state: State<AppState>,

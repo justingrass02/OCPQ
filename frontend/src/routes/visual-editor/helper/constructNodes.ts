@@ -328,15 +328,15 @@ export function bindingBoxTreeToNodes(
     return idPrefix + "-edge-" + fromIndex + "-to-" + toIndex;
   }
 
-  function getEdgeData(fromIndex: number, toIndex: number) : EventTypeLinkData {
+  function getEdgeData(fromIndex: number, toIndex: number): EventTypeLinkData {
     const edgeData = tree.edgeNames.find(
       ([[a, b]]) => a === fromIndex && b === toIndex,
     );
     return {
       color: "#969696",
-      minCount:  null,
+      minCount: null,
       maxCount: null,
-      name: edgeData != null ? edgeData[1] : undefined
+      name: edgeData != null ? edgeData[1] : undefined,
     };
   }
   const treeNode = tree.nodes[index];

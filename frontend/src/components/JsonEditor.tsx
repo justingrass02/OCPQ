@@ -1,5 +1,5 @@
 import { initEditorLoader } from "@/lib/editor-loader";
-import { Editor} from "@monaco-editor/react";
+import { Editor } from "@monaco-editor/react";
 
 initEditorLoader();
 export default function JSONEditor({
@@ -12,7 +12,8 @@ export default function JSONEditor({
   readonly?: boolean;
 }) {
   return (
-    <Editor key={(readonly ?? false) ? "readonly" : "writeable"}
+    <Editor
+      key={readonly ?? false ? "readonly" : "writeable"}
       value={value}
       language="json"
       onChange={onChange}
@@ -40,5 +41,3 @@ export default function JSONEditor({
     />
   );
 }
-
-

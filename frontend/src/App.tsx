@@ -158,7 +158,8 @@ function App() {
           {isAtRoot &&
             filePickerAvailable &&
             backend["ocel/picker"] !== undefined && (
-              <Button disabled={loading}
+              <Button
+                disabled={loading}
                 onClick={() => {
                   setLoading(true);
                   void toast
@@ -169,10 +170,11 @@ function App() {
                     })
                     .then((ocelInfo) => {
                       setOcelInfoAndNavigate(ocelInfo);
-                    }).finally(() => setLoading(false));
+                    })
+                    .finally(() => setLoading(false));
                 }}
               >
-                  {loading && <Spinner />}
+                {loading && <Spinner />}
                 Select an OCEL 2.0 File...
               </Button>
             )}

@@ -7,7 +7,7 @@ export type EvaluationResPerNodes = {
   evalRes: Record<string, EvaluationRes>;
   objectIds: string[];
   eventIds: string[];
-  evalNodes: Record<string,BindingBoxTreeNode>;
+  evalNodes: Record<string, BindingBoxTreeNode>;
 };
 export type EvaluationRes = EvaluationResultWithCount;
 

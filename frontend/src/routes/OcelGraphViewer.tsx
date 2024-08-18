@@ -35,7 +35,11 @@ type GraphData = {
   nodes: GraphNode[];
   links: GraphLink[];
 };
-export default function OcelGraphViewer() {
+export default function OcelGraphViewer({
+  initialGrapOptions,
+}: {
+  initialGrapOptions?: { type?: "event" | "object"; id?: string };
+}) {
   const ocelInfo = useContext(OcelInfoContext);
   const [graphData, setGraphData] = useState<GraphData>({
     nodes: [],
@@ -121,6 +125,7 @@ export default function OcelGraphViewer() {
     <div className="my-4 text-lg text-left w-full h-full flex flex-col">
       <h2 className="text-4xl font-semibold mb-4">OCEL Graph</h2>
       <GraphOptions
+        initialGrapOptions={initialGrapOptions}
         setGraphData={(gd) => {
           console.log(graphRef.current?.d3Force);
           graphRef.current!.d3Force("link")!.distance(10);
@@ -318,18 +323,33 @@ export default function OcelGraphViewer() {
 
 function GraphOptions({
   setGraphData,
+  initialGrapOptions,
 }: {
   setGraphData: (data: GraphData | undefined) => unknown;
+  initialGrapOptions?: { type?: "event" | "object"; id?: string };
 }) {
   const ocelInfo = useContext(OcelInfoContext)!;
   const backend = useContext(BackendProviderContext);
   const [options, setOptions] = useState<OCELGraphOptions>({
     maxDistance: 2,
     relsSizeIgnoreThreshold: 10,
-    rootIsObject: true,
-    root: ocelInfo.object_ids[0],
+    rootIsObject: initialGrapOptions?.type !== "event",
+    root: initialGrapOptions?.id ?? ocelInfo.object_ids[0],
     spanningTree: true,
   });
+
+  useEffect(() => {
+    if (
+      initialGrapOptions?.id !== undefined &&
+      initialGrapOptions?.type !== undefined
+    ) {
+      setOptions({
+        ...options,
+        rootIsObject: initialGrapOptions?.type !== "event",
+        root: initialGrapOptions?.id,
+      });
+    }
+  }, [initialGrapOptions]);
   const [loading, setLoading] = useState(false);
   return (
     <div>

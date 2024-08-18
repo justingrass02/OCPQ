@@ -702,7 +702,7 @@ impl Filter {
             }
             Filter::BasicFilterCEL { cel } => {
                 // let now = Instant::now();
-                
+
                 // println!("Took {:?}",now.elapsed());
                 evaluate_cel(cel, b, None, ocel)
             }

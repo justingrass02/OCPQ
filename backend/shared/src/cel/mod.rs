@@ -47,10 +47,7 @@ impl<'a, T> Clone for RawBindingContextPtr<'a, T> {
 
 impl<'a, T> Copy for RawBindingContextPtr<'a, T> {}
 
-fn index_string_to_val<'a, 'b>(
-    s: &str,
-    ocel: &'a IndexLinkedOCEL,
-) -> Option<OCELNodeRef<'a>> {
+fn index_string_to_val<'a, 'b>(s: &str, ocel: &'a IndexLinkedOCEL) -> Option<OCELNodeRef<'a>> {
     let index = string_to_index(s)?;
     ocel.ob_or_ev_by_index(index)
 }
@@ -156,7 +153,7 @@ pub fn evaluate_cel<'a>(
             "type",
             move |ftx: &FunctionContext, This(variable): This<Arc<String>>| -> ResolveResult {
                 let val = unsafe { index_string_to_val_raw(&variable, ocel_raw) };
-                
+
                 match val {
                     Some(val_ref) => {
                         let ocel_type = match val_ref {
@@ -183,11 +180,13 @@ pub fn evaluate_cel<'a>(
                         let attr_val = match val_ref {
                             OCELNodeRef::Event(ev) => ev
                                 .attributes
-                                .iter().find(|a| &a.name == attr_name.as_ref())
+                                .iter()
+                                .find(|a| &a.name == attr_name.as_ref())
                                 .map(|a| &a.value),
                             OCELNodeRef::Object(ob) => ob
                                 .attributes
-                                .iter().find(|a| &a.name == attr_name.as_ref())
+                                .iter()
+                                .find(|a| &a.name == attr_name.as_ref())
                                 .map(|a| &a.value),
                         }
                         .unwrap_or(&OCELAttributeValue::Null);
@@ -221,7 +220,8 @@ pub fn evaluate_cel<'a>(
                         let attr_val = match val_ref {
                             OCELNodeRef::Event(ev) => ev
                                 .attributes
-                                .iter().find(|a| &a.name == attr_name.as_ref())
+                                .iter()
+                                .find(|a| &a.name == attr_name.as_ref())
                                 .map(|a| &a.value),
                             OCELNodeRef::Object(ob) => ob
                                 .attributes
@@ -246,7 +246,7 @@ pub fn evaluate_cel<'a>(
             "id",
             move |ftx: &FunctionContext, This(variable): This<Arc<String>>| -> ResolveResult {
                 let val = unsafe { index_string_to_val_raw(&variable, ocel_raw) };
-                
+
                 match val {
                     Some(val_ref) => {
                         let attr_val = match val_ref {
@@ -305,12 +305,8 @@ pub fn evaluate_cel<'a>(
             move |ftx: &FunctionContext, This(variable): This<Arc<String>>| -> ResolveResult {
                 let val = unsafe { index_string_to_val_raw(&variable, ocel_raw) };
                 match val {
-                    Some(val_ref) => match val_ref {
-                        OCELNodeRef::Event(ev) => Ok(ev.time.fixed_offset().into()),
-                        _ => ftx.error("Event not found.").into(),
-                    },
-
-                    None => ftx.error("Event not found.").into(),
+                    Some( OCELNodeRef::Event(ev)) =>  Ok(ev.time.fixed_offset().into()),
+                    _ => ftx.error("Event not found.").into(),
                 }
             },
         );
@@ -351,11 +347,7 @@ pub fn evaluate_cel<'a>(
         context.add_function(
             "sum",
             move |_ftx: &FunctionContext, This(variable): This<Arc<Vec<Value>>>| -> ResolveResult {
-                Ok(variable
-                    .iter()
-                    .map(value_to_float)
-                    .sum::<f64>()
-                    .into())
+                Ok(variable.iter().map(value_to_float).sum::<f64>().into())
             },
         );
 
@@ -392,6 +384,7 @@ fn value_to_float(val: &Value) -> f64 {
         Value::Int(i) => *i as f64,
         Value::UInt(ui) => *ui as f64,
         Value::Float(f) => *f,
+        Value::String(s) => s.parse().unwrap_or_default(),
         _ => 0.0,
     }
 }

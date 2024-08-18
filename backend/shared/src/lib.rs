@@ -75,8 +75,6 @@ pub fn get_event_info(ocel: &IndexLinkedOCEL, req: IndexOrID) -> Option<EventWit
     ev_with_index.map(|(event, index)| EventWithIndex { event, index })
 }
 
-
-
 pub fn get_object_info(ocel: &IndexLinkedOCEL, req: IndexOrID) -> Option<ObjectWithIndex> {
     let ob_with_index = match req {
         IndexOrID::ID(id) => ocel

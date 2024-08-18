@@ -32,7 +32,7 @@ export default function EventTypeNode({
       )}
     >
       {violations !== undefined && (
-        <ViolationIndicator violationsPerNode={violations} nodeID={id}/>
+        <ViolationIndicator violationsPerNode={violations} nodeID={id} />
       )}
       <div className="">
         <AlertHelper

@@ -95,7 +95,8 @@ export default function AutoDiscoveryButton({
                 <AccordionTrigger>
                   <h3 className="text-lg text-gray-900 flex gap-x-2 items-center">
                     Count Constraints
-                    <Switch className="scale-125 ml-2"
+                    <Switch
+                      className="scale-125 ml-2"
                       checked={data.countConstraints.enabled}
                       onClick={(ev) => {
                         ev.preventDefault();
@@ -214,9 +215,7 @@ export default function AutoDiscoveryButton({
                       options={ocelInfo.event_types
                         .filter(
                           (ot) =>
-                            !data.countConstraints.eventTypes.includes(
-                              ot.name,
-                            ),
+                            !data.countConstraints.eventTypes.includes(ot.name),
                         )
                         .map((ot) => ({
                           value: ot.name,
@@ -245,7 +244,8 @@ export default function AutoDiscoveryButton({
                 <AccordionTrigger>
                   <h3 className="text-lg text-gray-900 flex gap-x-2 items-center">
                     Eventually Follows Constraints
-                    <Switch className="scale-125 ml-2"
+                    <Switch
+                      className="scale-125 ml-2"
                       checked={data.eventuallyFollowsConstraints.enabled}
                       onClick={(ev) => {
                         ev.preventDefault();
@@ -354,7 +354,8 @@ export default function AutoDiscoveryButton({
                 <AccordionTrigger>
                   <h3 className="text-lg text-gray-900 flex gap-x-2 items-center">
                     OR-Gate Constraints
-                    <Switch className="scale-125 ml-2"
+                    <Switch
+                      className="scale-125 ml-2"
                       checked={data.orConstraints.enabled}
                       onClick={(ev) => {
                         ev.preventDefault();
@@ -472,9 +473,7 @@ export default function AutoDiscoveryButton({
                       options={ocelInfo.event_types
                         .filter(
                           (ot) =>
-                            !data.orConstraints.eventTypes.includes(
-                              ot.name,
-                            ),
+                            !data.orConstraints.eventTypes.includes(ot.name),
                         )
                         .map((ot) => ({
                           value: ot.name,
@@ -495,7 +494,6 @@ export default function AutoDiscoveryButton({
                       name={"Add event type..."}
                       value={""}
                     />
-
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -520,40 +518,39 @@ export default function AutoDiscoveryButton({
         }
         await toast
           .promise(
-            backend["ocel/discover-constraints"](reqData)
-              .then(async (json) => {
-                console.log({ json });
-                const updatedConstraints = [...constraints];
+            backend["ocel/discover-constraints"](reqData).then(async (json) => {
+              console.log({ json });
+              const updatedConstraints = [...constraints];
 
-                let index = constraints.length;
-                for (const [name, newConstraint] of json.constraints) {
-                  updatedConstraints.push({
-                    name,
-                    description: "Automatically Discovered",
-                  });
-                  const [ns, es] = bindingBoxTreeToNodes(
-                    newConstraint,
-                    0,
-                    0,
-                    0,
-                    Date.now() + " - " + index,
-                  );
-                  await applyLayoutToNodes(ns, es);
-                  prevDataRef.current[index] = {
-                    flowJson: {
-                      nodes: ns,
-                      edges: es,
-                      viewport: { x: 0, y: 0, zoom: 1.0 },
-                    },
-                  };
-                  index++;
-                }
-                setConstraints(updatedConstraints);
-                return json;
-              }),
+              let index = constraints.length;
+              for (const [name, newConstraint] of json.constraints) {
+                updatedConstraints.push({
+                  name,
+                  description: "Automatically Discovered",
+                });
+                const [ns, es] = bindingBoxTreeToNodes(
+                  newConstraint,
+                  0,
+                  0,
+                  0,
+                  Date.now() + " - " + index,
+                );
+                await applyLayoutToNodes(ns, es);
+                prevDataRef.current[index] = {
+                  flowJson: {
+                    nodes: ns,
+                    edges: es,
+                    viewport: { x: 0, y: 0, zoom: 1.0 },
+                  },
+                };
+                index++;
+              }
+              setConstraints(updatedConstraints);
+              return json;
+            }),
             {
               loading: "Executing Auto-Discovery...",
-              success: (s) =>  `Discovered ${s?.constraints.length} Constraints`,
+              success: (s) => `Discovered ${s?.constraints.length} Constraints`,
               error: "Failed to Discover Constraints",
             },
           )

@@ -21,6 +21,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import CELEditor from "@/components/CELEditor";
 import { PiCodeFill } from "react-icons/pi";
+import clsx from "clsx";
 
 export default function FilterOrConstraintEditor<
   T extends Filter | SizeFilter | Constraint,
@@ -164,7 +165,8 @@ export default function FilterOrConstraintEditor<
     case "BasicFilterCEL":
       return (
         <>
-          <CELEditor key="basic"
+          <CELEditor
+            key="basic"
             cel={value.cel}
             onChange={(newCel) => {
               value.cel = newCel ?? "true";
@@ -179,7 +181,8 @@ export default function FilterOrConstraintEditor<
     case "AdvancedCEL":
       return (
         <>
-          <CELEditor key="advanced"
+          <CELEditor
+            key="advanced"
             cel={value.cel}
             onChange={(newCel) => {
               value.cel = newCel ?? "true";
@@ -766,7 +769,7 @@ export default function FilterOrConstraintEditor<
 
 export function FilterOrConstraintDisplay<
   T extends Filter | SizeFilter | Constraint,
->({ value }: { value: T }) {
+>({ value, compact }: { value: T; compact?: boolean }) {
   switch (value.type) {
     case "O2E":
       return (
@@ -805,25 +808,17 @@ export function FilterOrConstraintDisplay<
         </div>
       );
     case "BasicFilterCEL":
-      return (
-        <div className="flex items-center font-normal text-sm w-full">
-          {/* CEL */}
-          <pre
-            className="bg-white/50 font-semibold text-slate-800 border border-slate-600/10 text-[0.5rem] px-0.5 rounded-sm overflow-ellipsis overflow-hidden"
-            title={value.cel}
-          >
-            <PiCodeFill className="inline mr-0.5" size={12} />
-            {value.cel}
-          </pre>
-        </div>
-      );
     case "AdvancedCEL":
       return (
         <div className="flex items-center text-xs w-full bg-white/50 text-slate-800 border border-slate-600/10 text-[0.5rem] px-0.5 rounded-sm ">
           {/* CEL */}
           <PiCodeFill className="inline mr-1 pr-1 ml-0.5 border-r" size={24} />
           <pre
-            className="text-[0.5rem] overflow-ellipsis overflow-hidden  break-all whitespace-normal leading-tight font-semibold"
+            className={clsx(
+              "text-[0.5rem] overflow-ellipsis overflow-hidden leading-tight font-semibold",
+              !(compact ?? false) && " break-all whitespace-normal",
+              compact === true && "whitespace-nowrap max-w-[5rem]",
+            )}
             title={value.cel}
           >
             {value.cel}
@@ -883,9 +878,13 @@ export function FilterOrConstraintDisplay<
         </div>
       );
     case "Filter":
-      return <FilterOrConstraintDisplay value={value.filter} />;
+      return (
+        <FilterOrConstraintDisplay value={value.filter} compact={compact} />
+      );
     case "SizeFilter":
-      return <FilterOrConstraintDisplay value={value.filter} />;
+      return (
+        <FilterOrConstraintDisplay value={value.filter} compact={compact} />
+      );
     case "SAT":
       return (
         <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">

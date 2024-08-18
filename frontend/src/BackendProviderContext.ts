@@ -32,8 +32,12 @@ export type BackendProvider = {
     nodes: (OCELEvent | OCELObject)[];
     links: { source: string; target: string; qualifier: string }[];
   }>;
-  "ocel/get-object": (specifier: {id: string}|{index: number}) => Promise<{index: number, object: OCELObject}>;
-  "ocel/get-event": (specifier: {id: string}|{index: number}) => Promise<{index: number, event: OCELEvent}>;
+  "ocel/get-object": (
+    specifier: { id: string } | { index: number },
+  ) => Promise<{ index: number; object: OCELObject }>;
+  "ocel/get-event": (
+    specifier: { id: string } | { index: number },
+  ) => Promise<{ index: number; event: OCELEvent }>;
 };
 
 export async function warnForNoBackendProvider<T>(): Promise<T> {
@@ -91,7 +95,7 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
       })
     ).json();
   },
-  "ocel/check-constraints-box": async (tree,measurePerformance) => {
+  "ocel/check-constraints-box": async (tree, measurePerformance) => {
     return await (
       await fetch(BACKEND_URL + "/ocel/check-constraints-box", {
         method: "post",

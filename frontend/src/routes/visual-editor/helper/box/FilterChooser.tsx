@@ -172,11 +172,11 @@ export default function FilterChooser({
                     },
                     {
                       label: "Variables not equal",
-                      value: "NotEqual"
+                      value: "NotEqual",
                     },
                     {
                       label: "CEL Script (Basic Filter)",
-                      value: "BasicFilterCEL"
+                      value: "BasicFilterCEL",
                     },
                     {
                       label: "Event Attribute Value",
@@ -259,18 +259,18 @@ export default function FilterChooser({
                         ...alertState,
                         value: {
                           type: "NotEqual",
-                          var_1: {Object: 0},
-                          var_2: {Object: 1}
+                          var_1: { Object: 0 },
+                          var_2: { Object: 1 },
                         },
                       });
                     } else if (val === "BasicFilterCEL") {
-                        setAlertState({
-                          ...alertState,
-                          value: {
-                            type: "BasicFilterCEL",
-                            cel: "true"
-                          },
-                        });
+                      setAlertState({
+                        ...alertState,
+                        value: {
+                          type: "BasicFilterCEL",
+                          cel: "true",
+                        },
+                      });
                     } else if (val === "NumChilds") {
                       setAlertState({
                         ...alertState,
@@ -313,7 +313,7 @@ export default function FilterChooser({
                         ...alertState,
                         value: {
                           type: "AdvancedCEL",
-                          cel: "true"
+                          cel: "true",
                         },
                       });
                     } else if (

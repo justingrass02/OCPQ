@@ -34,7 +34,11 @@ export function getFittingUnit(seconds: number) {
   return "seconds";
 }
 
-export function formatSeconds(seconds: number,inftysymbol = "∞",minusinftysymbol = "-∞") {
+export function formatSeconds(
+  seconds: number,
+  inftysymbol = "∞",
+  minusinftysymbol = "-∞",
+) {
   if (seconds === Infinity) return inftysymbol;
   if (seconds === -Infinity) return minusinftysymbol;
   if (seconds === 0) return "0";
@@ -57,7 +61,7 @@ export default function TimeDurationInput({
   onChange,
 }: {
   durationSeconds: number;
-  onChange: (newSeconds: number|undefined) => unknown;
+  onChange: (newSeconds: number | undefined) => unknown;
 }) {
   const [unit, setUnit] = useState<(typeof TIME_DURATION_UNITS)[number]>(
     getFittingUnit(durationSeconds),
@@ -104,8 +108,8 @@ export default function TimeDurationInput({
       setValue(val);
       onChange(val * unitFactorFromSeconds(unit));
       setValueString(val.toString());
-    }else{
-      setValueString("")
+    } else {
+      setValueString("");
       onChange(undefined);
     }
   }

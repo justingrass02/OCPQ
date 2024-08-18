@@ -30,9 +30,10 @@
   transform: unset !important;
 }
 
-
 .react-flow {
   will-change: contents;
+  backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+  transform: translateZ(0) scale(1, 1);
   -webkit-transform: translateZ(0) scale(1, 1);
 }
