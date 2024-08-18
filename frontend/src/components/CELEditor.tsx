@@ -4,8 +4,8 @@ import { VisualEditorContext } from "@/routes/visual-editor/helper/VisualEditorC
 import type { Variable } from "@/types/generated/Variable";
 import { useMonaco, Editor, loader } from "@monaco-editor/react";
 import { useContext, useEffect, useMemo } from "react";
-import * as monaco from "monaco-editor";
-loader.config({ monaco });
+import { initEditorLoader } from "@/lib/editor-loader";
+initEditorLoader();
 export default function CELEditor({
   cel,
   onChange,

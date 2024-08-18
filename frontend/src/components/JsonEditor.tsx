@@ -1,5 +1,7 @@
+import { initEditorLoader } from "@/lib/editor-loader";
 import { Editor} from "@monaco-editor/react";
 
+initEditorLoader();
 export default function JSONEditor({
   value,
   onChange,
