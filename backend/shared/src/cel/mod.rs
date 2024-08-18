@@ -14,23 +14,17 @@ use crate::{
         structs::{EventVariable, ObjectVariable, Variable},
         Binding,
     },
-    preprocessing::linked_ocel::{IndexLinkedOCEL, OCELNodeRef},
+    preprocessing::linked_ocel::{EventIndex, EventOrObjectIndex, IndexLinkedOCEL, OCELNodeRef, ObjectIndex},
 };
 
 #[cfg(test)]
 mod tests {
-    
-
-    
 
     use process_mining::import_ocel_json_from_path;
 
     use crate::{
         binding_box::structs::{Binding, EventVariable, ObjectVariable},
-        preprocessing::linked_ocel::{
-            link_ocel_info, EventIndex,
-            ObjectIndex,
-        },
+        preprocessing::linked_ocel::{link_ocel_info, EventIndex, ObjectIndex},
     };
 
     use super::evaluate_cel;
@@ -58,13 +52,16 @@ mod tests {
     }
 }
 
-fn string_to_var(s: &str) -> Variable {
-    let (typ, num) = s.split_at(1);
-    let num = num.parse::<usize>().map(|v| v - 1).unwrap_or_default();
-    if typ == "o" {
-        Variable::Object(ObjectVariable(num))
-    } else {
-        Variable::Event(EventVariable(num))
+fn string_to_index(s: &str) -> Option<EventOrObjectIndex> {
+    // ob_ and ev_ are the prefixes we reserve
+    let (typ, num) = s.split_at(3);
+    let num = num.parse::<usize>().map(|v| v).ok()?;
+    if typ == "ob_" {
+        Some(EventOrObjectIndex::Object(ObjectIndex(num)))
+    } else if typ == "ev_" {
+        Some(EventOrObjectIndex::Event(EventIndex(num)))
+    }else {
+        None
     }
 }
 
@@ -80,23 +77,19 @@ impl<'a, T> Clone for RawBindingContextPtr<'a, T> {
 
 impl<'a, T> Copy for RawBindingContextPtr<'a, T> {}
 
-fn var_string_to_val<'a, 'b, 's>(
+fn index_string_to_val<'a, 'b, 's>(
     s: &'s str,
-    binding: &'b Binding,
     ocel: &'a IndexLinkedOCEL,
 ) -> Option<OCELNodeRef<'a>> {
-    let var = string_to_var(s);
-    binding
-        .get_any_index(&var)
-        .and_then(|i| ocel.ob_or_ev_by_index(i))
+    let index = string_to_index(s)?;
+    ocel.ob_or_ev_by_index(index)
 }
 
-unsafe fn var_string_to_val_raw<'a, 'b, 's>(
+unsafe fn index_string_to_val_raw<'a, 'b, 's>(
     s: &'s str,
-    binding: RawBindingContextPtr<Binding>,
     ocel: RawBindingContextPtr<'a, IndexLinkedOCEL>,
 ) -> Option<OCELNodeRef<'a>> {
-    var_string_to_val(s, binding.0.as_ref().unwrap(), ocel.0.as_ref().unwrap())
+    index_string_to_val(s, ocel.0.as_ref().unwrap())
 }
 
 pub static CEL_PROGRAM_CACHE: Lazy<RwLock<HashMap<String, Program>>> = Lazy::new(|| {
@@ -122,13 +115,15 @@ pub fn evaluate_cel<'a>(cel: &str, binding: &'a Binding, ocel: &'a IndexLinkedOC
     // println!("Program compiled: {:?}", now.elapsed());
 
     let mut context: Context<'a> = Context::default();
-    for e_var in binding.event_map.keys() {
+    for (e_var,e_index) in binding.event_map.iter() {
         let name = format!("e{}", e_var.0 + 1);
-        context.add_variable(name.clone(), name).unwrap();
+        let value = format!("ev_{}", e_index.0);
+        context.add_variable(name, value).unwrap();
     }
-    for o_var in binding.object_map.keys() {
+    for (o_var,o_index) in binding.object_map.iter() {
         let name = format!("o{}", o_var.0 + 1);
-        context.add_variable(name.clone(), name).unwrap();
+        let value = format!("ob_{}", o_index.0);
+        context.add_variable(name, value).unwrap();
     }
 
     // println!("Context added: {:?}", now.elapsed());
@@ -138,16 +133,16 @@ pub fn evaluate_cel<'a>(cel: &str, binding: &'a Binding, ocel: &'a IndexLinkedOC
             Box::into_raw(Box::new(ocel)),
         )
     });
-    let binding_raw = RawBindingContextPtr(unsafe {
-        std::mem::transmute::<*mut &'a Binding, *mut &'static Binding>(Box::into_raw(Box::new(
-            binding,
-        )))
-    });
+    // let binding_raw = RawBindingContextPtr(unsafe {
+    //     std::mem::transmute::<*mut &'a Binding, *mut &'static Binding>(Box::into_raw(Box::new(
+    //         binding,
+    //     )))
+    // });
 
     context.add_function(
         "type",
         move |ftx: &FunctionContext, This(variable): This<Arc<String>>| -> ResolveResult {
-            let val = unsafe { var_string_to_val_raw(&variable, binding_raw, ocel_raw) };
+            let val = unsafe { index_string_to_val_raw(&variable, ocel_raw) };
             let res = match val {
                 Some(val_ref) => {
                     let ocel_type = match val_ref {
@@ -169,7 +164,7 @@ pub fn evaluate_cel<'a>(cel: &str, binding: &'a Binding, ocel: &'a IndexLinkedOC
               This(variable): This<Arc<String>>,
               attr_name: Arc<String>|
               -> ResolveResult {
-            let val = unsafe { var_string_to_val_raw(&variable, binding_raw, ocel_raw) };
+            let val = unsafe { index_string_to_val_raw(&variable, ocel_raw) };
             let res = match val {
                 Some(val_ref) => {
                     let attr_val = match val_ref {
@@ -205,13 +200,13 @@ pub fn evaluate_cel<'a>(cel: &str, binding: &'a Binding, ocel: &'a IndexLinkedOC
     );
 
     context.add_function(
-        "attr_at",
+        "attrAt",
         move |ftx: &FunctionContext,
               This(variable): This<Arc<String>>,
               attr_name: Arc<String>,
               at: DateTime<FixedOffset>|
               -> ResolveResult {
-            let val = unsafe { var_string_to_val_raw(&variable, binding_raw, ocel_raw) };
+            let val = unsafe { index_string_to_val_raw(&variable, ocel_raw) };
             let res = match val {
                 Some(val_ref) => {
                     let attr_val = match val_ref {
@@ -231,15 +226,57 @@ pub fn evaluate_cel<'a>(cel: &str, binding: &'a Binding, ocel: &'a IndexLinkedOC
                             .map(|a| &a.value),
                     }
                     .unwrap_or(&OCELAttributeValue::Null);
-                    let cel_val = match attr_val {
-                        OCELAttributeValue::Float(f) => (*f).into(),
-                        OCELAttributeValue::Integer(i) => (*i).into(),
-                        OCELAttributeValue::String(s) => s.clone().into(),
-                        OCELAttributeValue::Time(t) => t.fixed_offset().into(),
-                        OCELAttributeValue::Boolean(b) => (*b).into(),
-                        OCELAttributeValue::Null => Value::Null,
+                    Ok(ocel_val_to_cel_val(attr_val))
+                }
+
+                None => ftx.error("Event or Object not found.").into(),
+            };
+            res
+        },
+    );
+
+    context.add_function(
+        "id",
+        move |ftx: &FunctionContext,
+              This(variable): This<Arc<String>>|
+              -> ResolveResult {
+            let val = unsafe { index_string_to_val_raw(&variable, ocel_raw) };
+            let res = match val {
+                Some(val_ref) => {
+                    let attr_val = match val_ref {
+                        OCELNodeRef::Event(ev) => &ev.id,
+                        OCELNodeRef::Object(ob) => &ob.id,
                     };
-                    Ok(cel_val)
+                    Ok(attr_val.clone().into())
+                }
+
+                None => ftx.error("Event or Object not found.").into(),
+            };
+            res
+        },
+    );
+
+    context.add_function(
+        "attrs",
+        move |ftx: &FunctionContext, This(variable): This<Arc<String>>| -> ResolveResult {
+            let val = unsafe { index_string_to_val_raw(&variable, ocel_raw) };
+            let res = match val {
+                Some(val_ref) => {
+                    let attr_val: Vec<Vec<Value>> = match val_ref {
+                        OCELNodeRef::Event(ev) => ev
+                            .attributes
+                            .iter()
+                            .map(|a| {
+                                vec![a.name.clone().into(), ocel_val_to_cel_val(&a.value), Value::Null]
+                            }).collect(),
+                        OCELNodeRef::Object(ob) => ob
+                            .attributes
+                            .iter()
+                            .map(|a| {
+                                vec![a.name.clone().into(), ocel_val_to_cel_val(&a.value), a.time.fixed_offset().into()]
+                            }).collect()
+                    };
+                    Ok(attr_val.into())
                 }
 
                 None => ftx.error("Event or Object not found.").into(),
@@ -251,7 +288,7 @@ pub fn evaluate_cel<'a>(cel: &str, binding: &'a Binding, ocel: &'a IndexLinkedOC
     context.add_function(
         "time",
         move |ftx: &FunctionContext, This(variable): This<Arc<String>>| -> ResolveResult {
-            let val = unsafe { var_string_to_val_raw(&variable, binding_raw, ocel_raw) };
+            let val = unsafe { index_string_to_val_raw(&variable, ocel_raw) };
             match val {
                 Some(val_ref) => match val_ref {
                     OCELNodeRef::Event(ev) => Ok(ev.time.fixed_offset().into()),
@@ -271,14 +308,35 @@ pub fn evaluate_cel<'a>(cel: &str, binding: &'a Binding, ocel: &'a IndexLinkedOC
     unsafe {
         let _ocel_box = Box::from_raw(ocel_raw.0);
     }
-    unsafe {
-        let _binding_box = Box::from_raw(binding_raw.0);
-    }
+    // unsafe {
+    //     let _binding_box = Box::from_raw(binding_raw.0);
+    // }
     match res_1 {
         Value::Bool(b) => b,
         _ => false,
     }
 }
+
+fn ocel_val_to_cel_val(val: &OCELAttributeValue) -> Value {
+    match val {
+        OCELAttributeValue::Float(f) => (*f).into(),
+        OCELAttributeValue::Integer(i) => (*i).into(),
+        OCELAttributeValue::String(s) => s.clone().into(),
+        OCELAttributeValue::Time(t) => t.fixed_offset().into(),
+        OCELAttributeValue::Boolean(b) => (*b).into(),
+        OCELAttributeValue::Null => Value::Null,
+    }
+}
+fn string_to_var(s: &str) -> Variable {
+    let (typ, num) = s.split_at(1);
+    let num = num.parse::<usize>().map(|v| v - 1).unwrap_or_default();
+    if typ == "o" {
+        Variable::Object(ObjectVariable(num))
+    } else {
+        Variable::Event(EventVariable(num))
+    }
+}
+
 
 pub fn get_vars_in_cel_program(cel: &str) -> HashSet<Variable> {
     lazy_compile_and_insert_into_cache(cel);
