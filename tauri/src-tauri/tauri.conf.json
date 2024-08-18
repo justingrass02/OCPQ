@@ -1,14 +1,14 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "build": {
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "NODE_OPTIONS=\"--max_old_space_size=4096\" npm run build",
     "beforeDevCommand": "npm run dev",
     "devPath": "http://localhost:4565",
     "distDir": "../dist/"
   },
   "package": {
     "productName": "ocedeclare-tauri",
-    "version": "0.3.3"
+    "version": "0.3.4"
   },
   "tauri": {
     "allowlist": {
