@@ -50,6 +50,12 @@ const tauriBackend: BackendProvider = {
   "ocel/graph": async (options) => {
     return await invoke("ocel_graph", { options });
   },
+  "ocel/get-event": async (req) => {
+    return await invoke("get_event", {req})
+  },
+  "ocel/get-object": async (req) => {
+    return await invoke("get_object", {req})
+  }
 };
 
 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion

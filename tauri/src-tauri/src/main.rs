@@ -12,10 +12,11 @@ use ocedeclare_shared::{
         auto_discover_constraints_with_options, AutoDiscoverConstraintsRequest,
         AutoDiscoverConstraintsResponse,
     },
+    get_event_info, get_object_info,
     ocel_graph::{get_ocel_graph, OCELGraph, OCELGraphOptions},
     ocel_qualifiers::qualifiers::{get_qualifiers_for_event_types, QualifiersForEventType},
     preprocessing::linked_ocel::{link_ocel_info, IndexLinkedOCEL},
-    OCELInfo,
+    EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
 };
 use process_mining::{import_ocel_json_from_path, import_ocel_xml_file};
 use tauri::State;
@@ -69,7 +70,11 @@ fn check_with_box_tree(
     state: State<OCELStore>,
 ) -> Result<EvaluateBoxTreeResult, String> {
     match state.lock().unwrap().as_ref() {
-        Some(ocel) => Ok(evaluate_box_tree(req.tree, &ocel,req.measure_performance.unwrap_or(false))),
+        Some(ocel) => Ok(evaluate_box_tree(
+            req.tree,
+            &ocel,
+            req.measure_performance.unwrap_or(false),
+        )),
         None => Err("No OCEL loaded".to_string()),
     }
 }
@@ -96,6 +101,22 @@ fn ocel_graph(options: OCELGraphOptions, state: State<OCELStore>) -> Result<OCEL
     }
 }
 
+#[tauri::command(async)]
+fn get_event(req: IndexOrID, state: State<OCELStore>) -> Option<EventWithIndex> {
+    match state.lock().unwrap().as_ref() {
+        Some(ocel) => get_event_info(ocel, req),
+        None => None,
+    }
+}
+
+#[tauri::command(async)]
+fn get_object(req: IndexOrID, state: State<OCELStore>) -> Option<ObjectWithIndex> {
+    match state.lock().unwrap().as_ref() {
+        Some(ocel) => get_object_info(ocel, req),
+        None => None,
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(OCELStore::new(None))
@@ -106,7 +127,9 @@ fn main() {
             get_object_qualifiers,
             check_with_box_tree,
             auto_discover_constraints,
-            ocel_graph
+            ocel_graph,
+            get_event,
+            get_object
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

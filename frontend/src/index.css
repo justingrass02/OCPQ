@@ -29,3 +29,10 @@
   top: unset !important;
   transform: unset !important;
 }
+
+
+.react-flow {
+  will-change: contents;
+  -webkit-backface-visibility: hidden;
+  -webkit-transform: translateZ(0) scale(1, 1);
+}

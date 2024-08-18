@@ -417,7 +417,6 @@ pub fn link_ocel_info(ocel: OCEL) -> IndexLinkedOCEL {
             }
         }
     }
-    println!("{:?}", types_rel_counts);
     let avg_rels_of_type_per_type = types_rel_counts
         .into_iter()
         .map(|(t, count)| {
@@ -429,7 +428,6 @@ pub fn link_ocel_info(ocel: OCEL) -> IndexLinkedOCEL {
             (t, count as f32 / n as f32)
         })
         .collect();
-    println!("{:?}", avg_rels_of_type_per_type);
     println!("Linking OCEL took {:?}", now.elapsed());
     IndexLinkedOCEL {
         events_of_type,

@@ -586,7 +586,6 @@ export default function VisualEditor(props: VisualEditorProps) {
       "#758406",
     ],
   } as const;
-
   return (
     <VisualEditorContext.Provider
       value={{
@@ -654,7 +653,7 @@ export default function VisualEditor(props: VisualEditorProps) {
         },
       }}
     >
-      <ReactFlow
+      <ReactFlow className="react-flow"
         onInit={(flow) => {
           initialized.current = true;
           if (initialized.current) {

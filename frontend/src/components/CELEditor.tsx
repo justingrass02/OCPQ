@@ -2,9 +2,10 @@
 /* eslint-disable no-template-curly-in-string */
 import { VisualEditorContext } from "@/routes/visual-editor/helper/VisualEditorContext";
 import type { Variable } from "@/types/generated/Variable";
-import { useMonaco, Editor } from "@monaco-editor/react";
+import { useMonaco, Editor, loader } from "@monaco-editor/react";
 import { useContext, useEffect, useMemo } from "react";
-
+import * as monaco from "monaco-editor";
+loader.config({ monaco });
 export default function CELEditor({
   cel,
   onChange,

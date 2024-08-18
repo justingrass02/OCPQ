@@ -819,13 +819,13 @@ export function FilterOrConstraintDisplay<
       );
     case "AdvancedCEL":
       return (
-        <div className="flex items-center font-normal text-sm w-full">
+        <div className="flex items-center text-xs w-full bg-white/50 text-slate-800 border border-slate-600/10 text-[0.5rem] px-0.5 rounded-sm ">
           {/* CEL */}
+          <PiCodeFill className="inline mr-1 pr-1 ml-0.5 border-r" size={24} />
           <pre
-            className="bg-white/50 font-semibold text-slate-800 border border-slate-600/10 text-[0.5rem] px-0.5 rounded-sm overflow-ellipsis overflow-hidden"
+            className="text-[0.5rem] overflow-ellipsis overflow-hidden  break-all whitespace-normal leading-tight font-semibold"
             title={value.cel}
           >
-            <PiCodeFill className="inline mr-0.5" size={12} />
             {value.cel}
           </pre>
         </div>
