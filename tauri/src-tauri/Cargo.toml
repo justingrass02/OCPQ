@@ -19,7 +19,7 @@ serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 # tauri = { version = "1.6.1", features = ["dialog-open"] }
 tauri = { version = "1.6.1", features = ["dialog-open", "devtools"] }
-process_mining = {path = "../../../rust-bridge-process-mining/process_mining/"}
+process_mining = "0.3.14"
 ocedeclare-shared = {path = "../../backend/shared"}
 
 

@@ -10,7 +10,7 @@ axum = "0.6.20"
 tokio = { version = "1", features = ["full"] }
 serde = {version = "1.0.192" , features = ["derive"]}
 serde_json = "1.0.108"
-process_mining = {path = "../../../rust-bridge-process-mining/process_mining/"}
+process_mining = "0.3.14"
 ocedeclare-shared = {path = "../shared"}
 tower-http = { version = "0.4.3", features = ["cors"] }
 rayon = "1.8.0"
