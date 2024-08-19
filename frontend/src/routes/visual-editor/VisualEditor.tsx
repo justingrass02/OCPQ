@@ -68,6 +68,8 @@ import {
 import type { BindingBoxTreeNode } from "@/types/generated/BindingBoxTreeNode";
 import ElementInfoSheet from "@/components/ElementInfoSheet";
 import ViolationDetailsSheet from "./ViolationDetailsSheet";
+import '@/lib/editor-loader'
+
 function isEditorElementTarget(el: HTMLElement | EventTarget | null) {
   return (
     el === document.body ||

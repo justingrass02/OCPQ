@@ -9,9 +9,9 @@ export default defineConfig({
       allow: [".","../frontend"]
     }
   },
-  build: {
-    sourcemap: true,
-  },
+  // build: {
+  //   sourcemap: true,
+  // },
   plugins: [react()],
   resolve: {
     alias: {
@@ -20,6 +20,6 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    // exclude: ["monaco-editor"]
+    // exclude: ["monaco-editor","@monaco-editor/react"]
   },
 });

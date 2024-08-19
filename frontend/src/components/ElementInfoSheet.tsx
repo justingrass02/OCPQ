@@ -33,7 +33,7 @@ export default function ElementInfoSheet({
           ev.preventDefault();
         }}
       >
-        <div className="absolute left-1/2 -translate-x-full p-2 z-20">
+        <div className="absolute right-0 top-10 p-2 z-20">
           {elInfo !== undefined && (
             <AlertHelper
               trigger={
@@ -42,7 +42,7 @@ export default function ElementInfoSheet({
                 </Button>
               }
               initialData={{ ...elInfo }}
-              title="Show another event/object."
+              title="Show Another Event or Object"
               mode="normal"
               content={({ setData, data }) => (
                 <div>

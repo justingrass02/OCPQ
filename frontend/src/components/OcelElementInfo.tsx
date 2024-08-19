@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { BackendProviderContext } from "@/BackendProviderContext";
 import type {
@@ -49,11 +49,17 @@ export default function OcelElementInfo({
   }, [req, type]);
 
   const ocelInfo = useContext(OcelInfoContext);
+  const overflowDiv = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if(overflowDiv.current !== null){
+      overflowDiv.current.scrollTop  = 0;
+    }
+  },[info])
 
   return (
     <div className="text-lg text-left h-full">
-      <div className="h-full grid grid-cols-2">
-        <div className="h-full overflow-auto">
+      <div className="h-full flex justify-center gap-x-4">
+        <div className="h-full overflow-auto w-full max-w-fit" ref={overflowDiv}>
           {info?.object != null && (
             <OcelObjectViewer
               object={info.object}
@@ -84,7 +90,7 @@ export default function OcelElementInfo({
           </div>
         </div>
         <div
-          className={`block mx-2 p-1 mt-2 bg-white border rounded-lg shadow-md max-w-4xl text-left h-full`}
+          className={`block mx-2 bg-white border rounded-lg shadow-md text-left h-full w-full max-w-fit`}
         >
           <h2 className="text-xl font-semibold my-1">JSON Representation</h2>
           <JSONEditor
@@ -146,7 +152,7 @@ function OcelObjectViewer({
               </span>
               <span className="font-mono">{attr.name}:</span>{" "}
               <span className="font-mono text-blue-700">
-                {object.attributes.find((a) => a.name === attr.name)?.value}
+                {object.attributes.filter((a) => a.name === attr.name).map((a) => <span key={a.time} className="mr-4 border p-0.5 m-0.5 rounded-sm" title={`${a.value} at ${a.time}`}>{a.value}</span>)}
               </span>
             </div>
           </li>
