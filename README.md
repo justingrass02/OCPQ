@@ -3,10 +3,10 @@ You can download the automatically cross-compiled installers for the latest rele
 
 The following installer formats are available:
 - `[...].AppImage` for Linux (__Recommended for Linux__)
-- `[...]-setup.exe` for Windows (__Recommended for Windows__)
+- `[...].msi` for Windows (__Recommended for Windows__)
 - `[...].dmg` for macOS (__Recommended for macOS__)
 - `[...].deb` for Linux (Debian)
-- `[...].msi` for Windows
+- `[...]-setup.exe` for Windows
 - `[...].app.tar.gz` for macOS
 
 ### Docker
