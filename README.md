@@ -93,7 +93,7 @@ Clicking on the `-` button of the connection edge allows assigning a name to thi
 
 ### Adding Constraints
 
-Using this added child node, we want to specify a constraint regarding the number of child bindings (i.e., the number of `pay order` events for the placed order `o1`).
+Using this added child node, we want to specify a constraint regarding the number of child bindings (i.e., the number of `pay order` events for the confirmed order `o1`).
 This can be done by first clicking the `+` button next to the constraints of the node and then selecting the _Number of Child Bindings_ constraint type, and configuring the associated paramters (specifying the edge name `A` as well as the min and max count, both `1` in this example).
 
 ![image](https://github.com/user-attachments/assets/de200cf7-1af0-41b1-a1bb-20c38a0a896f)
@@ -105,7 +105,7 @@ After adding this constraint and evaluating it (again using the play button on t
 
 
 Finally, we want to make this constraint a little more interesting.
-In particular, we want to specify that the `pay order` event should occur within 2 weeks after the `place order` event.
+In particular, we want to specify that the `pay order` event should occur within 2 weeks after the `confirm order` event.
 For this, we add a filter predicate to the child node, such that it only queries `pay order` events within this timeframe.
 ![image](https://github.com/user-attachments/assets/aa834fcd-e4b3-4e87-9262-74fd9d73710d)
 
@@ -119,6 +119,15 @@ Note, that this constraint might be slightly different in general, as it simply 
 In this case the constraint can also be modeled using just one node, as shown below.
 
 ![image](https://github.com/user-attachments/assets/d3753c87-a95f-4538-a001-b91fe791705b)
+
+### Organizing and Saving Constraints
+Each constraint can have a name and description, which can be modified using the inputs (1) and (2) when the constraint is selected.
+Multiple constraints can be added an accessed using the list on the top right.
+Note, that __by default constraint are not saved__ and will not be there after reloading or reopening the tool.
+The constraints however can easily be saved locally by clicking on the save button on the top right of the tool.
+Thus, __make sure to press the save button__ whenever you created or updated a constraint and want to save it.
+
+![image](https://github.com/user-attachments/assets/62b0f291-2236-41f4-bddb-8089a342c5ab)
 
 
 ## Old Usage
