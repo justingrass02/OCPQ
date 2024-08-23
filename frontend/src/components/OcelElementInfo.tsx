@@ -57,9 +57,9 @@ export default function OcelElementInfo({
   },[info])
 
   return (
-    <div className="text-lg text-left h-full">
-      <div className="h-full flex justify-center gap-x-4">
-        <div className="h-full overflow-auto w-full max-w-fit" ref={overflowDiv}>
+    <div className="text-lg text-left h-full w-full">
+      <div className="h-full grid grid-cols-2 justify-center gap-x-4 w-full">
+        <div className="h-full overflow-auto w-full" ref={overflowDiv}>
           {info?.object != null && (
             <OcelObjectViewer
               object={info.object}
@@ -80,7 +80,7 @@ export default function OcelElementInfo({
           {info === null && (
             <div className="text-4xl font-bold text-red-700">Not Found</div>
           )}
-          <div className="h-[60rem] mx-8">
+          <div className="h-[60rem] mx-8 border-t-4 mt-4">
             <OcelGraphViewer
               initialGrapOptions={{
                 type,
@@ -90,7 +90,7 @@ export default function OcelElementInfo({
           </div>
         </div>
         <div
-          className={`block mx-2 bg-white border rounded-lg shadow-md text-left h-full w-full max-w-fit`}
+          className={`block mx-2 bg-white border rounded-lg shadow-md text-left h-full w-full`}
         >
           <h2 className="text-xl font-semibold my-1">JSON Representation</h2>
           <JSONEditor

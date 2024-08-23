@@ -335,7 +335,7 @@ function GraphOptions({
     relsSizeIgnoreThreshold: 10,
     rootIsObject: initialGrapOptions?.type !== "event",
     root: initialGrapOptions?.id ?? ocelInfo.object_ids[0],
-    spanningTree: true,
+    spanningTree: false,
   });
 
   useEffect(() => {
