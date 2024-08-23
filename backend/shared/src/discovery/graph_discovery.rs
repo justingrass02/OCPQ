@@ -342,39 +342,40 @@ fn get_seconds_range_with_coverage(
     Some((min, max))
 }
 
-fn plot_scatter<S: AsRef<str>, P: AsRef<std::path::Path>>(
-    counts: &Vec<usize>,
-    title: S,
-    filename: P,
-) {
-    let mut plot = Plot::new();
-    let y = counts.iter().map(|_c| random::<f32>()).collect();
-    let trace = Scatter::new(counts.clone(), y)
-        .marker(Marker::new().color("black").size(3))
-        .mode(plotly::common::Mode::Markers);
-    plot.add_trace(trace);
-    println!("{}", title.as_ref());
-    let layout = Layout::new()
-        .color_axis(ColorAxis::new().auto_color_scale(true))
-        // .title(title.as_ref())
-        .x_axis(Axis::new().dtick(1.0).title("Count").show_grid(false))
-        .y_axis(
-            Axis::new()
-                .range(vec![-0.1, 1.1])
-                .n_ticks(0)
-                .tick_values(vec![])
-                .show_grid(false)
-                .show_dividers(false)
-                .show_line(false)
-                .zero_line(false)
-                .title(""),
-        );
 
-    // .bar_gap(0.05)
-    // .bar_group_gap(0.05);
-    plot.set_layout(layout);
-    plot.write_image(filename, plotly::ImageFormat::SVG, 800, 300, 1.0)
-}
+// fn plot_scatter<S: AsRef<str>, P: AsRef<std::path::Path>>(
+//     counts: &Vec<usize>,
+//     title: S,
+//     filename: P,
+// ) {
+//     let mut plot = Plot::new();
+//     let y = counts.iter().map(|_c| random::<f32>()).collect();
+//     let trace = Scatter::new(counts.clone(), y)
+//         .marker(Marker::new().color("black").size(3))
+//         .mode(plotly::common::Mode::Markers);
+//     plot.add_trace(trace);
+//     println!("{}", title.as_ref());
+//     let layout = Layout::new()
+//         .color_axis(ColorAxis::new().auto_color_scale(true))
+//         // .title(title.as_ref())
+//         .x_axis(Axis::new().dtick(1.0).title("Count").show_grid(false))
+//         .y_axis(
+//             Axis::new()
+//                 .range(vec![-0.1, 1.1])
+//                 .n_ticks(0)
+//                 .tick_values(vec![])
+//                 .show_grid(false)
+//                 .show_dividers(false)
+//                 .show_line(false)
+//                 .zero_line(false)
+//                 .title(""),
+//         );
+
+//     // .bar_gap(0.05)
+//     // .bar_group_gap(0.05);
+//     plot.set_layout(layout);
+//     plot.write_image(filename, plotly::ImageFormat::SVG, 800, 300, 1.0)
+// }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CountConstraint {

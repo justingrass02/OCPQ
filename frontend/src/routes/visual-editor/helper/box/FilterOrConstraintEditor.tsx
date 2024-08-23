@@ -1140,7 +1140,7 @@ function AttributeValueFilterSelector({
           <Input
             type="number"
             step={value.type === "Integer" ? 1 : undefined}
-            value={value.min + "" ?? ""}
+            value={value.min+ ""}
             onChange={(ev) => {
               const val = ev.currentTarget.valueAsNumber;
               if (isFinite(val)) {
@@ -1156,7 +1156,7 @@ function AttributeValueFilterSelector({
           <Input
             type="number"
             step={value.type === "Integer" ? 1 : undefined}
-            value={value.max + "" ?? ""}
+            value={value.max+ ""}
             onChange={(ev) => {
               const val = ev.currentTarget.valueAsNumber;
               if (isFinite(val)) {

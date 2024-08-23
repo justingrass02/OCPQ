@@ -841,6 +841,9 @@ export default function VisualEditor(props: VisualEditorProps) {
                 const measurePerformance = ev.shiftKey;
                 let objectIDs: string[] = [];
                 let eventIDs: string[] = [];
+                if(measurePerformance){
+                  toast("Measuring performance by evaluating constraint 10+1 times. The first 10 execution times in seconds will be saved as a JSON file in your Downloads folder.")
+                }
                 await Promise.allSettled(
                   subTrees.map(async ({ tree, nodesOrder }) => {
                     const res = await toast.promise(

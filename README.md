@@ -143,3 +143,19 @@ You can configure the different types of constraints to discover, as well as the
 
 The discovered Constraints are automatically added to the list of constraints and can be manually edited or deleted.
 
+## Development
+
+We use `cargo` and `npm`, so please ensure they are available by installing them (i.e., Rust and Node).
+Then, install all dependencies (e.g., using `npm i` inside the `frontend` folder)
+
+For the full-stack web application navigate to the `backend` folder and run `cargo run --release` to start the backend and navigate to the `frontend` folder and execute `npm run dev` to start the frontend. 
+By default, the backend server is available at `http://localhost:3000` while the frontend is available at `http://localhost:5173/`.
+
+
+For the desktop application, tauri (https://tauri.app/) is used.
+To run the desktop application, simply run `npm run tauri dev -- --release` inside the `tauri` folder.
+
+
+Currently, there are few unnecessary warning messages in the output when running or building the frontend with vite.
+These are because we include an offline version of the monaco editor for easily writing CEL scripts.
+Optionally, an online version of the editor can be used instead (by removing or updating `initEditorLoader` in `editor-loader.ts`), however then an internet connection is required for using the editor.
