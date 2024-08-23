@@ -3,11 +3,15 @@ You can download the automatically cross-compiled installers for the latest rele
 
 The following installer formats are available:
 - `[...].AppImage` for Linux (__Recommended for Linux__)
-- `[...].msi` for Windows (__Recommended for Windows__)
+- `[...]-setup.exe` for Windows (__Recommended for Windows__)
 - `[...].dmg` for macOS (__Recommended for macOS__)
 - `[...].deb` for Linux (Debian)
-- `[...]-setup.exe` for Windows
+- `[...].msi` for Windows
 - `[...].app.tar.gz` for macOS
+
+Note, that sometimes Windows Defender might erroneously detect a (false-positive) thread in the installers.
+See also https://github.com/tauri-apps/tauri/issues/2486.
+In this case, please either try a different installer variant (e.g., `.exe` instead of `.msi`) or use the alternative use Docker as described below. 
 
 ### Docker
 
@@ -18,6 +22,7 @@ Once the container is running, you can open [http://localhost:4567/](http://loca
 #### Docker Compose
 Run `docker compose up --build` in the project root.
 
+Alternatively, the docker files can of the frontend and backend can also be used separately:
 
 #### Docker Files
 
@@ -50,7 +55,7 @@ The variable name (1) and type (2) can be selected from a list of available valu
 ![image](https://github.com/user-attachments/assets/05106376-8094-44d3-bc1a-0dc5dbd4c152)
 ![image](https://github.com/user-attachments/assets/336d7bd3-c986-4f4e-a714-c2af0696b3fe)
 
-Similiarly, we also add an event variable `e1` of type `confirm order`.
+Similarly, we also add an event variable `e1` of type `confirm order`.
 
 ![image](https://github.com/user-attachments/assets/b7b5286e-3b65-4318-827b-91204964b4eb)
 ![image](https://github.com/user-attachments/assets/6f46c0f5-c9a4-4904-aadc-52c0afa32ea4)
@@ -89,12 +94,14 @@ Next, we add a child node by first creating a new node (using the corresponding 
 ![image](https://github.com/user-attachments/assets/14a714f5-920a-4e6a-aab1-147c2c7ebf92)
 
 Clicking on the `-` button of the connection edge allows assigning a name to this edge. In this example, we name the edge `A`.
+Additionally, we add an event variable and a filter predicate to this newly created node, such that it looks like shown below.
+
 ![image](https://github.com/user-attachments/assets/74070713-259c-4c69-b03f-3b582108a2c6)
 
 ### Adding Constraints
 
 Using this added child node, we want to specify a constraint regarding the number of child bindings (i.e., the number of `pay order` events for the confirmed order `o1`).
-This can be done by first clicking the `+` button next to the constraints of the node and then selecting the _Number of Child Bindings_ constraint type, and configuring the associated paramters (specifying the edge name `A` as well as the min and max count, both `1` in this example).
+This can be done by first clicking the `+` button next to the constraints of the _top_ / parent node and then selecting the _Number of Child Bindings_ constraint type, and configuring the associated parameters (specifying the edge name `A` as well as the min and max count, both `1` in this example).
 
 ![image](https://github.com/user-attachments/assets/de200cf7-1af0-41b1-a1bb-20c38a0a896f)
 
@@ -130,43 +137,9 @@ Thus, __make sure to press the save button__ whenever you created or updated a c
 ![image](https://github.com/user-attachments/assets/62b0f291-2236-41f4-bddb-8089a342c5ab)
 
 
-## Old Usage
-__Note: These instructions might not be up-to-date with the newest version.__
-
-In particular, in the new approach based on binding boxes, the need to manually add object variables globally is eliminated.
-To see examples of the new constraints, try out the Auto-Discovery feature and inspect the generated constraint.
-
-
-### Loading OCELs & Viewing OCEL info
-When visiting the initial page of the tool, you can load an OCEL2 file by either choosing a custom OCEL2 file (XML/JSON) or selecting an OCEL2 file from the provided list (only available in the dev/docker setup and only if there are .json/.xml files in the `backend/data` folder).
-If the OCEL was loaded successfully, you will automatically be forwarded to the OCEL info view.
-
-<img src="https://github.com/aarkue/ocedeclare/assets/20766652/54ae7aa3-36d5-4d6e-8bf4-66eb1b30d34a" width="50%"/>
-
-<img src="https://github.com/aarkue/ocedeclare/assets/20766652/148beb72-dcbd-4e97-a5e1-2793d2194987" width="50%"/>
-
-### Adding and Evaluating Constraints
-Visit the Constraints page using the `Constraints` button in the menu (on the left).
-Click the `Add Constraint` button on the top. A boxes with hints will guide you through the creation process.
-
-<img src="https://github.com/aarkue/ocedeclare/assets/20766652/fb31cbfa-8d1d-4cc5-9e61-9ab82109b9a9" width="50%"/>
-
-
-In particular, the steps are as follows:
-1. Add one or more _object variables_. Object variables have a unique _variable name_ (e.g., `or_0`) and an _object type_ (e.g., `objects`). ![image](https://github.com/aarkue/ocedeclare/assets/20766652/279f77c1-4710-4264-b3f8-79920d6736e3)
-2. Add one or more _event filter nodes_. You need to select an event type for the node (e.g., `pay order`). ![image](https://github.com/aarkue/ocedeclare/assets/20766652/bf7123f4-f820-41bb-9f01-1da3a2d96d9f)
-3. Link the created _node_ with the _object variable_. For that, select the object variable name from the dropdown on the bottom of the node ((1) and (2)). The selectable E2O qualifiers are automatically extracted from the event log. Next, the allowed event count can be configured (e.g., by selecting `1 - 1` for (3)) ![image](https://github.com/aarkue/ocedeclare/assets/20766652/32227b43-81e8-482b-ad08-4604bc4d4acb)
-4. Evaluate the constraint using the play button on the top right (1). After the evaluation finished, the number of violations (absolute and percentage) will be shown with the corresponding node (2). ![image](https://github.com/aarkue/ocedeclare/assets/20766652/d291b7e7-ff21-426c-893e-8c1df4c49bd7)
-
-  
-
 ### Automatically Discovering Constraints
 Constraints can also automatically be discovered using the `Auto-Discovery` button.
 You can configure the different types of constraints to discover, as well as the object types for which to discover constraints.
 
 The discovered Constraints are automatically added to the list of constraints and can be manually edited or deleted.
-
-### Saving Constraints
-The save button on the top center-right saves the created constraints to local storage in your browser. Saved data will persist on reloads.
-Make sure to load the correct OCEL file before evaluating or editing saved constraints.
 
