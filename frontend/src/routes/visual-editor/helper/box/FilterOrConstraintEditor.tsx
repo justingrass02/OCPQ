@@ -812,7 +812,7 @@ export function FilterOrConstraintDisplay<
       return (
         <div className="flex items-center text-xs w-full bg-white/50 text-slate-800 border border-slate-600/10 text-[0.5rem] px-0.5 rounded-sm ">
           {/* CEL */}
-          <PiCodeFill className="inline mr-1 pr-1 ml-0.5 border-r" size={24} />
+          <PiCodeFill className={clsx("inline mr-1 pr-1 ml-0.5 border-r shrink-0",value.type === 'BasicFilterCEL' && "text-blue-600",value.type !== 'BasicFilterCEL' && "text-purple-600")} size={20} />
           <pre
             className={clsx(
               "text-[0.5rem] overflow-ellipsis overflow-hidden leading-tight font-semibold",

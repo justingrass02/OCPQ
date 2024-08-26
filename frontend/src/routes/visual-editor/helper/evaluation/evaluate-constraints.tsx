@@ -221,17 +221,31 @@ function predicateToLaTeX<T extends Filter | SizeFilter | Constraint>(
         "$-\\infty$",
       )}})`;
     case "NumChilds":
+      return String.raw`\mathrm{CBS}(\texttt{${value.child_name}},${value.min ?? 0},${value.max ?? "\\infty"})`
       // TODO: Add syntactic sugar (e.g., |A| = 1, |A| >= 2)
-      if (value.min !== null && value.min === value.max) {
-        return String.raw`\left|\texttt{${value.child_name}}\right| = ${value.min}`;
-      } else if (value.min === null && value.max !== null) {
-        return String.raw`\left|\texttt{${value.child_name}}\right| \leq ${value.max}`;
-      } else if (value.max === null && value.min !== null) {
-        return String.raw`\left|\texttt{${value.child_name}}\right| \geq ${value.min}`;
-      }
-      return String.raw`${value.min ?? 0} \leq \left|\texttt{${
-        value.child_name
-      }}\right| \leq ${value.max ?? "\\infty"}`;
+      // if (value.min !== null && value.min === value.max) {
+      //   return String.raw`\left|\texttt{${value.child_name}}\right| = ${value.min}`;
+      // } else if (value.min === null && value.max !== null) {
+      //   return String.raw`\left|\texttt{${value.child_name}}\right| \leq ${value.max}`;
+      // } else if (value.max === null && value.min !== null) {
+      //   return String.raw`\left|\texttt{${value.child_name}}\right| \geq ${value.min}`;
+      // }
+      // return String.raw`${value.min ?? 0} \leq \left|\texttt{${
+      //   value.child_name
+      // }}\right| \leq ${value.max ?? "\\infty"}`;
+      case "NumChildsProj":
+        // TODO: Add syntactic sugar (e.g., |A| = 1, |A| >= 2)
+      return String.raw`\mathrm{CBPS}(\texttt{${value.child_name}},\texttt{${varName(value.var_name)}},${value.min ?? 0},${value.max ?? "\\infty"})`
+        // if (value.min !== null && value.min === value.max) {
+        //   return String.raw`\left|\texttt{${value.child_name}}[\texttt{${varName(value.var_name)}}]\right| = ${value.min}`;
+        // } else if (value.min === null && value.max !== null) {
+        //   return String.raw`\left|\texttt{${value.child_name}}[\texttt{${varName(value.var_name)}}]\right| \leq ${value.max}`;
+        // } else if (value.max === null && value.min !== null) {
+        //   return String.raw`\left|\texttt{${value.child_name}}[\texttt{${varName(value.var_name)}}]\right| \geq ${value.min}`;
+        // }
+        // return String.raw`${value.min ?? 0} \leq \left|\texttt{${
+        //   value.child_name
+        // }}[\texttt{${varName(value.var_name)}}]\right| \leq ${value.max ?? "\\infty"}`;
     case "AND":
       return String.raw`\mathrm{AND}(${value.child_names
         .map((s) => "\\texttt{" + s + "}")
@@ -249,13 +263,15 @@ function predicateToLaTeX<T extends Filter | SizeFilter | Constraint>(
         .map((s) => "\\texttt{" + s + "}")
         .join(", ")})`;
     case "BindingSetEqual":
-      return String.raw`${value.child_names
-        .map((s) => "\\texttt{" + s + "}")
-        .join(" = ")}`;
+      return String.raw`\mathrm{CBE}(${value.child_names.map(c => "\\texttt{" + c+ "}").join(', ')})`
+      // return String.raw`${value.child_names
+      //   .map((s) => "\\texttt{" + s + "}")
+      //   .join(" = ")}`;
     case "BindingSetProjectionEqual": {
-      return String.raw`${value.child_name_with_var_name
-        .map(([s, v]) => "\\texttt{" + s + "}[" + varName(v) + "]")
-        .join(" = ")}`;
+      return String.raw`\mathrm{CBPE}(${value.child_name_with_var_name.map(([c,v]) => "\\texttt{" + c+ "}, \\texttt{"+varName(v)+"}").join(', ')})`
+      // return String.raw`${value.child_name_with_var_name
+      //   .map(([s, v]) => "\\texttt{" + s + "}[" + varName(v) + "]")
+      //   .join(" = ")}`;
     }
     case "Filter":
       return predicateToLaTeX(value.filter);
@@ -270,24 +286,27 @@ function predicateToLaTeX<T extends Filter | SizeFilter | Constraint>(
         switch (value.value_filter.type) {
           case "Float":
           case "Integer":
-            if (
-              value.value_filter.min !== null &&
-              value.value_filter.min === value.value_filter.max
-            ) {
-              return String.raw`${valPart} = ${value.value_filter.min}`;
-            } else if (
-              value.value_filter.min === null &&
-              value.value_filter.max !== null
-            ) {
-              return String.raw`${valPart} \leq ${value.value_filter.max}`;
-            } else if (
-              value.value_filter.min !== null &&
-              value.value_filter.max === null
-            ) {
-              return String.raw`${valPart} \geq ${value.value_filter.min}`;
-            } else {
-              return String.raw`${value.value_filter.min} \leq ${valPart} \leq ${value.value_filter.max}`;
-            }
+            return String.raw`\mathrm{EAR}(\texttt{${varName({
+              Event: value.event,
+            })}},\texttt{${value.attribute_name}},${value.value_filter.min},${value.value_filter.max})`;
+            // if (
+            //   value.value_filter.min !== null &&
+            //   value.value_filter.min === value.value_filter.max
+            // ) {
+            //   return String.raw`${valPart} = ${value.value_filter.min}`;
+            // } else if (
+            //   value.value_filter.min === null &&
+            //   value.value_filter.max !== null
+            // ) {
+            //   return String.raw`${valPart} \leq ${value.value_filter.max}`;
+            // } else if (
+            //   value.value_filter.min !== null &&
+            //   value.value_filter.max === null
+            // ) {
+            //   return String.raw`${valPart} \geq ${value.value_filter.min}`;
+            // } else {
+            //   return String.raw`${value.value_filter.min} \leq ${valPart} \leq ${value.value_filter.max}`;
+            // }
           case "Boolean":
           case "String":
           case "Time":
@@ -301,35 +320,38 @@ function predicateToLaTeX<T extends Filter | SizeFilter | Constraint>(
         const valPart = String.raw`\texttt{${varName({
           Object: value.object,
         })}}.\texttt{${value.attribute_name}}`;
-        const timePart = String.raw`\;\;(\at\,\texttt{${
+        const timePart = String.raw`\texttt{${
           value.at_time.type === "Always"
-            ? "always"
+            ? "ALWAYS"
             : value.at_time.type === "Sometime"
-            ? "sometime"
+            ? "SOMETIME"
             : varName({ Event: value.at_time.event })
-        })}`;
+        }}`;
         let complete = "";
         switch (value.value_filter.type) {
           case "Float":
           case "Integer":
-            if (
-              value.value_filter.min !== null &&
-              value.value_filter.min === value.value_filter.max
-            ) {
-              return String.raw`${valPart} = ${value.value_filter.min} ${timePart}`;
-            } else if (
-              value.value_filter.min === null &&
-              value.value_filter.max !== null
-            ) {
-              return String.raw`${valPart} \leq ${value.value_filter.max} ${timePart}`;
-            } else if (
-              value.value_filter.min !== null &&
-              value.value_filter.max === null
-            ) {
-              return String.raw`${valPart} \geq ${value.value_filter.min} ${timePart}`;
-            } else {
-              return String.raw`${value.value_filter.min} \leq ${valPart} \leq ${value.value_filter.max} ${timePart}`;
-            }
+            return String.raw`\mathrm{OAR}(\texttt{${varName({
+              Object: value.object,
+            })}},\texttt{${value.attribute_name}},${value.value_filter.min},${value.value_filter.max},${timePart})`;
+            // if (
+            //   value.value_filter.min !== null &&
+            //   value.value_filter.min === value.value_filter.max
+            // ) {
+            //   return String.raw`${valPart} = ${value.value_filter.min} ${timePart}`;
+            // } else if (
+            //   value.value_filter.min === null &&
+            //   value.value_filter.max !== null
+            // ) {
+            //   return String.raw`${valPart} \leq ${value.value_filter.max} ${timePart}`;
+            // } else if (
+            //   value.value_filter.min !== null &&
+            //   value.value_filter.max === null
+            // ) {
+            //   return String.raw`${valPart} \geq ${value.value_filter.min} ${timePart}`;
+            // } else {
+            //   return String.raw`${value.value_filter.min} \leq ${valPart} \leq ${value.value_filter.max} ${timePart}`;
+            // }
           case "Boolean":
           case "String":
           case "Time":
@@ -338,7 +360,13 @@ function predicateToLaTeX<T extends Filter | SizeFilter | Constraint>(
         }
       }
       break;
+      case "BasicFilterCEL":
+        return String.raw`\mathrm{BasicCEL}(\mintinline{js}|${value.cel}|)`
+      case "AdvancedCEL":
+        return String.raw`\mathrm{AdvCEL}(\mintinline{js}|${value.cel}|)`
+    case "NotEqual":
     default:
+      console.log({value})
       return "TODO";
   }
 }
