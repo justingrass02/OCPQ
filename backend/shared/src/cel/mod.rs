@@ -41,18 +41,18 @@ unsafe impl<'a, T> Send for RawBindingContextPtr<'a, T> {}
 unsafe impl<'a, T> Sync for RawBindingContextPtr<'a, T> {}
 impl<'a, T> Clone for RawBindingContextPtr<'a, T> {
     fn clone(&self) -> Self {
-        Self(self.0)
+        *self
     }
 }
 
 impl<'a, T> Copy for RawBindingContextPtr<'a, T> {}
 
-fn index_string_to_val<'a, 'b>(s: &str, ocel: &'a IndexLinkedOCEL) -> Option<OCELNodeRef<'a>> {
+fn index_string_to_val<'a>(s: &str, ocel: &'a IndexLinkedOCEL) -> Option<OCELNodeRef<'a>> {
     let index = string_to_index(s)?;
     ocel.ob_or_ev_by_index(index)
 }
 
-unsafe fn index_string_to_val_raw<'a, 'b>(
+unsafe fn index_string_to_val_raw<'a>(
     s: &str,
     ocel: RawBindingContextPtr<'a, IndexLinkedOCEL>,
 ) -> Option<OCELNodeRef<'a>> {

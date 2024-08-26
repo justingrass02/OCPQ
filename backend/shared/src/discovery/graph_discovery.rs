@@ -9,12 +9,17 @@ use std::{
 
 use itertools::Itertools;
 
-use plotly::{
-    common::Marker,
-    layout::{Axis, ColorAxis},
-    Layout, Plot, Scatter,
+// use plotly::{
+//     common::Marker,
+//     layout::{Axis, ColorAxis},
+//     Layout, Plot, Scatter,
+// };
+use rand::{
+    // random,
+    rngs::StdRng,
+    seq::IteratorRandom,
+    SeedableRng,
 };
-use rand::{random, rngs::StdRng, seq::IteratorRandom, SeedableRng};
 
 use crate::{
     binding_box::{
@@ -341,7 +346,6 @@ fn get_seconds_range_with_coverage(
     }
     Some((min, max))
 }
-
 
 // fn plot_scatter<S: AsRef<str>, P: AsRef<std::path::Path>>(
 //     counts: &Vec<usize>,

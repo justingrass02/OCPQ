@@ -72,7 +72,7 @@ fn check_with_box_tree(
     match state.lock().unwrap().as_ref() {
         Some(ocel) => Ok(evaluate_box_tree(
             req.tree,
-            &ocel,
+            ocel,
             req.measure_performance.unwrap_or(false),
         )),
         None => Err("No OCEL loaded".to_string()),
@@ -85,7 +85,7 @@ fn auto_discover_constraints(
     state: State<OCELStore>,
 ) -> Result<AutoDiscoverConstraintsResponse, String> {
     match state.lock().unwrap().as_ref() {
-        Some(ocel) => Ok(auto_discover_constraints_with_options(&ocel, options)),
+        Some(ocel) => Ok(auto_discover_constraints_with_options(ocel, options)),
         None => Err("No OCEL loaded".to_string()),
     }
 }
@@ -93,7 +93,7 @@ fn auto_discover_constraints(
 #[tauri::command(async)]
 fn ocel_graph(options: OCELGraphOptions, state: State<OCELStore>) -> Result<OCELGraph, String> {
     match state.lock().unwrap().as_ref() {
-        Some(ocel) => match get_ocel_graph(&ocel, options) {
+        Some(ocel) => match get_ocel_graph(ocel, options) {
             Some(graph) => Ok(graph),
             None => Err("Could not construct OCEL Graph".to_string()),
         },
