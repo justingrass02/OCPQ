@@ -71,10 +71,10 @@ The updated node then looks as shown below, indicating the added variables and t
 
 Next, we want to add a predicate statement linking `o1` and `e1`.
 For that, we add a new filter predicate using the `+`-button shown besides the filters.
-Then, the filter type (_Object associated with Event_) can be selected (1), and the corresponding parameters (2), (3) and (4) can be configured.
+Then, the filter type (_E2O: Event-To-Object Relationship_) can be selected (1), and the corresponding parameters (2), (3) and (4) can be configured.
+Parameter (4) can optionally be used to only consider a specific relationship qualifier, but can also be left unspecified.
 
-
-![image](https://github.com/user-attachments/assets/4af9e8ee-8a15-497b-a4cb-6e2aeaf15a46)
+![image](https://github.com/user-attachments/assets/298c732c-8076-40a6-b872-1ce5c4d25fef)
 
 Finally, using the _Add_ button (5) the filter predicate is added to the node, which then looks as shown below.
 
@@ -104,9 +104,10 @@ Additionally, we add an event variable and a filter predicate to this newly crea
 ### Adding Constraints
 
 Using this added child node, we want to specify a constraint regarding the number of child bindings (i.e., the number of `pay order` events for the confirmed order `o1`).
-This can be done by first clicking the `+` button next to the constraints of the _top_ / parent node and then selecting the _Number of Child Bindings_ constraint type, and configuring the associated parameters (specifying the edge name `A` as well as the min and max count, both `1` in this example).
+This can be done by first clicking the `+` button next to the constraints of the _top_ / parent node and then selecting the _CBS: Child Bindings Set Size_ constraint type, and configuring the associated parameters (specifying the edge name `A` as well as the min and max count, both `1` in this example).
 
-![image](https://github.com/user-attachments/assets/de200cf7-1af0-41b1-a1bb-20c38a0a896f)
+![image](https://github.com/user-attachments/assets/3d4687a8-0285-4770-9822-1a009ab9a532)
+
 
 
 After adding this constraint and evaluating it (again using the play button on the top right), we can see that this constraint is satisfied for all bindings (i.e, a violation percentage of 0% is shown, and the node is colored in bright green).
@@ -117,7 +118,8 @@ After adding this constraint and evaluating it (again using the play button on t
 Finally, we want to make this constraint a little more interesting.
 In particular, we want to specify that the `pay order` event should occur within 2 weeks after the `confirm order` event.
 For this, we add a filter predicate to the child node, such that it only queries `pay order` events within this timeframe.
-![image](https://github.com/user-attachments/assets/aa834fcd-e4b3-4e87-9262-74fd9d73710d)
+
+![image](https://github.com/user-attachments/assets/6c392c92-6a80-46ef-8363-69ff1a2f2433)
 
 Evaluating this updated constraint again yields a violation percentage of 29.3%.
 
