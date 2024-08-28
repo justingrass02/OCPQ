@@ -159,55 +159,55 @@ export default function FilterChooser({
                   }
                   options={[
                     {
-                      label: "Object associated with Event",
+                      label: "E2O: Event-To-Object Relationship",
                       value: "O2E",
                     },
                     {
-                      label: "Object associated with Object",
+                      label: "O2O: Object-To-Object Relationship",
                       value: "O2O",
                     },
                     {
-                      label: "Time between Events",
+                      label: "TBE: Time between Events",
                       value: "TimeBetweenEvents",
                     },
+                    // {
+                    //   label: "Variables not equal",
+                    //   value: "NotEqual",
+                    // },
                     {
-                      label: "Variables not equal",
-                      value: "NotEqual",
-                    },
-                    {
-                      label: "CEL Script (Basic Filter)",
-                      value: "BasicFilterCEL",
-                    },
-                    {
-                      label: "Event Attribute Value",
+                      label: "EAE/EAR: Event Attribute Value",
                       value: "EventAttributeValueFilter",
                     },
                     {
-                      label: "Object Attribute Value",
+                      label: "OAE/OAR: Object Attribute Value",
                       value: "ObjectAttributeValueFilter",
+                    },
+                    {
+                      label: "BasicCEL: Basic CEL Script",
+                      value: "BasicFilterCEL",
                     },
                     ...(alertState.type !== "filter" ||
                     alertState.mode !== "edit" ||
                     alertState.wasSizeFilter
                       ? [
                           {
-                            label: "Number of Child Bindings",
+                            label: "CBS: Child Bindings Set Size",
                             value: "NumChilds",
                           },
                           {
-                            label: "Child Binding Sets Equal",
+                            label: "CBE: Child Binding Sets Equal",
                             value: "BindingSetEqual",
                           },
                           {
-                            label: "Child Binding Set Projects Equal",
-                            value: "BindingSetProjectionEqual",
-                          },
-                          {
-                            label: "Number of Projected Child Bindings",
+                            label: "CBPS: Projected Child Bindings Set Size",
                             value: "NumChildsProj",
                           },
                           {
-                            label: "CEL Script (Advanced Filter/Constraint)",
+                            label: "CBPE: Projected Child Binding Sets Equal",
+                            value: "BindingSetProjectionEqual",
+                          },
+                          {
+                            label: "AdvCEL: Advanced CEL Script",
                             value: "AdvancedCEL",
                           },
                         ]
@@ -215,10 +215,10 @@ export default function FilterChooser({
 
                     ...(alertState.type === "constraint"
                       ? [
-                          { label: "Child Satisfied (SAT)", value: "SAT" },
-                          { label: "Child not Satisfied (NOT)", value: "NOT" },
-                          { label: "Logic AND", value: "AND" },
-                          { label: "Logic OR", value: "OR" },
+                          { label: "SAT: All Child Bindings Satisfied", value: "SAT" },
+                          { label: "NOT: Logic NOT", value: "NOT" },
+                          { label: "OR: Logic OR", value: "OR" },
+                          { label: "AND: Logic AND", value: "AND" },
                         ]
                       : []),
                   ]}

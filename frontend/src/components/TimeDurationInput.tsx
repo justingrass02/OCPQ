@@ -59,9 +59,11 @@ export function formatSeconds(
 export default function TimeDurationInput({
   durationSeconds,
   onChange,
+  placeholder
 }: {
   durationSeconds: number;
   onChange: (newSeconds: number | undefined) => unknown;
+  placeholder?: string;
 }) {
   const [unit, setUnit] = useState<(typeof TIME_DURATION_UNITS)[number]>(
     getFittingUnit(durationSeconds),
@@ -82,7 +84,8 @@ export default function TimeDurationInput({
     );
   }, [durationSeconds]);
 
-  function handleValueChange(inputValue: string) {
+  function handleValueChange(inputValue: string, useUnit = unit) {
+    inputValue = inputValue.toLowerCase();
     if (
       inputValue === "∞" ||
       inputValue === "inf" ||
@@ -106,7 +109,7 @@ export default function TimeDurationInput({
     const val = parseFloat(inputValue);
     if (!isNaN(val)) {
       setValue(val);
-      onChange(val * unitFactorFromSeconds(unit));
+      onChange(val * unitFactorFromSeconds(useUnit));
       setValueString(val.toString());
     } else {
       setValueString("");
@@ -116,7 +119,7 @@ export default function TimeDurationInput({
 
   return (
     <div className="flex gap-x-2 items-center">
-      <Input
+      <Input placeholder={placeholder}
         className="w-full"
         onBlur={(ev) => {
           handleValueChange(ev.currentTarget.value);
@@ -133,12 +136,15 @@ export default function TimeDurationInput({
         options={TIME_DURATION_UNITS.map((u) => ({ value: u, label: u }))}
         onChange={(newUnitIn) => {
           const newUnit = newUnitIn as (typeof TIME_DURATION_UNITS)[number];
-          const convertedValue =
-            value *
-            (unitFactorFromSeconds(unit) / unitFactorFromSeconds(newUnit));
-          setValue(convertedValue);
-          setValueString(convertedValue.toString());
+          console.log({newUnit,value,unit})
+          // const convertedValue =
+          //   value *
+          //   (unitFactorFromSeconds(unit) / unitFactorFromSeconds(newUnit));
+          // setValue(convertedValue);
+          // setValueString(convertedValue.toString());
           setUnit(newUnit);
+          handleValueChange(value.toString(),newUnit);
+
         }}
         name={"Unit"}
         value={unit}

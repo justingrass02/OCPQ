@@ -47,22 +47,22 @@ export default function FilterOrConstraintEditor<
     case "O2E":
       return (
         <>
+            <EventVarSelector
+              eventVars={availableEventVars}
+              value={value.event}
+              onChange={(newV) => {
+                if (newV !== undefined) {
+                  value.event = newV;
+                  updateValue({ ...value });
+                }
+              }}
+            />
           <ObjectVarSelector
             objectVars={availableObjectVars}
             value={value.object}
             onChange={(newV) => {
               if (newV !== undefined) {
                 value.object = newV;
-                updateValue({ ...value });
-              }
-            }}
-          />
-          <EventVarSelector
-            eventVars={availableEventVars}
-            value={value.event}
-            onChange={(newV) => {
-              if (newV !== undefined) {
-                value.event = newV;
                 updateValue({ ...value });
               }
             }}
@@ -218,7 +218,7 @@ export default function FilterOrConstraintEditor<
               }
             }}
           />
-          <TimeDurationInput
+          <TimeDurationInput placeholder="Minimum Duration/Delay (Optional)"
             durationSeconds={value.min_seconds ?? -Infinity}
             onChange={(newVal) => {
               if (newVal !== undefined && isFinite(newVal)) {
@@ -230,7 +230,7 @@ export default function FilterOrConstraintEditor<
               }
             }}
           />
-          <TimeDurationInput
+          <TimeDurationInput placeholder="Maximum Duration/Delay (Optional)"
             durationSeconds={value.max_seconds ?? Infinity}
             onChange={(newVal) => {
               if (newVal !== undefined && isFinite(newVal)) {
@@ -257,7 +257,7 @@ export default function FilterOrConstraintEditor<
               }
             }}
           />
-          <Input
+          <Input placeholder="Minimal Count (Optional)"
             type="number"
             value={value.min ?? ""}
             onChange={(ev) => {
@@ -271,7 +271,7 @@ export default function FilterOrConstraintEditor<
             }}
           />
 
-          <Input
+          <Input placeholder="Maximal Count (Optional)"
             type="number"
             value={value.max ?? ""}
             onChange={(ev) => {
@@ -1056,6 +1056,7 @@ function ChildSetSelector({
         }
       }}
       name={"Child Set"}
+      title="Child Set"
       value={value ?? ""}
     />
   );
@@ -1071,7 +1072,7 @@ function AttributeNameSelector({
   availableAttributes: string[];
 }) {
   return (
-    <Combobox
+    <Combobox title="Attribute Name"
       options={availableAttributes.map((v) => ({
         label: v,
         value: v,
@@ -1122,6 +1123,7 @@ function AttributeValueFilterSelector({
           }
         }}
         name={"Attribute Type"}
+        title="Attribute Type"
         value={value?.type ?? "String"}
       />
       {value?.type === "Boolean" && (
@@ -1137,7 +1139,7 @@ function AttributeValueFilterSelector({
       )}
       {(value?.type === "Float" || value?.type === "Integer") && (
         <div className="flex items-center gap-x-2">
-          <Input
+          <Input title="Minimum (Optional)" placeholder="Minimum (Optional)"
             type="number"
             step={value.type === "Integer" ? 1 : undefined}
             value={value.min+ ""}
@@ -1153,7 +1155,7 @@ function AttributeValueFilterSelector({
           />
           {"-"}
 
-          <Input
+          <Input title="Maximum (Optional)" placeholder="Maximum (Optional)"
             type="number"
             step={value.type === "Integer" ? 1 : undefined}
             value={value.max+ ""}
