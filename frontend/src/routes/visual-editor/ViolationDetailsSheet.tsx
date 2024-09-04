@@ -12,11 +12,17 @@ import AutoSizer from "react-virtualized-auto-sizer";
 import { FilterOrConstraintDisplay } from "./helper/box/FilterOrConstraintEditor";
 import { EvVarName, ObVarName } from "./helper/box/variable-names";
 import type { Binding } from "@/types/generated/Binding";
-import { VariableSizeList, type ListChildComponentProps } from "react-window";
+import {
+  type VariableSizeList,
+  type ListChildComponentProps,
+} from "react-window";
 import type { BindingBoxTreeNode } from "@/types/generated/BindingBoxTreeNode";
 import type { ViolationReason } from "@/types/generated/ViolationReason";
 import type { EvaluationRes, EvaluationResPerNodes } from "./helper/types";
 import { VisualEditorContext } from "./helper/VisualEditorContext";
+import { BindingTable } from "@/components/binding-table/BindingTable";
+import { columnsForBinding } from "@/components/binding-table/columns";
+import { DataTablePagination } from "@/components/binding-table/PaginatedBindingTable";
 
 const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
   violationDetails,
@@ -204,7 +210,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
       {violationDetails !== undefined && (
         <SheetContent
           side="left"
-          className="h-screen flex flex-col"
+          className="h-screen flex flex-col max-w-[50vw] min-w-fit"
           overlay={false}
           onInteractOutside={(ev) => {
             ev.preventDefault();
@@ -244,7 +250,19 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
               {mode === "situations" ? "Situations" : "Violations"}
             </SheetDescription>
           </SheetHeader>
-          <ul className="overflow-auto h-full bg-slate-50 border rounded-sm mt-2 px-2 py-0.5 text-xs">
+
+          {items.length > 0 && (
+            <DataTablePagination
+              columns={columnsForBinding(
+                items[0][0],
+                violationResPerNodes.objectIds,
+                violationResPerNodes.eventIds,
+                showElementInfo
+              )}
+              data={items.slice(0, 100).map(([b, _]) => b)}
+            />
+          )}
+          {/* <ul className="overflow-auto h-full bg-slate-50 border rounded-sm mt-2 px-2 py-0.5 text-xs">
             <AutoSizer>
               {({ height, width }) => (
                 <VariableSizeList
@@ -260,7 +278,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                 </VariableSizeList>
               )}
             </AutoSizer>
-          </ul>
+          </ul> */}
         </SheetContent>
       )}
     </Sheet>
