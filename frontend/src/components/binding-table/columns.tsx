@@ -1,11 +1,15 @@
+import { FilterOrConstraintDisplay } from "@/routes/visual-editor/helper/box/FilterOrConstraintEditor";
 import {
   EvVarName,
   ObVarName,
 } from "@/routes/visual-editor/helper/box/variable-names";
+import type { EvaluationRes } from "@/routes/visual-editor/helper/types";
 import type { Binding } from "@/types/generated/Binding";
+import type { BindingBoxTreeNode } from "@/types/generated/BindingBoxTreeNode";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Link } from "react-router-dom";
 
+type BindingInfo = EvaluationRes["situations"][number];
 export function columnsForBinding(
   binding: Binding,
   objectIds: string[],
@@ -15,7 +19,8 @@ export function columnsForBinding(
       | { req: { id: string } | { index: number }; type: "object" | "event" }
       | undefined,
   ) => unknown,
-): ColumnDef<Binding>[] {
+  node: BindingBoxTreeNode,
+): ColumnDef<BindingInfo>[] {
   return [
     ...Object.entries(binding.objectMap).map(
       ([obVarName, _obIndex]) =>
@@ -44,8 +49,8 @@ export function columnsForBinding(
             </Link>
           ),
           header: () => <ObVarName obVar={parseInt(obVarName)} />,
-          accessorFn: (b) => objectIds[b.objectMap[parseInt(obVarName)]],
-        }) satisfies ColumnDef<Binding>,
+          accessorFn: ([b, _x]) => objectIds[b.objectMap[parseInt(obVarName)]],
+        }) satisfies ColumnDef<BindingInfo>,
     ),
     ...Object.entries(binding.eventMap).map(
       ([evVarName, _evIndex]) =>
@@ -74,22 +79,35 @@ export function columnsForBinding(
             </Link>
           ),
           header: () => <EvVarName eventVar={parseInt(evVarName)} />,
-          accessorFn: (b) => eventIds[b.eventMap[parseInt(evVarName)]],
-        }) satisfies ColumnDef<Binding>,
+          accessorFn: ([b, _x]) => eventIds[b.eventMap[parseInt(evVarName)]],
+        }) satisfies ColumnDef<BindingInfo>,
     ),
-    // {
-    //   accessorFn: (x) => {
-    //     return x.
-    //   },
-    //   header: "Status",
-    // },
-    // {
-    //   accessorKey: "email",
-    //   header: "Email",
-    // },
-    // {
-    //   accessorKey: "amount",
-    //   header: "Amount",
-    // },
+    {
+      id: "Violation",
+      accessorFn: ([_b, r]) => (r !== null ? "VIOLATED" : "SATISFIED"),
+      cell: (c) => {
+        const r = c.row.original[1];
+        const v =
+          r !== null && typeof r === "object" && "ConstraintNotSatisfied" in r
+            ? r.ConstraintNotSatisfied
+            : undefined;
+        return (
+          <div className="flex items-center gap-x-2 max-w-[7.66rem]">
+            {v === undefined && <div className="h-4">-</div>}
+            {v !== undefined && (
+              <div className="h-4">
+                <FilterOrConstraintDisplay
+                  compact={true}
+                  value={
+                    (node as BindingBoxTreeNode & { Box: any }).Box[0]
+                      .constraints[v]
+                  }
+                />
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
   ];
 }

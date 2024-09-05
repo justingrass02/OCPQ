@@ -1,9 +1,4 @@
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  DoubleArrowLeftIcon,
-  DoubleArrowRightIcon,
-} from "@radix-ui/react-icons";
+import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import {
   type ColumnDef,
   flexRender,
@@ -12,15 +7,10 @@ import {
   getPaginationRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
-import {
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell,
-} from "../ui/table";
+import { Input } from "../ui/input";
+import { IndeterminateCheckbox } from "../ui/intermediate-checkbox";
 import {
   Select,
   SelectContent,
@@ -28,7 +18,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { Input } from "../ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../ui/table";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -38,10 +35,14 @@ interface DataTableProps<TData, TValue> {
 export function DataTablePagination<TData, TValue>({
   columns,
   data,
-}: DataTableProps<TData, TValue>) {
+  initialMode,
+}: DataTableProps<TData, TValue> & {
+  initialMode: "violations" | "situations" | "satisfied-situations" | undefined;
+}) {
   const table = useReactTable({
     data,
     columns,
+    filterFns: {},
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -52,37 +53,82 @@ export function DataTablePagination<TData, TValue>({
       },
     },
   });
+  useEffect(() => {
+    if (initialMode === "satisfied-situations") {
+      table.getColumn("Violation")?.setFilterValue("SATISFIED");
+    } else if (initialMode === "violations") {
+      table.getColumn("Violation")?.setFilterValue("VIOLATED");
+    } else {
+      table.getColumn("Violation")?.setFilterValue(undefined);
+    }
+  }, [initialMode]);
   return (
-    <div>
-      <div className="rounded-md border w-full max-h-[80vh] overflow-auto">
+    <div className="w-full">
+      <div className="rounded-md border w-full max-h-[80vh] overflow-auto px-1">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead key={header.id} className="">
-                      {/* <Input className="w-[12ch] text-xs m-0" /> */}
+                    <TableHead key={header.id} className="py-1 px-2 mx-4">
                       {header.isPlaceholder
                         ? null
                         : flexRender(
                             header.column.columnDef.header,
                             header.getContext(),
                           )}
-                      <Input
-                        placeholder="Filter..."
-                        value={
-                          (table
-                            .getColumn(header.id)
-                            ?.getFilterValue() as string) ?? ""
-                        }
-                        onChange={(event) =>
-                          table
-                            .getColumn(header.id)
-                            ?.setFilterValue(event.target.value)
-                        }
-                        className="max-w-20 text-xs py-0 h-6 my-1"
-                      />
+                      <div className="flex items-center gap-x-1">
+                        {header.id === "Violation" && (
+                          <>
+                            <IndeterminateCheckbox
+                              state={
+                                table.getColumn(header.id)?.getFilterValue() ===
+                                "SATISFIED"
+                                  ? "unchecked"
+                                  : table
+                                      .getColumn(header.id)
+                                      ?.getFilterValue() === "VIOLATED"
+                                  ? "checked"
+                                  : "indeterminate"
+                              }
+                              newState={(newChecked) => {
+                                table
+                                  .getColumn(header.id)
+                                  ?.setFilterValue(
+                                    newChecked === "indeterminate"
+                                      ? undefined
+                                      : newChecked === "unchecked"
+                                      ? "SATISFIED"
+                                      : "VIOLATED",
+                                  );
+                              }}
+                            />
+                            {table.getColumn(header.id)?.getFilterValue() ===
+                            undefined
+                              ? "any"
+                              : table.getColumn(header.id)?.getFilterValue() ===
+                                "VIOLATED"
+                              ? "viol."
+                              : "sat."}
+                          </>
+                        )}
+                        {header.id !== "Violation" && (
+                          <DebouncedInput
+                            debounce={200}
+                            placeholder="Filter..."
+                            value={
+                              (table
+                                .getColumn(header.id)
+                                ?.getFilterValue() as string) ?? ""
+                            }
+                            onChange={(newVal) =>
+                              table.getColumn(header.id)?.setFilterValue(newVal)
+                            }
+                            className="max-w-20 text-xs py-0 h-6 my-1"
+                          />
+                        )}
+                      </div>
                     </TableHead>
                   );
                 })}
@@ -119,36 +165,33 @@ export function DataTablePagination<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-around px-2 text-xs mt-2 w-full">
-        <div className="flex items-center space-x-6 lg:space-x-8">
-          <div className="flex items-center space-x-2">
-            <p className="font-medium">Rows per page</p>
-            <Select
-              value={`${table.getState().pagination.pageSize}`}
-              onValueChange={(value) => {
-                table.setPageSize(Number(value));
-              }}
-            >
-              <SelectTrigger className="h-8 w-[70px]">
-                <SelectValue
-                  placeholder={table.getState().pagination.pageSize}
-                />
-              </SelectTrigger>
-              <SelectContent side="top">
-                {[10, 20, 30, 40, 50].map((pageSize) => (
-                  <SelectItem key={pageSize} value={`${pageSize}`}>
-                    {pageSize}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex w-[100px] items-center justify-center font-medium">
-            Page {table.getState().pagination.pageIndex + 1} of{" "}
-            {table.getPageCount()}
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button
+      <div className="grid grid-cols-[1fr_1fr_1fr] items-center justify-between px-2 text-xs mt-2 w-full">
+        <div className="flex items-center space-x-2">
+          <p className="font-medium">Rows per page</p>
+          <Select
+            value={`${table.getState().pagination.pageSize}`}
+            onValueChange={(value) => {
+              table.setPageSize(Number(value));
+            }}
+          >
+            <SelectTrigger className="h-8 w-[70px]">
+              <SelectValue placeholder={table.getState().pagination.pageSize} />
+            </SelectTrigger>
+            <SelectContent side="top">
+              {[10, 20, 30, 40, 50].map((pageSize) => (
+                <SelectItem key={pageSize} value={`${pageSize}`}>
+                  {pageSize}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex w-full min-w-[150px] items-center justify-center font-medium">
+          Page {table.getState().pagination.pageIndex + 1} of{" "}
+          {table.getPageCount()}
+        </div>
+        <div className="flex items-center space-x-2 justify-end">
+          {/* <Button
               variant="outline"
               className="hidden h-8 w-8 p-0 lg:flex"
               onClick={() => table.setPageIndex(0)}
@@ -156,26 +199,26 @@ export function DataTablePagination<TData, TValue>({
             >
               <span className="sr-only">Go to first page</span>
               <DoubleArrowLeftIcon className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              className="h-8 w-8 p-0"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              <span className="sr-only">Go to previous page</span>
-              <ChevronLeftIcon className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              className="h-8 w-8 p-0"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              <span className="sr-only">Go to next page</span>
-              <ChevronRightIcon className="h-4 w-4" />
-            </Button>
-            <Button
+            </Button> */}
+          <Button
+            variant="outline"
+            className="h-8 w-8 p-0"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            <span className="sr-only">Go to previous page</span>
+            <ChevronLeftIcon className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            className="h-8 w-8 p-0"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            <span className="sr-only">Go to next page</span>
+            <ChevronRightIcon className="h-4 w-4" />
+          </Button>
+          {/* <Button
               variant="outline"
               className="hidden h-8 w-8 p-0 lg:flex"
               onClick={() => table.setPageIndex(table.getPageCount() - 1)}
@@ -183,10 +226,45 @@ export function DataTablePagination<TData, TValue>({
             >
               <span className="sr-only">Go to last page</span>
               <DoubleArrowRightIcon className="h-4 w-4" />
-            </Button>
-          </div>
+            </Button> */}
         </div>
       </div>
     </div>
   );
 }
+
+// A typical debounced input react component
+function DebouncedInput({
+  value: initialValue,
+  onChange,
+  debounce = 500,
+  ...props
+}: {
+  value: string | number;
+  onChange: (value: string | number) => void;
+  debounce?: number;
+} & Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange">) {
+  const [value, setValue] = useState(initialValue);
+
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      onChange(value);
+    }, debounce);
+
+    return () => clearTimeout(timeout);
+  }, [value]);
+
+  return (
+    <Input
+      {...props}
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+    />
+  );
+}
+
+export default DataTablePagination;
