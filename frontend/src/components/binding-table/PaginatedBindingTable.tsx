@@ -68,7 +68,7 @@ export function DataTablePagination<TData, TValue>({
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
+              <TableRow key={headerGroup.id} className="divide-x">
                 {headerGroup.headers.map((header) => {
                   return (
                     <TableHead key={header.id} className="py-1 px-2 mx-4">
@@ -78,7 +78,7 @@ export function DataTablePagination<TData, TValue>({
                             header.column.columnDef.header,
                             header.getContext(),
                           )}
-                      <div className="flex items-center gap-x-1">
+                      <div className="flex items-center gap-x-1 w-fit">
                         {header.id === "Violation" && (
                           <>
                             <IndeterminateCheckbox
@@ -116,7 +116,7 @@ export function DataTablePagination<TData, TValue>({
                         {header.id !== "Violation" && (
                           <DebouncedInput
                             debounce={200}
-                            placeholder="Filter..."
+                            placeholder="Search..."
                             value={
                               (table
                                 .getColumn(header.id)
@@ -141,9 +141,10 @@ export function DataTablePagination<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  className="divide-x w-fit"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} className="">
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext(),

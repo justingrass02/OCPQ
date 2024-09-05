@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
-import { CheckIcon, DividerHorizontalIcon } from "@radix-ui/react-icons";
+import { Cross1Icon } from "@radix-ui/react-icons";
 
 import { cn } from "@/lib/utils";
 import { LuMinus } from "react-icons/lu";
@@ -9,15 +9,14 @@ const IndeterminateCheckbox = React.forwardRef<
   React.ElementRef<typeof CheckboxPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root> & {
     state: "unchecked" | "checked" | "indeterminate";
-    newState: (
-      newState: "unchecked" | "checked" | "indeterminate",
-    ) => unknown;
+    newState: (newState: "unchecked" | "checked" | "indeterminate") => unknown;
   }
 >(({ className, ...props }, ref) => (
   <CheckboxPrimitive.Root
     ref={ref}
     className={cn(
-      "peer h-4 w-4 shrink-0 rounded-sm border border-primary shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground",
+      "peer h-4 w-4 shrink-0 rounded-sm border border-gray-500 shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 bg-green-200 data-[state=checked]:bg-red-400 data-[state=checked]:border-red-500 data-[state=checked]:text-primary-foreground",
+      props.state === "indeterminate" && "bg-gray-200",
       className,
     )}
     checked={props.state === "checked"}
@@ -31,14 +30,13 @@ const IndeterminateCheckbox = React.forwardRef<
         props.newState("checked");
       }
     }}
-    {...props}
+    // {...props}
   >
     {props.state === "indeterminate" && <LuMinus />}
     <CheckboxPrimitive.Indicator
       className={cn("flex items-center justify-center text-current")}
     >
-
-      <CheckIcon className="h-4 w-4" />
+      <Cross1Icon className="h-4 w-4" />
     </CheckboxPrimitive.Indicator>
   </CheckboxPrimitive.Root>
 ));

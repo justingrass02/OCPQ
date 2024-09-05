@@ -92,7 +92,7 @@ export default function OcelElementInfo({
         <div
           className={`block mx-2 bg-white border rounded-lg shadow-md text-left h-full w-full`}
         >
-          <h2 className="text-xl font-semibold my-1">JSON Representation</h2>
+          <h2 className="text-lg font-semibold my-1 px-2 py-1">JSON Representation</h2>
           <JSONEditor
             value={JSON.stringify(info?.event ?? info?.object ?? null, null, 2)}
             onChange={() => {}}

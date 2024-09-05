@@ -929,7 +929,7 @@ export default function VisualEditor(props: VisualEditorProps) {
       </ReactFlow>
       {violationDetails !== undefined &&
         violationInfo.violationsPerNode !== undefined && (
-          <ViolationDetailsSheet
+          <ViolationDetailsSheet key={JSON.stringify(violationDetails.node)}
             initialMode={violationDetails.initialMode}
             violationDetails={violationDetails.res}
             reset={() => setViolationDetails(undefined)}
