@@ -21,7 +21,6 @@ export default function ViolationIndicator({
   return (
     <button
       onClick={() => {
-        console.log({ violationsPerNode, showViolationsFor });
         if (
           violationsPerNode !== undefined &&
           showViolationsFor !== undefined

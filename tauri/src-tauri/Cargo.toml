@@ -1,7 +1,7 @@
 [package]
 name = "ocedeclare-tauri"
 version = "0.0.3"
-description = "OCEDECLARE Tauri App"
+description = "OCPQ"
 authors = ["aarkue"]
 license = ""
 repository = ""

@@ -48,23 +48,26 @@ export function DataTablePagination<TData, TValue>({
     getFilteredRowModel: getFilteredRowModel(),
     initialState: {
       pagination: {
-        pageIndex: 0, // custom initial page index
-        pageSize: 10, // custom default page size
+        pageIndex: 0,
+        pageSize: 10, 
       },
     },
   });
   useEffect(() => {
-    if (initialMode === "satisfied-situations") {
-      table.getColumn("Violation")?.setFilterValue("SATISFIED");
-    } else if (initialMode === "violations") {
-      table.getColumn("Violation")?.setFilterValue("VIOLATED");
-    } else {
-      table.getColumn("Violation")?.setFilterValue(undefined);
+    if(table.getAllColumns().find(c => c.id === "Violation") !== undefined){
+
+      if (initialMode === "satisfied-situations") {
+        table.getColumn("Violation")?.setFilterValue("SATISFIED");
+      } else if (initialMode === "violations") {
+        table.getColumn("Violation")?.setFilterValue("VIOLATED");
+      } else {
+        table.getColumn("Violation")?.setFilterValue(undefined);
+      }
     }
   }, [initialMode]);
   return (
     <div className="w-full">
-      <div className="rounded-md border w-full max-h-[80vh] overflow-auto px-1">
+      <div className="rounded-md border w-full max-h-[70vh] overflow-auto">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -81,7 +84,15 @@ export function DataTablePagination<TData, TValue>({
                       <div className="flex items-center gap-x-1 w-fit">
                         {header.id === "Violation" && (
                           <>
-                            <IndeterminateCheckbox
+                            <IndeterminateCheckbox title={
+                                table.getColumn(header.id)?.getFilterValue() ===
+                                "SATISFIED"
+                                  ? "Only show satisfied bindings"
+                                  : table
+                                      .getColumn(header.id)
+                                      ?.getFilterValue() === "VIOLATED"
+                                  ? "Only show violated bindings"
+                                  : "Show both satisfied and violated bindings"}
                               state={
                                 table.getColumn(header.id)?.getFilterValue() ===
                                 "SATISFIED"
@@ -125,7 +136,7 @@ export function DataTablePagination<TData, TValue>({
                             onChange={(newVal) =>
                               table.getColumn(header.id)?.setFilterValue(newVal)
                             }
-                            className="max-w-20 text-xs py-0 h-6 my-1"
+                            className="max-w-20 text-xs py-0 h-6 my-1 bg-white"
                           />
                         )}
                       </div>

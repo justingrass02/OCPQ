@@ -20,7 +20,7 @@ import { VisualEditorContext } from "./helper/VisualEditorContext";
 import { columnsForBinding } from "@/components/binding-table/columns";
 import Spinner from "@/components/Spinner";
 import { Button } from "@/components/ui/button";
-import  type PaginatedBindingTable from "@/components/binding-table/PaginatedBindingTable";
+import type PaginatedBindingTable from "@/components/binding-table/PaginatedBindingTable";
 const DataTablePaginationLazy = lazy(
   async () => await import("@/components/binding-table/PaginatedBindingTable"),
 ) as typeof PaginatedBindingTable;
@@ -39,7 +39,8 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
   node: BindingBoxTreeNode;
   reset: () => unknown;
 }) {
-
+  const hasConstraints =
+    "Box" in node ? node.Box[0].constraints.length > 0 : true;
   const [mode, setMode] = useState<
     "violations" | "situations" | "satisfied-situations"
   >(initialMode ?? "violations");
@@ -49,14 +50,15 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
     }
   }, [initialMode]);
   const { showElementInfo } = useContext(VisualEditorContext);
-  const [appliedCutoff, setAppliedCutoff] = useState<number|undefined>(DEFAULT_CUTOFF);
+  const [appliedCutoff, setAppliedCutoff] = useState<number | undefined>(
+    DEFAULT_CUTOFF,
+  );
   const items = useMemo(() => {
-    return violationDetails.situations.slice(0,appliedCutoff)
-  },[appliedCutoff]);
+    return violationDetails.situations.slice(0, appliedCutoff);
+  }, [appliedCutoff]);
 
   const numBindings = violationDetails.situationCount;
   const numViolations = violationDetails.situationViolatedCount;
-
 
   const columns = useMemo(() => {
     return columnsForBinding(
@@ -65,8 +67,9 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
       violationResPerNodes.eventIds,
       showElementInfo,
       node,
+      hasConstraints,
     );
-  }, []);
+  }, [violationResPerNodes,node]);
 
   return (
     <Sheet
@@ -90,31 +93,35 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
         >
           <SheetHeader>
             <SheetTitle className="flex items-center justify-between pr-4">
-              {mode === "situations"
-                ? "Situations"
-                : mode === "violations"
-                ? "Violations"
-                : "Satisfied Situations"}{" "}
+              Output Bindings
             </SheetTitle>
             <SheetDescription asChild>
               <div>
-              <p className="text-primary text-base">
-                {numBindings} Bindings
-                <br />
-                {numViolations} Violations
-              </p>
-              {numBindings > DEFAULT_CUTOFF && (
-                <div className="flex items-center gap-x-2">
-                  {appliedCutoff !== undefined ? `For performance reasons, only the first ${DEFAULT_CUTOFF} output bindings are shown.` : "All output bindings are shown."}
-                  <Button size="sm" variant="ghost" onClick={() => {
-                    if(appliedCutoff !== undefined){
-                      setAppliedCutoff(undefined);
-                    }else{
-                      setAppliedCutoff(DEFAULT_CUTOFF)
-                    }
-                  }}>{appliedCutoff !== undefined ? "Show All" : "Undo"}</Button>
-                </div>
-              )}
+                <p className="text-primary text-base">
+                  {numBindings} Bindings
+                  <br />
+                  {numViolations} Violations
+                </p>
+                {numBindings > DEFAULT_CUTOFF && (
+                  <div className="flex items-center gap-x-2">
+                    {appliedCutoff !== undefined
+                      ? `For performance reasons, only the first ${DEFAULT_CUTOFF} output bindings are shown.`
+                      : "All output bindings are shown."}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        if (appliedCutoff !== undefined) {
+                          setAppliedCutoff(undefined);
+                        } else {
+                          setAppliedCutoff(DEFAULT_CUTOFF);
+                        }
+                      }}
+                    >
+                      {appliedCutoff !== undefined ? "Show All" : "Undo"}
+                    </Button>
+                  </div>
+                )}
               </div>
             </SheetDescription>
           </SheetHeader>
@@ -127,7 +134,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                 </div>
               }
             >
-              <DataTablePaginationLazy
+              <DataTablePaginationLazy key={JSON.stringify(node)}
                 columns={columns}
                 data={items}
                 initialMode={initialMode}

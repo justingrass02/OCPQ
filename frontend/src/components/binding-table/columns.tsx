@@ -21,6 +21,7 @@ export function columnsForBinding(
       | undefined,
   ) => unknown,
   node: BindingBoxTreeNode,
+  addViolationStatus: boolean,
 ): ColumnDef<BindingInfo>[] {
   return [
     ...Object.entries(binding.objectMap).map(
@@ -44,7 +45,7 @@ export function columnsForBinding(
                 });
               }}
               rel="noreferrer"
-              className="max-w-[18ch] w-fit align-top whitespace-nowrap inline-block text-ellipsis overflow-hidden underline decoration decoration-blue-500/60 hover:decoration-blue-500"
+              className=" w-fit align-top whitespace-nowrap inline-block text-ellipsis overflow-hidden underline decoration decoration-blue-500/60 hover:decoration-blue-500"
             >
               {c.getValue<string>()}
             </Link>
@@ -74,7 +75,7 @@ export function columnsForBinding(
                 });
               }}
               rel="noreferrer"
-              className="max-w-[18ch] w-fit align-top whitespace-nowrap inline-block text-ellipsis overflow-hidden underline decoration decoration-blue-500/60 hover:decoration-blue-500"
+              className=" w-fit align-top whitespace-nowrap inline-block text-ellipsis overflow-hidden underline decoration decoration-blue-500/60 hover:decoration-blue-500"
             >
               {c.getValue<string>()}
             </Link>
@@ -83,34 +84,44 @@ export function columnsForBinding(
           accessorFn: ([b, _x]) => eventIds[b.eventMap[parseInt(evVarName)]],
         }) satisfies ColumnDef<BindingInfo>,
     ),
-    {
-      id: "Violation",
-      accessorFn: ([_b, r]) => (r !== null ? "VIOLATED" : "SATISFIED"),
-      cell: (c) => {
-        const r = c.row.original[1];
-        const v =
-          r !== null && typeof r === "object" && "ConstraintNotSatisfied" in r
-            ? r.ConstraintNotSatisfied
-            : undefined;
-        return (
-          <div className="flex items-center gap-x-2 max-w-[7.66rem]">
-            {v === undefined && <div className="h-4 w-full flex items-center gap-x-2">
-              <Checkbox disabled crossIcon/></div>}
-            {v !== undefined && (
-              <div className="h-4 w-full flex items-center gap-x-2">
-              <Checkbox disabled checked crossIcon/>
-                <FilterOrConstraintDisplay
-                  compact={true}
-                  value={
-                    (node as BindingBoxTreeNode & { Box: any }).Box[0]
-                      .constraints[v]
-                  }
-                />
-              </div>
-            )}
-          </div>
-        );
-      },
-    },
+    ...(addViolationStatus
+      ? [
+          {
+            id: "Violation",
+            accessorFn: ([_b, r]) => (r !== null ? "VIOLATED" : "SATISFIED"),
+            cell: (c) => {
+              const r = c.row.original[1];
+              const v =
+                r !== null &&
+                typeof r === "object" &&
+                "ConstraintNotSatisfied" in r
+                  ? r.ConstraintNotSatisfied
+                  : undefined;
+              return (
+                <div className="flex items-center gap-x-2 max-w-[7.66rem]">
+                  {v === undefined && (
+                    <div className="h-4 w-full flex items-center gap-x-2">
+                      <Checkbox disabled crossicon title="Satisfied" />
+                    </div>
+                  )}
+                  {v !== undefined && (
+                    <div className="h-4 w-full flex items-center gap-x-2 pr-1">
+                      <Checkbox disabled checked crossicon title="Violated" />
+                      {(node as BindingBoxTreeNode & { Box: any })?.Box[0]
+                            .constraints[v] != null && <FilterOrConstraintDisplay
+                        compact={true}
+                        value={
+                          (node as BindingBoxTreeNode & { Box: any }).Box[0]
+                            .constraints[v]
+                        }
+                      />}
+                    </div>
+                  )}
+                </div>
+              );
+            },
+          } satisfies ColumnDef<BindingInfo>,
+        ]
+      : []),
   ];
 }

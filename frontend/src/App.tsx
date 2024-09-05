@@ -114,8 +114,9 @@ function App() {
     <OcelInfoContext.Provider value={ocelInfo}>
       <div className="max-w-full overflow-hidden h-screen text-center grid grid-cols-[15rem_auto]">
         <div className="bg-gray-50 border-r border-r-slate-200 px-2">
-          <img src="/favicon.png" className="w-[7rem] h-[7rem] mx-auto my-4" />
-          <div className="flex flex-col gap-2">
+          <img src="/favicon.png" className="w-[7rem] h-[7rem] mx-auto mt-4 mb-2" />
+          <h2 className="font-bold text-3xl bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-sky-600 tracking-tighter">OCPQ</h2>
+          <div className="flex flex-col gap-2 mt-4">
             {ocelInfo != null && (
               <span className="flex flex-col items-center mx-auto text-xl">
                 <span className=" font-semibold text-green-700">

@@ -21,7 +21,6 @@ const IndeterminateCheckbox = React.forwardRef<
     )}
     checked={props.state === "checked"}
     onCheckedChange={() => {
-      console.log("hi");
       if (props.state === "unchecked") {
         props.newState("indeterminate");
       } else if (props.state === "checked") {
@@ -30,6 +29,7 @@ const IndeterminateCheckbox = React.forwardRef<
         props.newState("checked");
       }
     }}
+    title={props.title}
     // {...props}
   >
     {props.state === "indeterminate" && <LuMinus />}

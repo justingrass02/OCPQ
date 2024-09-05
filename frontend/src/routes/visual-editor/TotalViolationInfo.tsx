@@ -46,7 +46,7 @@ export default function TotalViolationInfo({
   return (
     <div
       className={clsx(
-        "rounded w-full h-[3.5rem]",
+        "rounded w-full h-[3.5rem] overflow-hidden",
         isNaN(percentage) && "text-gray-700",
         !isNaN(percentage) && "font-bold border-2",
         !isNaN(percentage) &&
@@ -68,10 +68,10 @@ export default function TotalViolationInfo({
         </>
       )}
       {isNaN(percentage) && (
-        <span className="inline-flex items-center gap-x-1 text-xs">
+        <div className="inline-flex items-center gap-x-1 text-xs">
           Evaluate using the <PiPlayFill className="text-purple-600" /> button
           below
-        </span>
+        </div>
       )}
     </div>
   );

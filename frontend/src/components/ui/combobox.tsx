@@ -16,6 +16,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { RxCheck, RxChevronUp } from "react-icons/rx";
+import { PopoverPortal } from "@radix-ui/react-popover";
 
 interface ComboboxProps {
   options: { value: string; label: string | React.FC }[];
@@ -47,13 +48,14 @@ export function Combobox({
           role="combobox"
           aria-expanded={open}
           className="w-fit min-w-fit justify-between"
-        >
+          >
           {typeof SelOption === "string" ? SelOption : null}
           {typeof SelOption === "function" && <SelOption />}
           <RxChevronUp className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full min-w-fit p-0">
+          <PopoverPortal>
+      <PopoverContent className="w-full min-w-fit p-0 max-h-[40vh] overflow-auto" side="bottom" align="start">
         <Command>
           <CommandInput placeholder="Search..." />
           <CommandEmpty>No option found.</CommandEmpty>
@@ -80,6 +82,7 @@ export function Combobox({
           </CommandGroup>
         </Command>
       </PopoverContent>
+      </PopoverPortal>
     </Popover>
   );
 }
