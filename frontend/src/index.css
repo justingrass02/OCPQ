@@ -37,3 +37,7 @@
   transform: translateZ(0) scale(1, 1);
   -webkit-transform: translateZ(0) scale(1, 1);
 }
+
+.monaco-editor .view-lines {
+  @apply bg-white
+}

@@ -41,21 +41,14 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
 }) {
   const hasConstraints =
     "Box" in node ? node.Box[0].constraints.length > 0 : true;
-  const [mode, setMode] = useState<
-    "violations" | "situations" | "satisfied-situations"
-  >(initialMode ?? "violations");
-  useEffect(() => {
-    if (initialMode !== undefined) {
-      setMode(initialMode);
-    }
-  }, [initialMode]);
+
   const { showElementInfo } = useContext(VisualEditorContext);
   const [appliedCutoff, setAppliedCutoff] = useState<number | undefined>(
     DEFAULT_CUTOFF,
   );
   const items = useMemo(() => {
     return violationDetails.situations.slice(0, appliedCutoff);
-  }, [appliedCutoff]);
+  }, [appliedCutoff,violationDetails,node]);
 
   const numBindings = violationDetails.situationCount;
   const numViolations = violationDetails.situationViolatedCount;

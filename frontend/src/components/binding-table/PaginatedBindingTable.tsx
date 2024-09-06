@@ -55,7 +55,6 @@ export function DataTablePagination<TData, TValue>({
   });
   useEffect(() => {
     if(table.getAllColumns().find(c => c.id === "Violation") !== undefined){
-
       if (initialMode === "satisfied-situations") {
         table.getColumn("Violation")?.setFilterValue("SATISFIED");
       } else if (initialMode === "violations") {

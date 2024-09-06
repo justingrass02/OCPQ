@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable no-template-curly-in-string */
+import { initEditorLoader } from "@/lib/editor-loader";
 import { VisualEditorContext } from "@/routes/visual-editor/helper/VisualEditorContext";
 import type { Variable } from "@/types/generated/Variable";
 import { useMonaco, Editor, loader } from "@monaco-editor/react";
 import { useContext, useEffect, useMemo } from "react";
-import { initEditorLoader } from "@/lib/editor-loader";
+
 initEditorLoader();
+
 export default function CELEditor({
   cel,
   onChange,
@@ -823,7 +825,7 @@ export default function CELEditor({
       value={cel}
       language="cel"
       onChange={onChange}
-      className="min-h-[10rem] border rounded !bg-white"
+      className="min-h-[10rem] rounded !bg-white !opacity-100 border-2 border-red-400"
       onMount={(editor) => {
         editor.updateOptions({
           fontSize: 16,

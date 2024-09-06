@@ -19,7 +19,10 @@ const Checkbox = React.forwardRef<
       // props.crossIcon === true && props.checked !== true && "data-[state=checked]:bg-green-300 disabled:opacity-100 border-green-400",
       className,
     )}
-    {...props}
+    title={props.title}
+    checked={props.checked}
+    disabled={props.disabled}
+    // {...props}
   >
     <CheckboxPrimitive.Indicator
       className={cn("flex items-center justify-center text-current")}

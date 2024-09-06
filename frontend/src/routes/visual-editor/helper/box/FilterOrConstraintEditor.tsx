@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import type { Constraint } from "@/types/generated/Constraint";
 import type { Filter } from "@/types/generated/Filter";
 import type { SizeFilter } from "@/types/generated/SizeFilter";
-import { type ReactNode, useContext } from "react";
+import { lazy, type ReactNode, Suspense, useContext } from "react";
 import { LuArrowRight, LuDelete, LuLink, LuTrash } from "react-icons/lu";
 import { VisualEditorContext } from "../VisualEditorContext";
 import {
@@ -19,10 +19,12 @@ import { EvOrObVarName, EvVarName, ObVarName } from "./variable-names";
 import type { ValueFilter } from "@/types/generated/ValueFilter";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import CELEditor from "@/components/CELEditor";
+// import CELEditor from "@/components/CELEditor";
 import { PiCodeFill } from "react-icons/pi";
 import clsx from "clsx";
+import Spinner from "@/components/Spinner";
 
+const CELEditor = lazy(async () => await import("@/components/CELEditor"));
 export default function FilterOrConstraintEditor<
   T extends Filter | SizeFilter | Constraint,
 >({
@@ -47,16 +49,16 @@ export default function FilterOrConstraintEditor<
     case "O2E":
       return (
         <>
-            <EventVarSelector
-              eventVars={availableEventVars}
-              value={value.event}
-              onChange={(newV) => {
-                if (newV !== undefined) {
-                  value.event = newV;
-                  updateValue({ ...value });
-                }
-              }}
-            />
+          <EventVarSelector
+            eventVars={availableEventVars}
+            value={value.event}
+            onChange={(newV) => {
+              if (newV !== undefined) {
+                value.event = newV;
+                updateValue({ ...value });
+              }
+            }}
+          />
           <ObjectVarSelector
             objectVars={availableObjectVars}
             value={value.object}
@@ -165,34 +167,50 @@ export default function FilterOrConstraintEditor<
     case "BasicFilterCEL":
       return (
         <>
-          <CELEditor
-            key="basic"
-            cel={value.cel}
-            onChange={(newCel) => {
-              value.cel = newCel ?? "true";
-              updateValue({ ...value });
-            }}
-            availableEventVars={availableEventVars}
-            availableObjectVars={availableObjectVars}
-            nodeID={nodeID}
-          />
+          <Suspense
+            fallback={
+              <div>
+                Loading editor... <Spinner />
+              </div>
+            }
+          >
+            <CELEditor
+              key="basic"
+              cel={value.cel}
+              onChange={(newCel) => {
+                value.cel = newCel ?? "true";
+                updateValue({ ...value });
+              }}
+              availableEventVars={availableEventVars}
+              availableObjectVars={availableObjectVars}
+              nodeID={nodeID}
+            />
+          </Suspense>
         </>
       );
     case "AdvancedCEL":
       return (
         <>
-          <CELEditor
-            key="advanced"
-            cel={value.cel}
-            onChange={(newCel) => {
-              value.cel = newCel ?? "true";
-              updateValue({ ...value });
-            }}
-            availableEventVars={availableEventVars}
-            availableObjectVars={availableObjectVars}
-            availableChildSets={availableChildSets}
-            nodeID={nodeID}
-          />
+          <Suspense
+            fallback={
+              <div>
+                Loading editor... <Spinner />
+              </div>
+            }
+          >
+            <CELEditor
+              key="advanced"
+              cel={value.cel}
+              onChange={(newCel) => {
+                value.cel = newCel ?? "true";
+                updateValue({ ...value });
+              }}
+              availableEventVars={availableEventVars}
+              availableObjectVars={availableObjectVars}
+              availableChildSets={availableChildSets}
+              nodeID={nodeID}
+            />
+          </Suspense>
         </>
       );
     case "TimeBetweenEvents":
@@ -218,7 +236,8 @@ export default function FilterOrConstraintEditor<
               }
             }}
           />
-          <TimeDurationInput placeholder="Minimum Duration/Delay (Optional)"
+          <TimeDurationInput
+            placeholder="Minimum Duration/Delay (Optional)"
             durationSeconds={value.min_seconds ?? -Infinity}
             onChange={(newVal) => {
               if (newVal !== undefined && isFinite(newVal)) {
@@ -230,7 +249,8 @@ export default function FilterOrConstraintEditor<
               }
             }}
           />
-          <TimeDurationInput placeholder="Maximum Duration/Delay (Optional)"
+          <TimeDurationInput
+            placeholder="Maximum Duration/Delay (Optional)"
             durationSeconds={value.max_seconds ?? Infinity}
             onChange={(newVal) => {
               if (newVal !== undefined && isFinite(newVal)) {
@@ -257,7 +277,8 @@ export default function FilterOrConstraintEditor<
               }
             }}
           />
-          <Input placeholder="Minimal Count (Optional)"
+          <Input
+            placeholder="Minimal Count (Optional)"
             type="number"
             value={value.min ?? ""}
             onChange={(ev) => {
@@ -271,7 +292,8 @@ export default function FilterOrConstraintEditor<
             }}
           />
 
-          <Input placeholder="Maximal Count (Optional)"
+          <Input
+            placeholder="Maximal Count (Optional)"
             type="number"
             value={value.max ?? ""}
             onChange={(ev) => {
@@ -812,7 +834,14 @@ export function FilterOrConstraintDisplay<
       return (
         <div className="flex items-center text-xs w-full bg-white/50 text-slate-800 border border-slate-600/10 text-[0.5rem] px-0.5 rounded-sm ">
           {/* CEL */}
-          <PiCodeFill className={clsx("inline mr-1 pr-1 ml-0.5 border-r shrink-0",value.type === 'BasicFilterCEL' && "text-blue-600",value.type !== 'BasicFilterCEL' && "text-purple-600")} size={20} />
+          <PiCodeFill
+            className={clsx(
+              "inline mr-1 pr-1 ml-0.5 border-r shrink-0",
+              value.type === "BasicFilterCEL" && "text-blue-600",
+              value.type !== "BasicFilterCEL" && "text-purple-600",
+            )}
+            size={20}
+          />
           <pre
             className={clsx(
               "text-[0.5rem] overflow-ellipsis overflow-hidden leading-tight font-semibold",
@@ -1072,7 +1101,8 @@ function AttributeNameSelector({
   availableAttributes: string[];
 }) {
   return (
-    <Combobox title="Attribute Name"
+    <Combobox
+      title="Attribute Name"
       options={availableAttributes.map((v) => ({
         label: v,
         value: v,
@@ -1139,10 +1169,12 @@ function AttributeValueFilterSelector({
       )}
       {(value?.type === "Float" || value?.type === "Integer") && (
         <div className="flex items-center gap-x-2">
-          <Input title="Minimum (Optional)" placeholder="Minimum (Optional)"
+          <Input
+            title="Minimum (Optional)"
+            placeholder="Minimum (Optional)"
             type="number"
             step={value.type === "Integer" ? 1 : undefined}
-            value={value.min+ ""}
+            value={value.min + ""}
             onChange={(ev) => {
               const val = ev.currentTarget.valueAsNumber;
               if (isFinite(val)) {
@@ -1155,10 +1187,12 @@ function AttributeValueFilterSelector({
           />
           {"-"}
 
-          <Input title="Maximum (Optional)" placeholder="Maximum (Optional)"
+          <Input
+            title="Maximum (Optional)"
+            placeholder="Maximum (Optional)"
             type="number"
             step={value.type === "Integer" ? 1 : undefined}
-            value={value.max+ ""}
+            value={value.max + ""}
             onChange={(ev) => {
               const val = ev.currentTarget.valueAsNumber;
               if (isFinite(val)) {
