@@ -247,19 +247,23 @@ function predicateToLaTeX<T extends Filter | SizeFilter | Constraint>(
         //   value.child_name
         // }}[\texttt{${varName(value.var_name)}}]\right| \leq ${value.max ?? "\\infty"}`;
     case "AND":
-      return String.raw`\mathrm{AND}(${value.child_names
+      return String.raw`\mathrm{AND~ALL}(${value.child_names
         .map((s) => "\\texttt{" + s + "}")
         .join(", ")})`;
     case "SAT":
-      return String.raw`\mathrm{SAT}(${value.child_names
+      return String.raw`\mathrm{ALL~SAT}(${value.child_names
+        .map((s) => "\\texttt{" + s + "}")
+        .join(", ")})`;
+    case "ANY":
+      return String.raw`\mathrm{ANY~SAT}(${value.child_names
         .map((s) => "\\texttt{" + s + "}")
         .join(", ")})`;
     case "NOT":
-      return String.raw`\mathrm{NOT}(${value.child_names
+      return String.raw`\mathrm{ALL NOT}(${value.child_names
         .map((s) => "\\texttt{" + s + "}")
         .join(", ")})`;
     case "OR":
-      return String.raw`\mathrm{OR}(${value.child_names
+      return String.raw`\mathrm{OR~ALL}(${value.child_names
         .map((s) => "\\texttt{" + s + "}")
         .join(", ")})`;
     case "BindingSetEqual":

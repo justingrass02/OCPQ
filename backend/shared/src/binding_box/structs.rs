@@ -346,12 +346,28 @@ impl BindingBoxTreeNode {
                                 Some(ViolationReason::ConstraintNotSatisfied(constr_index))
                             }
                         }
+                        // For-all semantics!
                         Constraint::SAT { child_names } => {
                             let violated = child_names.iter().any(|child_name| {
                                 if let Some(c_res) = child_res.get(child_name) {
                                     c_res.iter().any(|(_b, v)| v.is_some())
                                 } else {
-                                    false
+                                    true
+                                }
+                            });
+                            if violated {
+                                Some(ViolationReason::ConstraintNotSatisfied(constr_index))
+                            } else {
+                                None
+                            }
+                        }
+                        // SAT with any (exists) semantics
+                        Constraint::ANY { child_names } => {
+                            let violated = child_names.iter().any(|child_name| {
+                                if let Some(c_res) = child_res.get(child_name) {
+                                    c_res.iter().all(|(_b, v)| v.is_some())
+                                } else {
+                                    true
                                 }
                             });
                             if violated {
@@ -361,11 +377,11 @@ impl BindingBoxTreeNode {
                             }
                         }
                         Constraint::NOT { child_names } => {
-                            let violated = !child_names.iter().all(|child_name| {
+                            let violated = child_names.iter().all(|child_name| {
                                 if let Some(c_res) = child_res.get(child_name) {
-                                    c_res.iter().any(|(_b, v)| v.is_some())
+                                    c_res.iter().any(|(_b, v)| v.is_none())
                                 } else {
-                                    false
+                                    true
                                 }
                             });
                             if violated {
@@ -380,7 +396,7 @@ impl BindingBoxTreeNode {
                                 if let Some(c_res) = child_res.get(child_name) {
                                     c_res.iter().all(|(_b, v)| v.is_none())
                                 } else {
-                                    false
+                                    true
                                 }
                             });
                             if any_sat {
@@ -395,7 +411,7 @@ impl BindingBoxTreeNode {
                                 if let Some(c_res) = child_res.get(child_name) {
                                     c_res.iter().all(|(_b, v)| v.is_none())
                                 } else {
-                                    false
+                                    true
                                 }
                             });
                             if any_sat {
@@ -927,6 +943,7 @@ pub enum Constraint {
     Filter { filter: Filter },
     SizeFilter { filter: SizeFilter },
     SAT { child_names: Vec<NodeEdgeName> },
+    ANY { child_names: Vec<NodeEdgeName> },
     NOT { child_names: Vec<NodeEdgeName> },
     OR { child_names: Vec<NodeEdgeName> },
     AND { child_names: Vec<NodeEdgeName> },

@@ -500,6 +500,7 @@ export default function FilterOrConstraintEditor<
         />
       );
     case "SAT":
+    case "ANY":
       return (
         <>
           {value.child_names.map((c, i) => (
@@ -536,6 +537,7 @@ export default function FilterOrConstraintEditor<
           </Button>
         </>
       );
+      
     case "NOT":
       return (
         <>
@@ -920,6 +922,12 @@ export function FilterOrConstraintDisplay<
           SAT({value.child_names.map((i) => i).join(",")})
         </div>
       );
+      case "ANY":
+        return (
+          <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
+            ANY({value.child_names.map((i) => i).join(",")})
+          </div>
+        );
     case "NOT":
       return (
         <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">

@@ -216,9 +216,10 @@ export default function FilterChooser({
                     ...(alertState.type === "constraint"
                       ? [
                           { label: "SAT: All Child Bindings Satisfied", value: "SAT" },
-                          { label: "NOT: Logic NOT", value: "NOT" },
-                          { label: "OR: Logic OR", value: "OR" },
-                          { label: "AND: Logic AND", value: "AND" },
+                          { label: "ANY: Any Child Binding Satisfied", value: "ANY" },
+                          { label: "ALL NOT: Logic NOT (ALL)", value: "NOT" },
+                          { label: "OR ALL: Logic OR (ALL)", value: "OR" },
+                          { label: "AND ALL: Logic AND", value: "AND" },
                         ]
                       : []),
                   ]}
@@ -324,6 +325,14 @@ export default function FilterChooser({
                         ...alertState,
                         value: { type: "SAT", child_names: ["A"] },
                       });
+                    } else if (
+                        alertState.type === "constraint" &&
+                        val === "ANY"
+                      ) {
+                        setAlertState({
+                          ...alertState,
+                          value: { type: "ANY", child_names: ["A"] },
+                        });
                     } else if (
                       alertState.type === "constraint" &&
                       val === "NOT"
@@ -461,6 +470,7 @@ export default function FilterChooser({
                       } else if (
                         [
                           "SAT",
+                          "ANY",
                           "NOT",
                           "AND",
                           "OR",
