@@ -2261,18 +2261,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ocedeclare-tauri"
-version = "0.0.3"
-dependencies = [
- "ocedeclare-shared",
- "process_mining",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
-]
-
-[[package]]
 name = "ocedeclare-web-server"
 version = "0.1.0"
 dependencies = [
@@ -2288,6 +2276,18 @@ dependencies = [
  "tokio",
  "tower-http",
  "uuid",
+]
+
+[[package]]
+name = "ocpq-tauri"
+version = "0.0.3"
+dependencies = [
+ "ocedeclare-shared",
+ "process_mining",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
 ]
 
 [[package]]
