@@ -38,6 +38,7 @@
   -webkit-transform: translateZ(0) scale(1, 1);
 }
 
-.monaco-editor .view-lines {
+/* Below: Fixes Monaco transparent bug in linux webview (gecko?) */
+/* .monaco-editor .view-lines {
   @apply bg-white
-}
+} */

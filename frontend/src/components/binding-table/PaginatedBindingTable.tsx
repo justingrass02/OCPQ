@@ -73,7 +73,7 @@ export function DataTablePagination<TData, TValue>({
               <TableRow key={headerGroup.id} className="divide-x">
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead key={header.id} className="py-1 px-2 mx-4">
+                    <TableHead key={header.id} className="py-1 px-2 mx-4 ">
                       {header.isPlaceholder
                         ? null
                         : flexRender(
