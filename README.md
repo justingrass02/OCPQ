@@ -1,3 +1,7 @@
+# OCPQ (Object-Centric Process Querying)
+[__Download__](https://github.com/aarkue/ocedeclare/releases/latest)
+
+
 ## Installation
 You can download the automatically cross-compiled installers for the latest release from [__github.com/aarkue/ocedeclare/releases/latest__](https://github.com/aarkue/ocedeclare/releases/latest).
 
