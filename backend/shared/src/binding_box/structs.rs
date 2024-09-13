@@ -761,12 +761,18 @@ impl ValueFilter {
             ValueFilter::Float { min, max } => match val {
                 OCELAttributeValue::Float(v) => {
                     !min.is_some_and(|min_v| v < &min_v) && !max.is_some_and(|max_v| v > &max_v)
+                },
+                OCELAttributeValue::Integer(v) => {
+                    !min.is_some_and(|min_v| (*v as f64) < min_v) && !max.is_some_and(|max_v| (*v as f64) > max_v)
                 }
                 _ => false,
             },
             ValueFilter::Integer { min, max } => match val {
                 OCELAttributeValue::Integer(v) => {
                     !min.is_some_and(|min_v| v < &min_v) && !max.is_some_and(|max_v| v > &max_v)
+                },
+                OCELAttributeValue::Float(v) => {
+                    !min.is_some_and(|min_v| *v < (min_v as f64)) && !max.is_some_and(|max_v| *v > (max_v as f64))
                 }
                 _ => false,
             },
