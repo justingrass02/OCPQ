@@ -287,73 +287,7 @@ export default function VisualEditorOuter() {
                       ? "justify-between"
                       : "justify-center"
                   }`}
-                >
-                  <div className="flex justify-center gap-x-2 items-start mb-2">
-                    <AlertHelper
-                      trigger={
-                        <Button
-                          title={"Delete All"}
-                          variant="destructive"
-                          size="icon"
-                          className="h-12 w-12"
-                          disabled={constraints.length === 0}
-                        >
-                          <CgTrash size={"24"} />
-                        </Button>
-                      }
-                      title={"Delete All Constraints"}
-                      initialData={undefined}
-                      content={() => (
-                        <p>Are you sure? This will delete all constraints.</p>
-                      )}
-                      submitAction={"Delete All"}
-                      onSubmit={() => {
-                        prevDataRef.current = [];
-                        setConstraints([]);
-                        setActiveIndex(undefined);
-                      }}
-                    />
-                    <div className="flex flex-col justify-center gap-y-2">
-                      <Button
-                        className="text-xl py-6 px-4"
-                        onClick={() => {
-                          prevDataRef.current.splice(constraints.length, 1);
-                          changeIndex(
-                            constraints.length,
-                            constraints.length + 1,
-                          );
-                          setConstraints((cs) => [
-                            ...cs,
-                            {
-                              name: `New Constraint (${cs.length + 1})`,
-                              description: "",
-                            },
-                          ]);
-                        }}
-                      >
-                        <RxPlusCircled className="mr-2" />
-                        Add Constraint
-                      </Button>
-                    </div>
-                    <AutoDiscoveryButton
-                      ocelInfo={ocelInfo}
-                      constraints={constraints}
-                      setConstraints={setConstraints}
-                      prevDataRef={prevDataRef}
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-12 w-12"
-                      onClick={() => {
-                        saveData();
-                        toast.success("Saved Data");
-                      }}
-                    >
-                      <LuSave size={"24"} />
-                    </Button>
-                  </div>
-                </div>
+                ></div>
                 <AlertDialog
                   open={deletePromptForIndex !== undefined}
                   onOpenChange={(o) => {
@@ -477,12 +411,83 @@ export default function VisualEditorOuter() {
                             activeIndex !== undefined && "-mt-[1rem]",
                           )}
                         >
-                          <Button
+                          <div className="flex justify-center gap-x-2 items-center w-full mb-2">
+                            
+                            <AlertHelper
+                              trigger={
+                                <Button
+                                  title={"Delete All"}
+                                  variant="destructive"
+                                  size="icon"
+                                  // className="h-12 w-12"
+                                  disabled={constraints.length === 0}
+                                >
+                                  <CgTrash size={"24"} />
+                                </Button>
+                              }
+                              title={"Delete All Constraints"}
+                              initialData={undefined}
+                              content={() => (
+                                <p>
+                                  Are you sure? This will delete all
+                                  constraints.
+                                </p>
+                              )}
+                              submitAction={"Delete All"}
+                              onSubmit={() => {
+                                prevDataRef.current = [];
+                                setConstraints([]);
+                                setActiveIndex(undefined);
+                              }}
+                            />
+
+                         {activeIndex !== undefined && <Button
                             disabled={constraints.length === 0}
                             onClick={() => setShowConstraintSelection(true)}
                           >
                             {constraints.length} Constraints...
-                          </Button>
+                          </Button>}
+                            <Button
+                              // size="lg"
+                              onClick={() => {
+                                prevDataRef.current.splice(
+                                  constraints.length,
+                                  1,
+                                );
+                                changeIndex(
+                                  constraints.length,
+                                  constraints.length + 1,
+                                );
+                                setConstraints((cs) => [
+                                  ...cs,
+                                  {
+                                    name: `New Constraint (${cs.length + 1})`,
+                                    description: "",
+                                  },
+                                ]);
+                              }}
+                            >
+                              <RxPlusCircled className="mr-1" />
+                              Add
+                            </Button>
+                            <AutoDiscoveryButton
+                              ocelInfo={ocelInfo}
+                              constraints={constraints}
+                              setConstraints={setConstraints}
+                              prevDataRef={prevDataRef}
+                            />
+                            <Button title="Save"
+                              variant="outline"
+                              size="icon"
+                              // className="h-12 w-12"
+                              onClick={() => {
+                                saveData();
+                                toast.success("Saved Data");
+                              }}
+                            >
+                              <LuSave />
+                            </Button>
+                          </div>
                         </div>
                         <div className="h-full w-full">
                           <AutoSizer>
@@ -490,7 +495,7 @@ export default function VisualEditorOuter() {
                               <FixedSizeList
                                 ref={constraintListRefSmall}
                                 height={
-                                  activeIndex === undefined ? height : 100
+                                  activeIndex === undefined ? height : 70
                                 }
                                 itemCount={constraints.length}
                                 itemSize={45}
@@ -520,7 +525,7 @@ export default function VisualEditorOuter() {
                       </div>
                       {activeIndex !== undefined &&
                         constraints[activeIndex] !== undefined && (
-                          <div>
+                          <div className="">
                             <p className="h-[1.5rem]">Selected Constraint</p>
                             <div
                               className="w-full flex flex-col gap-y-1 px-2"
@@ -528,7 +533,7 @@ export default function VisualEditorOuter() {
                             >
                               <>
                                 <Input
-                                  className="text-lg font-medium"
+                                  className="text-lg font-medium "
                                   placeholder="Name"
                                   type="text"
                                   defaultValue={
@@ -550,7 +555,7 @@ export default function VisualEditorOuter() {
                                   }}
                                 />
                                 <div className="px-2">
-                                  <Textarea
+                                  <Textarea className="max-h-[2.5rem]"
                                     defaultValue={
                                       constraints[activeIndex].description
                                     }
@@ -583,8 +588,7 @@ export default function VisualEditorOuter() {
                                 ? prevDataRef.current[activeIndex].flowJson
                                     .nodes.length
                                 : 0}{" "}
-                              Nodes
-                              <br />
+                              Nodes, {" "}
                               {prevDataRef.current[activeIndex]?.flowJson !==
                               undefined
                                 ? prevDataRef.current[activeIndex].flowJson

@@ -52,12 +52,13 @@ export default function AutoDiscoveryButton({
     <AlertHelper
       mode="promise"
       trigger={
-        <Button
-          className="text-xl py-6 px-4"
+        <Button size="icon"
+          // className="text-xl py-6 px-4"
           title="Automatically Discover Constraints"
           variant="outline"
         >
-          <RiRobot2Line className="mr-2" /> Auto-Discovery
+          <RiRobot2Line className="" />
+          {/* Auto-Discovery */}
         </Button>
       }
       title={"Automatic Constraint Discovery"}
