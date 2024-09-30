@@ -798,8 +798,10 @@ export function FilterOrConstraintDisplay<
     case "O2E":
       return (
         <div className="flex items-center gap-x-1 font-normal text-sm">
-          <ObVarName obVar={value.object} /> <LuLink />{" "}
           <EvVarName eventVar={value.event} />{" "}
+           <LuLink />
+           {" "}
+          <ObVarName obVar={value.object} />
           {value.qualifier != null ? `@${value.qualifier}` : ""}
         </div>
       );
