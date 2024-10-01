@@ -70,7 +70,7 @@ export function columnsForBinding(
               onClick={(ev) => {
                 ev.preventDefault();
                 showElementInfo({
-                  type: "object",
+                  type: "event",
                   req: { id: c.getValue<string>() },
                 });
               }}
