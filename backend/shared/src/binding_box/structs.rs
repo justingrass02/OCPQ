@@ -282,6 +282,7 @@ impl BindingBoxTreeNode {
                 let mut all_res: EvaluationResults = Vec::new();
                 let mut child_res: HashMap<String, Vec<(Binding, Option<ViolationReason>)>> =
                     HashMap::new();
+                // let mut c_name_map = HashMap::with_capacity(children.len());
                 // let mut child_res = Vec::with_capacity(children.len());
                 for c in &children {
                     let c_name = tree
@@ -289,6 +290,7 @@ impl BindingBoxTreeNode {
                         .get(&(own_index, *c))
                         .cloned()
                         .unwrap_or(format!("{UNNAMED}{c}"));
+                    // c_name_map.insert(c_name.clone(), c);
                     let (c_res, violations) =
                         // Evaluate Child
                             tree.nodes[*c].evaluate(*c, b.clone(), tree, ocel);
@@ -323,13 +325,18 @@ impl BindingBoxTreeNode {
                     //     return BindingResult::FilteredOutBySizeFilter;
                     // }
                     child_res.insert(c_name, violations);
+
+                    // This line determines if child results are always included
                     all_res.extend(c_res);
                 }
                 for sf in &bbox.size_filters {
                     if !sf.check(&b, &child_res, ocel) {
-                        return BindingResult::FilteredOutBySizeFilter(b.clone(), all_res);
+                        // Vec::default to NOT include child results if a size filter filters the parent binding out
+                        // Otherwise, pass all_res
+                        return BindingResult::FilteredOutBySizeFilter(b.clone(), Vec::default());
                     }
                 }
+
                 for (constr_index, constr) in bbox.constraints.iter().enumerate() {
                     let viol = match constr {
                         Constraint::Filter { filter } => {
@@ -761,18 +768,20 @@ impl ValueFilter {
             ValueFilter::Float { min, max } => match val {
                 OCELAttributeValue::Float(v) => {
                     !min.is_some_and(|min_v| v < &min_v) && !max.is_some_and(|max_v| v > &max_v)
-                },
+                }
                 OCELAttributeValue::Integer(v) => {
-                    !min.is_some_and(|min_v| (*v as f64) < min_v) && !max.is_some_and(|max_v| (*v as f64) > max_v)
+                    !min.is_some_and(|min_v| (*v as f64) < min_v)
+                        && !max.is_some_and(|max_v| (*v as f64) > max_v)
                 }
                 _ => false,
             },
             ValueFilter::Integer { min, max } => match val {
                 OCELAttributeValue::Integer(v) => {
                     !min.is_some_and(|min_v| v < &min_v) && !max.is_some_and(|max_v| v > &max_v)
-                },
+                }
                 OCELAttributeValue::Float(v) => {
-                    !min.is_some_and(|min_v| *v < (min_v as f64)) && !max.is_some_and(|max_v| *v > (max_v as f64))
+                    !min.is_some_and(|min_v| *v < (min_v as f64))
+                        && !max.is_some_and(|max_v| *v > (max_v as f64))
                 }
                 _ => false,
             },
