@@ -17,6 +17,8 @@ import ReactFlow, {
   type Node,
 } from "reactflow";
 
+import { MouseEvent as ReactMouseEvent } from "react";
+
 import { BackendProviderContext } from "@/BackendProviderContext";
 import AlertHelper from "@/components/AlertHelper";
 import Spinner from "@/components/Spinner";
@@ -34,6 +36,7 @@ import {
   LuClipboardPaste,
   LuFileSearch,
   LuLayoutDashboard,
+  LuTrash,
 } from "react-icons/lu";
 import { PiPlayFill } from "react-icons/pi";
 import { RxReset } from "react-icons/rx";
@@ -69,6 +72,7 @@ import type { BindingBoxTreeNode } from "@/types/generated/BindingBoxTreeNode";
 import ElementInfoSheet from "@/components/ElementInfoSheet";
 import ViolationDetailsSheet from "./ViolationDetailsSheet";
 import '@/lib/editor-loader'
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuPortal } from "@/components/ui/context-menu";
 
 function isEditorElementTarget(el: HTMLElement | EventTarget | null) {
   return (
@@ -145,6 +149,8 @@ export default function VisualEditor(props: VisualEditorProps) {
   const backend = useContext(BackendProviderContext);
 
   const [isEvaluationLoading, setEvaluationLoading] = useState(false);
+
+  const [edgeContextMenu, setEdgeContextMenu] = useState<{ x: number, y: number, edge: Edge<EventTypeLinkData> } | undefined>(undefined);
 
   const isValidConnection = useCallback(
     ({ source, sourceHandle, target, targetHandle }: Edge | Connection) => {
@@ -334,9 +340,9 @@ export default function VisualEditor(props: VisualEditorProps) {
     const { x, y } = instance.screenToFlowPosition(mousePos.current);
     const firstNodeSize =
       NODE_TYPE_SIZE[
-        nodes[0].type === EVENT_TYPE_NODE_TYPE
-          ? EVENT_TYPE_NODE_TYPE
-          : GATE_NODE_TYPE
+      nodes[0].type === EVENT_TYPE_NODE_TYPE
+        ? EVENT_TYPE_NODE_TYPE
+        : GATE_NODE_TYPE
       ];
     const xOffset = x - nodeRect.x - firstNodeSize.width / 2;
     const yOffset = y - nodeRect.y - firstNodeSize.minHeight / 2;
@@ -522,9 +528,9 @@ export default function VisualEditor(props: VisualEditorProps) {
         const pos =
           x === undefined || y === undefined
             ? instance.screenToFlowPosition({
-                x: window.innerWidth / 2,
-                y: window.innerHeight / 1.5,
-              })
+              x: window.innerWidth / 2,
+              y: window.innerHeight / 1.5,
+            })
             : { x, y };
         return [
           ...nodes,
@@ -550,6 +556,17 @@ export default function VisualEditor(props: VisualEditorProps) {
     },
     [instance],
   );
+
+  const onEdgeContextMenu = useCallback((ev: ReactMouseEvent, e: Edge) => {
+    const ctxBtn = document.getElementById(`edge-context-menu-${e.id}`);
+    if(!ev.isDefaultPrevented()){
+
+      ctxBtn!.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, clientX: ev.clientX, clientY: ev.clientY }),
+      );
+      ev.preventDefault();
+    }
+  }, [])
 
   const COLORS = {
     // https://colordesigner.io/color-scheme-builder?mode=lch#0067A6-FA9805-CE2727-00851D-A90A76-E0F20D-e9488f-0481cc-16cc9d-080999
@@ -679,12 +696,13 @@ export default function VisualEditor(props: VisualEditorProps) {
             stroke: "#969696",
           },
         }}
+        onEdgeContextMenu={onEdgeContextMenu}
         proOptions={{ hideAttribution: true }}
         onSelectionChange={(sel) => {
           selectedRef.current = sel;
         }}
       >
-        <Controls onInteractiveChange={() => {}} />
+        <Controls onInteractiveChange={() => { }} />
         <Panel position="top-right" className="flex gap-x-2">
           <Button
             variant="outline"
@@ -738,7 +756,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                 variant="outline"
                 title="Add Gate"
                 className="bg-white relative"
-                onClick={() => {}}
+                onClick={() => { }}
               >
                 <TbLogicAnd size={20} />
                 <TbPlus
@@ -755,9 +773,9 @@ export default function VisualEditor(props: VisualEditorProps) {
                 const center =
                   instance != null
                     ? instance.screenToFlowPosition({
-                        x: window.innerWidth / 2,
-                        y: window.innerHeight / 2,
-                      })
+                      x: window.innerWidth / 2,
+                      y: window.innerHeight / 2,
+                    })
                     : { x: 0, y: 0 };
                 return [
                   ...nodes,
@@ -841,7 +859,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                 const measurePerformance = ev.shiftKey;
                 let objectIDs: string[] = [];
                 let eventIDs: string[] = [];
-                if(measurePerformance){
+                if (measurePerformance) {
                   toast("Measuring performance by evaluating constraint 10+1 times. The first 10 execution times in seconds will be saved as a JSON file in your Downloads folder.")
                 }
                 await Promise.allSettled(
@@ -926,6 +944,15 @@ export default function VisualEditor(props: VisualEditorProps) {
           </div>
         </Panel>
         <Background />
+        {/* <ContextMenu > <ContextMenuPortal>
+          <ContextMenuContent data-state={edgeContextMenu === undefined ? "closed" : "open"}>
+            <ContextMenuItem>Cancel</ContextMenuItem>
+            <ContextMenuItem onSelect={() => {
+              // setDeleteAlertOpen(true);
+            }} className="font-semibold text-red-400 focus:text-red-500"><LuTrash className="mr-1" /> Delete Node</ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenuPortal>
+        </ContextMenu> */}
       </ReactFlow>
       {violationDetails !== undefined &&
         violationInfo.violationsPerNode !== undefined && (

@@ -10,7 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useContext, useEffect, useState } from "react";
-import { LuHash } from "react-icons/lu";
+import { LuHash, LuTrash } from "react-icons/lu";
 
 import { Input } from "@/components/ui/input";
 import { MdRemoveCircleOutline } from "react-icons/md";
@@ -18,6 +18,7 @@ import { EdgeLabelRenderer, getBezierPath, type EdgeProps } from "reactflow";
 import QuantifiedObjectEdge from "./QuantifiedObjectEdge";
 import { VisualEditorContext } from "./VisualEditorContext";
 import type { EventTypeLinkData } from "./types";
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuPortal, ContextMenuTrigger } from "@/components/ui/context-menu";
 
 export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
   const {
@@ -55,29 +56,34 @@ export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
       <QuantifiedObjectEdge {...props} />
       {data !== undefined && (
         <EdgeLabelRenderer>
-          <div
-            style={{
-              position: "absolute",
-              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
-              fontSize: 12,
-              pointerEvents: "all",
-            }}
-            className="nodrag nopan flex flex-col items-center -mt-1"
-          >
-            <button
-              className="hover:text-red-500 text-red-400/30  rounded-lg text-sm hide-in-image"
-              title="Delete edge"
-              onClick={() => onEdgeDataChange(id, undefined)}
-            >
-              <MdRemoveCircleOutline />
-            </button>
-            <NameChangeDialog
-              data={data}
-              onChange={(name) => {
-                onEdgeDataChange(id, { name });
-              }}
-            />
-          </div>
+          <ContextMenu>
+            <ContextMenuTrigger id={`edge-context-menu-${id}`} >
+              <div
+                style={{
+                  position: "absolute",
+                  transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+                  fontSize: 12,
+                  pointerEvents: "all",
+                }}
+                className="nodrag nopan flex flex-col items-center -mt-1"
+              >
+                <NameChangeDialog
+                  data={data}
+                  onChange={(name) => {
+                    onEdgeDataChange(id, { name });
+                  }}
+                />
+              </div>
+              </ContextMenuTrigger>
+              <ContextMenuPortal>
+              <ContextMenuContent>
+                <ContextMenuItem>Cancel</ContextMenuItem>
+                <ContextMenuItem onSelect={() => {
+                  onEdgeDataChange(id, undefined);
+                }} className="font-semibold text-red-400 focus:text-red-500"><LuTrash className="mr-1" /> Delete Edge</ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenuPortal>
+          </ContextMenu>
         </EdgeLabelRenderer>
       )}
     </>
