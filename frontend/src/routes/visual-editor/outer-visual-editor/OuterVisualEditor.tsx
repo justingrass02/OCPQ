@@ -412,7 +412,6 @@ export default function VisualEditorOuter() {
                           )}
                         >
                           <div className="flex justify-center gap-x-2 items-center w-full mb-2">
-                            
                             <AlertHelper
                               trigger={
                                 <Button
@@ -441,12 +440,14 @@ export default function VisualEditorOuter() {
                               }}
                             />
 
-                         {activeIndex !== undefined && <Button
-                            disabled={constraints.length === 0}
-                            onClick={() => setShowConstraintSelection(true)}
-                          >
-                            {constraints.length} Constraints...
-                          </Button>}
+                            {activeIndex !== undefined && (
+                              <Button
+                                disabled={constraints.length === 0}
+                                onClick={() => setShowConstraintSelection(true)}
+                              >
+                                {constraints.length} Constraints...
+                              </Button>
+                            )}
                             <Button
                               // size="lg"
                               onClick={() => {
@@ -476,7 +477,8 @@ export default function VisualEditorOuter() {
                               setConstraints={setConstraints}
                               prevDataRef={prevDataRef}
                             />
-                            <Button title="Save"
+                            <Button
+                              title="Save"
                               variant="outline"
                               size="icon"
                               // className="h-12 w-12"
@@ -494,9 +496,7 @@ export default function VisualEditorOuter() {
                             {({ height, width }) => (
                               <FixedSizeList
                                 ref={constraintListRefSmall}
-                                height={
-                                  activeIndex === undefined ? height : 70
-                                }
+                                height={activeIndex === undefined ? height : 70}
                                 itemCount={constraints.length}
                                 itemSize={45}
                                 width={width}
@@ -555,7 +555,8 @@ export default function VisualEditorOuter() {
                                   }}
                                 />
                                 <div className="px-2">
-                                  <Textarea className="max-h-[2.5rem]"
+                                  <Textarea
+                                    className="max-h-[2.5rem]"
                                     defaultValue={
                                       constraints[activeIndex].description
                                     }
@@ -588,7 +589,7 @@ export default function VisualEditorOuter() {
                                 ? prevDataRef.current[activeIndex].flowJson
                                     .nodes.length
                                 : 0}{" "}
-                              Nodes, {" "}
+                              Nodes,{" "}
                               {prevDataRef.current[activeIndex]?.flowJson !==
                               undefined
                                 ? prevDataRef.current[activeIndex].flowJson

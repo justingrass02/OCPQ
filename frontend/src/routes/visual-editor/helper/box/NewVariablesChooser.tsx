@@ -91,7 +91,8 @@ export default function NewVariableChooser({
         {Object.entries(box.newObjectVars).map(([obVar, obTypes]) => (
           <li key={obVar} className="flex items-center gap-x-0.5">
             <button
-              className="hover:bg-blue-200/50 px-0.5 rounded-sm flex items-baseline w-fit max-w-full" onContextMenuCapture={(ev) => {
+              className="hover:bg-blue-200/50 px-0.5 rounded-sm flex items-baseline w-fit max-w-full"
+              onContextMenuCapture={(ev) => {
                 ev.stopPropagation();
               }}
               onClick={() =>
@@ -135,7 +136,7 @@ export default function NewVariableChooser({
       </div>
       <ul className="w-full text-left text-sm min-h-[0.5rem]">
         {Object.entries(box.newEventVars).map(([evVar, evTypes]) => (
-          <li key={evVar} >
+          <li key={evVar}>
             <button
               className="hover:bg-blue-200/50 px-0.5 rounded-sm flex items-baseline w-fit max-w-full"
               onContextMenuCapture={(ev) => {
@@ -174,9 +175,12 @@ export default function NewVariableChooser({
         }}
       >
         {alertState !== undefined && (
-          <AlertDialogContent className="max-w-2xl" onContextMenuCapture={(ev) => {
-            ev.stopPropagation();
-          }}>
+          <AlertDialogContent
+            className="max-w-2xl"
+            onContextMenuCapture={(ev) => {
+              ev.stopPropagation();
+            }}
+          >
             <AlertDialogHeader>
               <AlertDialogTitle>
                 {alertState?.mode === "add" ? "Add " : "Edit "}
@@ -193,27 +197,27 @@ export default function NewVariableChooser({
                   options={
                     alertState?.variant === "object"
                       ? getAvailableObjVars(
-                        alertState.mode === "edit"
-                          ? alertState.key
-                          : undefined,
-                      ).map((i) => ({
-                        value:
-                          i.toString() +
-                          " --- " +
-                          getVarName(i, "object").name,
-                        label: getObVarName(i),
-                      }))
+                          alertState.mode === "edit"
+                            ? alertState.key
+                            : undefined,
+                        ).map((i) => ({
+                          value:
+                            i.toString() +
+                            " --- " +
+                            getVarName(i, "object").name,
+                          label: getObVarName(i),
+                        }))
                       : getAvailableEvVars(
-                        alertState.mode === "edit"
-                          ? alertState.key
-                          : undefined,
-                      ).map((i) => ({
-                        value:
-                          i.toString() +
-                          " --- " +
-                          getVarName(i, "event").name,
-                        label: getEvVarName(i),
-                      }))
+                          alertState.mode === "edit"
+                            ? alertState.key
+                            : undefined,
+                        ).map((i) => ({
+                          value:
+                            i.toString() +
+                            " --- " +
+                            getVarName(i, "event").name,
+                          label: getEvVarName(i),
+                        }))
                   }
                   onChange={(value: string) => {
                     const variableKey = parseInt(value.split(" --- ")[0]);

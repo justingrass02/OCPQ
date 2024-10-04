@@ -1,4 +1,3 @@
-
 import * as monaco from "monaco-editor";
 // import EditorWorker from "monaco-editor/esm/vs/editor";
 // import JsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
@@ -30,4 +29,4 @@ export function initEditorLoader() {
 
   void (loader.init().then(/* ... */));
 }
-// 
+//

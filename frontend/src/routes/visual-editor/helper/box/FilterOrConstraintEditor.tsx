@@ -537,7 +537,7 @@ export default function FilterOrConstraintEditor<
           </Button>
         </>
       );
-      
+
     case "NOT":
       return (
         <>
@@ -798,9 +798,7 @@ export function FilterOrConstraintDisplay<
     case "O2E":
       return (
         <div className="flex items-center gap-x-1 font-normal text-sm">
-          <EvVarName eventVar={value.event} />{" "}
-           <LuLink />
-           {" "}
+          <EvVarName eventVar={value.event} /> <LuLink />{" "}
           <ObVarName obVar={value.object} />
           {value.qualifier != null ? `@${value.qualifier}` : ""}
         </div>
@@ -924,12 +922,12 @@ export function FilterOrConstraintDisplay<
           SAT({value.child_names.map((i) => i).join(",")})
         </div>
       );
-      case "ANY":
-        return (
-          <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
-            ANY({value.child_names.map((i) => i).join(",")})
-          </div>
-        );
+    case "ANY":
+      return (
+        <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">
+          ANY({value.child_names.map((i) => i).join(",")})
+        </div>
+      );
     case "NOT":
       return (
         <div className="flex items-center gap-x-1 font-normal text-sm whitespace-nowrap">

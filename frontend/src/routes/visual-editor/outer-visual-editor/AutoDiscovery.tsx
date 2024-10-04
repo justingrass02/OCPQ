@@ -52,7 +52,8 @@ export default function AutoDiscoveryButton({
     <AlertHelper
       mode="promise"
       trigger={
-        <Button size="icon"
+        <Button
+          size="icon"
           // className="text-xl py-6 px-4"
           title="Automatically Discover Constraints"
           variant="outline"

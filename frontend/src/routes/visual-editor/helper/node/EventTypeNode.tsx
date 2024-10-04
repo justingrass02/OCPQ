@@ -11,9 +11,25 @@ import MiscNodeConstraints from "./MiscNodeConstraints";
 import ViolationIndicator from "./ViolationIndicator";
 import { getViolationStyles } from "../violation-styles";
 import SituationIndicator from "./SituationIndicator";
-import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuPortal } from "@/components/ui/context-menu";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuPortal,
+} from "@/components/ui/context-menu";
 import { LuTrash } from "react-icons/lu";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 export default memo(EventTypeNode);
 function EventTypeNode({ data, id, selected }: NodeProps<EventTypeNodeData>) {
   const { violationsPerNode, onNodeDataChange } =
@@ -35,7 +51,6 @@ function EventTypeNode({ data, id, selected }: NodeProps<EventTypeNodeData>) {
             selected && "border-dashed",
           )}
         >
-
           {/* <Toggle
         className="flex w-6 h-6 p-0 absolute right-11"
         variant="outline"
@@ -109,20 +124,27 @@ function EventTypeNode({ data, id, selected }: NodeProps<EventTypeNodeData>) {
           </div>
         </div>
       </ContextMenuTrigger>
-      <AlertDialog open={deleteAlertOpen} onOpenChange={(op) => setDeleteAlertOpen(op)} >
+      <AlertDialog
+        open={deleteAlertOpen}
+        onOpenChange={(op) => setDeleteAlertOpen(op)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This node and all contained variables, filters, and constraints will be deleted.
-              This action cannot be undone.
+              This node and all contained variables, filters, and constraints
+              will be deleted. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
-              onNodeDataChange(id, undefined);
-            }}>Delete</AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => {
+                onNodeDataChange(id, undefined);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -130,9 +152,14 @@ function EventTypeNode({ data, id, selected }: NodeProps<EventTypeNodeData>) {
       <ContextMenuPortal>
         <ContextMenuContent>
           <ContextMenuItem>Cancel</ContextMenuItem>
-          <ContextMenuItem onSelect={() => {
-            setDeleteAlertOpen(true);
-          }} className="font-semibold text-red-400 focus:text-red-500"><LuTrash className="mr-1" /> Delete Node</ContextMenuItem>
+          <ContextMenuItem
+            onSelect={() => {
+              setDeleteAlertOpen(true);
+            }}
+            className="font-semibold text-red-400 focus:text-red-500"
+          >
+            <LuTrash className="mr-1" /> Delete Node
+          </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenuPortal>
     </ContextMenu>

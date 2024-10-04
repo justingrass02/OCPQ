@@ -48,40 +48,44 @@ export function Combobox({
           role="combobox"
           aria-expanded={open}
           className="w-fit min-w-fit justify-between"
-          >
+        >
           {typeof SelOption === "string" ? SelOption : null}
           {typeof SelOption === "function" && <SelOption />}
           <RxChevronUp className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-          <PopoverPortal>
-      <PopoverContent className="w-full min-w-fit p-0 max-h-[40vh] overflow-auto" side="bottom" align="start">
-        <Command>
-          <CommandInput placeholder="Search..." />
-          <CommandEmpty>No option found.</CommandEmpty>
-          <CommandGroup>
-            {options.map((o) => (
-              <CommandItem
-                key={o.value}
-                value={o.value.toLowerCase()}
-                onSelect={() => {
-                  onChange(o.value === value ? "" : o.value);
-                  setOpen(false);
-                }}
-              >
-                <RxCheck
-                  className={cn(
-                    "mr-2 h-4 w-4",
-                    value === o.value ? "opacity-100" : "opacity-0",
-                  )}
-                />
-                {typeof o.label === "string" && o.label}
-                {typeof o.label === "function" && <o.label />}
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        </Command>
-      </PopoverContent>
+      <PopoverPortal>
+        <PopoverContent
+          className="w-full min-w-fit p-0 max-h-[40vh] overflow-auto"
+          side="bottom"
+          align="start"
+        >
+          <Command>
+            <CommandInput placeholder="Search..." />
+            <CommandEmpty>No option found.</CommandEmpty>
+            <CommandGroup>
+              {options.map((o) => (
+                <CommandItem
+                  key={o.value}
+                  value={o.value.toLowerCase()}
+                  onSelect={() => {
+                    onChange(o.value === value ? "" : o.value);
+                    setOpen(false);
+                  }}
+                >
+                  <RxCheck
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value === o.value ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                  {typeof o.label === "string" && o.label}
+                  {typeof o.label === "function" && <o.label />}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </Command>
+        </PopoverContent>
       </PopoverPortal>
     </Popover>
   );

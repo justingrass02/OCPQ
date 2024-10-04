@@ -49,12 +49,12 @@ export function DataTablePagination<TData, TValue>({
     initialState: {
       pagination: {
         pageIndex: 0,
-        pageSize: 10, 
+        pageSize: 10,
       },
     },
   });
   useEffect(() => {
-    if(table.getAllColumns().find(c => c.id === "Violation") !== undefined){
+    if (table.getAllColumns().find((c) => c.id === "Violation") !== undefined) {
       if (initialMode === "satisfied-situations") {
         table.getColumn("Violation")?.setFilterValue("SATISFIED");
       } else if (initialMode === "violations") {
@@ -83,7 +83,8 @@ export function DataTablePagination<TData, TValue>({
                       <div className="flex items-center gap-x-1 w-fit">
                         {header.id === "Violation" && (
                           <>
-                            <IndeterminateCheckbox title={
+                            <IndeterminateCheckbox
+                              title={
                                 table.getColumn(header.id)?.getFilterValue() ===
                                 "SATISFIED"
                                   ? "Only show satisfied bindings"
@@ -91,7 +92,8 @@ export function DataTablePagination<TData, TValue>({
                                       .getColumn(header.id)
                                       ?.getFilterValue() === "VIOLATED"
                                   ? "Only show violated bindings"
-                                  : "Show both satisfied and violated bindings"}
+                                  : "Show both satisfied and violated bindings"
+                              }
                               state={
                                 table.getColumn(header.id)?.getFilterValue() ===
                                 "SATISFIED"

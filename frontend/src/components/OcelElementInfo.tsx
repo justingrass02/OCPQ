@@ -51,10 +51,10 @@ export default function OcelElementInfo({
   const ocelInfo = useContext(OcelInfoContext);
   const overflowDiv = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if(overflowDiv.current !== null){
-      overflowDiv.current.scrollTop  = 0;
+    if (overflowDiv.current !== null) {
+      overflowDiv.current.scrollTop = 0;
     }
-  },[info])
+  }, [info]);
 
   return (
     <div className="text-lg text-left h-full w-full">
@@ -92,7 +92,9 @@ export default function OcelElementInfo({
         <div
           className={`block mx-2 bg-white border rounded-lg shadow-md text-left h-full w-full`}
         >
-          <h2 className="text-lg font-semibold my-1 px-2 py-1">JSON Representation</h2>
+          <h2 className="text-lg font-semibold my-1 px-2 py-1">
+            JSON Representation
+          </h2>
           <JSONEditor
             value={JSON.stringify(info?.event ?? info?.object ?? null, null, 2)}
             onChange={() => {}}
@@ -152,7 +154,17 @@ function OcelObjectViewer({
               </span>
               <span className="font-mono">{attr.name}:</span>{" "}
               <span className="font-mono text-blue-700">
-                {object.attributes.filter((a) => a.name === attr.name).map((a) => <span key={a.time} className="mr-4 border p-0.5 m-0.5 rounded-sm" title={`${a.value} at ${a.time}`}>{a.value}</span>)}
+                {object.attributes
+                  .filter((a) => a.name === attr.name)
+                  .map((a) => (
+                    <span
+                      key={a.time}
+                      className="mr-4 border p-0.5 m-0.5 rounded-sm"
+                      title={`${a.value} at ${a.time}`}
+                    >
+                      {a.value}
+                    </span>
+                  ))}
               </span>
             </div>
           </li>

@@ -305,7 +305,7 @@ pub fn evaluate_cel<'a>(
             move |ftx: &FunctionContext, This(variable): This<Arc<String>>| -> ResolveResult {
                 let val = unsafe { index_string_to_val_raw(&variable, ocel_raw) };
                 match val {
-                    Some( OCELNodeRef::Event(ev)) =>  Ok(ev.time.fixed_offset().into()),
+                    Some(OCELNodeRef::Event(ev)) => Ok(ev.time.fixed_offset().into()),
                     _ => ftx.error("Event not found.").into(),
                 }
             },

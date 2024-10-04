@@ -71,8 +71,13 @@ import {
 import type { BindingBoxTreeNode } from "@/types/generated/BindingBoxTreeNode";
 import ElementInfoSheet from "@/components/ElementInfoSheet";
 import ViolationDetailsSheet from "./ViolationDetailsSheet";
-import '@/lib/editor-loader'
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuPortal } from "@/components/ui/context-menu";
+import "@/lib/editor-loader";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuPortal,
+} from "@/components/ui/context-menu";
 
 function isEditorElementTarget(el: HTMLElement | EventTarget | null) {
   return (
@@ -150,7 +155,9 @@ export default function VisualEditor(props: VisualEditorProps) {
 
   const [isEvaluationLoading, setEvaluationLoading] = useState(false);
 
-  const [edgeContextMenu, setEdgeContextMenu] = useState<{ x: number, y: number, edge: Edge<EventTypeLinkData> } | undefined>(undefined);
+  const [edgeContextMenu, setEdgeContextMenu] = useState<
+    { x: number; y: number; edge: Edge<EventTypeLinkData> } | undefined
+  >(undefined);
 
   const isValidConnection = useCallback(
     ({ source, sourceHandle, target, targetHandle }: Edge | Connection) => {
@@ -340,9 +347,9 @@ export default function VisualEditor(props: VisualEditorProps) {
     const { x, y } = instance.screenToFlowPosition(mousePos.current);
     const firstNodeSize =
       NODE_TYPE_SIZE[
-      nodes[0].type === EVENT_TYPE_NODE_TYPE
-        ? EVENT_TYPE_NODE_TYPE
-        : GATE_NODE_TYPE
+        nodes[0].type === EVENT_TYPE_NODE_TYPE
+          ? EVENT_TYPE_NODE_TYPE
+          : GATE_NODE_TYPE
       ];
     const xOffset = x - nodeRect.x - firstNodeSize.width / 2;
     const yOffset = y - nodeRect.y - firstNodeSize.minHeight / 2;
@@ -528,9 +535,9 @@ export default function VisualEditor(props: VisualEditorProps) {
         const pos =
           x === undefined || y === undefined
             ? instance.screenToFlowPosition({
-              x: window.innerWidth / 2,
-              y: window.innerHeight / 1.5,
-            })
+                x: window.innerWidth / 2,
+                y: window.innerHeight / 1.5,
+              })
             : { x, y };
         return [
           ...nodes,
@@ -559,14 +566,17 @@ export default function VisualEditor(props: VisualEditorProps) {
 
   const onEdgeContextMenu = useCallback((ev: ReactMouseEvent, e: Edge) => {
     const ctxBtn = document.getElementById(`edge-context-menu-${e.id}`);
-    if(!ev.isDefaultPrevented()){
-
+    if (!ev.isDefaultPrevented()) {
       ctxBtn!.dispatchEvent(
-        new MouseEvent("contextmenu", { bubbles: true, clientX: ev.clientX, clientY: ev.clientY }),
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          clientX: ev.clientX,
+          clientY: ev.clientY,
+        }),
       );
       ev.preventDefault();
     }
-  }, [])
+  }, []);
 
   const COLORS = {
     // https://colordesigner.io/color-scheme-builder?mode=lch#0067A6-FA9805-CE2727-00851D-A90A76-E0F20D-e9488f-0481cc-16cc9d-080999
@@ -702,7 +712,7 @@ export default function VisualEditor(props: VisualEditorProps) {
           selectedRef.current = sel;
         }}
       >
-        <Controls onInteractiveChange={() => { }} />
+        <Controls onInteractiveChange={() => {}} />
         <Panel position="top-right" className="flex gap-x-2">
           <Button
             variant="outline"
@@ -756,7 +766,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                 variant="outline"
                 title="Add Gate"
                 className="bg-white relative"
-                onClick={() => { }}
+                onClick={() => {}}
               >
                 <TbLogicAnd size={20} />
                 <TbPlus
@@ -773,9 +783,9 @@ export default function VisualEditor(props: VisualEditorProps) {
                 const center =
                   instance != null
                     ? instance.screenToFlowPosition({
-                      x: window.innerWidth / 2,
-                      y: window.innerHeight / 2,
-                    })
+                        x: window.innerWidth / 2,
+                        y: window.innerHeight / 2,
+                      })
                     : { x: 0, y: 0 };
                 return [
                   ...nodes,
@@ -860,7 +870,9 @@ export default function VisualEditor(props: VisualEditorProps) {
                 let objectIDs: string[] = [];
                 let eventIDs: string[] = [];
                 if (measurePerformance) {
-                  toast("Measuring performance by evaluating constraint 10+1 times. The first 10 execution times in seconds will be saved as a JSON file in your Downloads folder.")
+                  toast(
+                    "Measuring performance by evaluating constraint 10+1 times. The first 10 execution times in seconds will be saved as a JSON file in your Downloads folder.",
+                  );
                 }
                 await Promise.allSettled(
                   subTrees.map(async ({ tree, nodesOrder }) => {

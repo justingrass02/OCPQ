@@ -18,7 +18,13 @@ import { EdgeLabelRenderer, getBezierPath, type EdgeProps } from "reactflow";
 import QuantifiedObjectEdge from "./QuantifiedObjectEdge";
 import { VisualEditorContext } from "./VisualEditorContext";
 import type { EventTypeLinkData } from "./types";
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuPortal, ContextMenuTrigger } from "@/components/ui/context-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuPortal,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
   const {
@@ -57,7 +63,7 @@ export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
       {data !== undefined && (
         <EdgeLabelRenderer>
           <ContextMenu>
-            <ContextMenuTrigger id={`edge-context-menu-${id}`} >
+            <ContextMenuTrigger id={`edge-context-menu-${id}`}>
               <div
                 style={{
                   position: "absolute",
@@ -74,13 +80,18 @@ export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
                   }}
                 />
               </div>
-              </ContextMenuTrigger>
-              <ContextMenuPortal>
+            </ContextMenuTrigger>
+            <ContextMenuPortal>
               <ContextMenuContent>
                 <ContextMenuItem>Cancel</ContextMenuItem>
-                <ContextMenuItem onSelect={() => {
-                  onEdgeDataChange(id, undefined);
-                }} className="font-semibold text-red-400 focus:text-red-500"><LuTrash className="mr-1" /> Delete Edge</ContextMenuItem>
+                <ContextMenuItem
+                  onSelect={() => {
+                    onEdgeDataChange(id, undefined);
+                  }}
+                  className="font-semibold text-red-400 focus:text-red-500"
+                >
+                  <LuTrash className="mr-1" /> Delete Edge
+                </ContextMenuItem>
               </ContextMenuContent>
             </ContextMenuPortal>
           </ContextMenu>

@@ -48,7 +48,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
   );
   const items = useMemo(() => {
     return violationDetails.situations.slice(0, appliedCutoff);
-  }, [appliedCutoff,violationDetails,node]);
+  }, [appliedCutoff, violationDetails, node]);
 
   const numBindings = violationDetails.situationCount;
   const numViolations = violationDetails.situationViolatedCount;
@@ -62,7 +62,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
       node,
       hasConstraints,
     );
-  }, [violationResPerNodes,node]);
+  }, [violationResPerNodes, node]);
 
   return (
     <Sheet
@@ -127,7 +127,8 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                 </div>
               }
             >
-              <DataTablePaginationLazy key={JSON.stringify(node)}
+              <DataTablePaginationLazy
+                key={JSON.stringify(node)}
                 columns={columns}
                 data={items}
                 initialMode={initialMode}

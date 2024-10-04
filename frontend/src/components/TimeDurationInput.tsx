@@ -59,7 +59,7 @@ export function formatSeconds(
 export default function TimeDurationInput({
   durationSeconds,
   onChange,
-  placeholder
+  placeholder,
 }: {
   durationSeconds: number;
   onChange: (newSeconds: number | undefined) => unknown;
@@ -119,7 +119,8 @@ export default function TimeDurationInput({
 
   return (
     <div className="flex gap-x-2 items-center">
-      <Input placeholder={placeholder}
+      <Input
+        placeholder={placeholder}
         className="w-full"
         onBlur={(ev) => {
           handleValueChange(ev.currentTarget.value);
@@ -136,15 +137,14 @@ export default function TimeDurationInput({
         options={TIME_DURATION_UNITS.map((u) => ({ value: u, label: u }))}
         onChange={(newUnitIn) => {
           const newUnit = newUnitIn as (typeof TIME_DURATION_UNITS)[number];
-          console.log({newUnit,value,unit})
+          console.log({ newUnit, value, unit });
           // const convertedValue =
           //   value *
           //   (unitFactorFromSeconds(unit) / unitFactorFromSeconds(newUnit));
           // setValue(convertedValue);
           // setValueString(convertedValue.toString());
           setUnit(newUnit);
-          handleValueChange(value.toString(),newUnit);
-
+          handleValueChange(value.toString(), newUnit);
         }}
         name={"Unit"}
         value={unit}

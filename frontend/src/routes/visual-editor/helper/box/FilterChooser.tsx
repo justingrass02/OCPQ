@@ -43,16 +43,16 @@ export default function FilterChooser({
   const [alertState, setAlertState] = useState<
     (
       | {
-        type: "filter";
-        value?: Filter | SizeFilter | Constraint;
-      }
+          type: "filter";
+          value?: Filter | SizeFilter | Constraint;
+        }
       | { type: "sizeFilter"; value?: Filter | SizeFilter | Constraint }
       | { type: "constraint"; value?: Filter | SizeFilter | Constraint }
     ) &
-    (
-      | { mode: "add" }
-      | { mode: "edit"; editIndex: number; wasSizeFilter: boolean }
-    )
+      (
+        | { mode: "add" }
+        | { mode: "edit"; editIndex: number; wasSizeFilter: boolean }
+      )
   >();
 
   return (
@@ -73,9 +73,10 @@ export default function FilterChooser({
       <ul className="w-full">
         {type === "filter" &&
           box.filters.map((fc, i) => (
-            <li key={i} >
+            <li key={i}>
               <button
-                className="hover:bg-blue-200/50 rounded-sm text-left w-fit max-w-full" onContextMenuCapture={(ev) => {
+                className="hover:bg-blue-200/50 rounded-sm text-left w-fit max-w-full"
+                onContextMenuCapture={(ev) => {
                   ev.stopPropagation();
                 }}
                 onClick={() => {
@@ -117,9 +118,10 @@ export default function FilterChooser({
         {type === "constraint" &&
           box.constraints.map((c, i) => (
             <li key={"constraints" + i} className="w-full pr-[2.33rem]">
-              <button onContextMenuCapture={(ev) => {
-                ev.stopPropagation();
-              }}
+              <button
+                onContextMenuCapture={(ev) => {
+                  ev.stopPropagation();
+                }}
                 className="hover:bg-blue-200/50 rounded-sm text-left w-fit max-w-full"
                 onClick={() => {
                   setAlertState({
@@ -145,9 +147,12 @@ export default function FilterChooser({
         }}
       >
         {alertState !== undefined && (
-          <AlertDialogContent className="max-w-3xl" onContextMenuCapture={(ev) => {
-            ev.stopPropagation();
-          }}>
+          <AlertDialogContent
+            className="max-w-3xl"
+            onContextMenuCapture={(ev) => {
+              ev.stopPropagation();
+            }}
+          >
             <AlertDialogHeader>
               <AlertDialogTitle>
                 {alertState?.mode === "add" ? "Add " : "Edit "}{" "}
@@ -162,8 +167,8 @@ export default function FilterChooser({
                       ? alertState.value.type === "Filter"
                         ? alertState.value.filter.type
                         : alertState.value.type === "SizeFilter"
-                          ? alertState.value.filter.type
-                          : alertState.value.type
+                        ? alertState.value.filter.type
+                        : alertState.value.type
                       : ""
                   }
                   options={[
@@ -196,40 +201,46 @@ export default function FilterChooser({
                       value: "BasicFilterCEL",
                     },
                     ...(alertState.type !== "filter" ||
-                      alertState.mode !== "edit" ||
-                      alertState.wasSizeFilter
+                    alertState.mode !== "edit" ||
+                    alertState.wasSizeFilter
                       ? [
-                        {
-                          label: "CBS: Child Bindings Set Size",
-                          value: "NumChilds",
-                        },
-                        {
-                          label: "CBE: Child Binding Sets Equal",
-                          value: "BindingSetEqual",
-                        },
-                        {
-                          label: "CBPS: Projected Child Bindings Set Size",
-                          value: "NumChildsProj",
-                        },
-                        {
-                          label: "CBPE: Projected Child Binding Sets Equal",
-                          value: "BindingSetProjectionEqual",
-                        },
-                        {
-                          label: "AdvCEL: Advanced CEL Script",
-                          value: "AdvancedCEL",
-                        },
-                      ]
+                          {
+                            label: "CBS: Child Bindings Set Size",
+                            value: "NumChilds",
+                          },
+                          {
+                            label: "CBE: Child Binding Sets Equal",
+                            value: "BindingSetEqual",
+                          },
+                          {
+                            label: "CBPS: Projected Child Bindings Set Size",
+                            value: "NumChildsProj",
+                          },
+                          {
+                            label: "CBPE: Projected Child Binding Sets Equal",
+                            value: "BindingSetProjectionEqual",
+                          },
+                          {
+                            label: "AdvCEL: Advanced CEL Script",
+                            value: "AdvancedCEL",
+                          },
+                        ]
                       : []),
 
                     ...(alertState.type === "constraint"
                       ? [
-                        { label: "SAT: All Child Bindings Satisfied", value: "SAT" },
-                        { label: "ANY: Any Child Binding Satisfied", value: "ANY" },
-                        { label: "ALL NOT: Logic NOT (ALL)", value: "NOT" },
-                        { label: "OR ALL: Logic OR (ALL)", value: "OR" },
-                        { label: "AND ALL: Logic AND", value: "AND" },
-                      ]
+                          {
+                            label: "SAT: All Child Bindings Satisfied",
+                            value: "SAT",
+                          },
+                          {
+                            label: "ANY: Any Child Binding Satisfied",
+                            value: "ANY",
+                          },
+                          { label: "ALL NOT: Logic NOT (ALL)", value: "NOT" },
+                          { label: "OR ALL: Logic OR (ALL)", value: "OR" },
+                          { label: "AND ALL: Logic AND", value: "AND" },
+                        ]
                       : []),
                   ]}
                   onChange={(val) => {
@@ -451,11 +462,11 @@ export default function FilterChooser({
                       alertState.mode === "edit"
                         ? alertState.editIndex
                         : (alertState.type === "filter"
-                          ? newBox.filters
-                          : alertState.type === "sizeFilter"
+                            ? newBox.filters
+                            : alertState.type === "sizeFilter"
                             ? newBox.sizeFilters
                             : newBox.constraints
-                        ).length;
+                          ).length;
                     console.log({ newBox, index, alertState }, alertState.type);
                     if (alertState.type === "filter") {
                       newBox.filters[index] = alertState.value as Filter;
@@ -582,9 +593,9 @@ export function ObjectOrEventVarSelector({
   objectVars: ObjectVariable[];
   eventVars: EventVariable[];
   value:
-  | { type: "object"; value: ObjectVariable }
-  | { type: "event"; value: EventVariable }
-  | undefined;
+    | { type: "object"; value: ObjectVariable }
+    | { type: "event"; value: EventVariable }
+    | undefined;
   onChange: (
     value:
       | { type: "object"; value: ObjectVariable }
@@ -617,8 +628,9 @@ export function ObjectOrEventVarSelector({
       name={"Object/Event Variable"}
       value={
         value !== undefined
-          ? `${value.value} --- ${value.type} --- ${getVarName(value.value, value.type).name
-          }`
+          ? `${value.value} --- ${value.type} --- ${
+              getVarName(value.value, value.type).name
+            }`
           : ""
       }
     />
@@ -650,8 +662,9 @@ export function ObjectVarSelector({
         }
       }}
       name={"Object Variable"}
-      value={`${value} --- ${value !== undefined ? getVarName(value, "object").name : ""
-        }`}
+      value={`${value} --- ${
+        value !== undefined ? getVarName(value, "object").name : ""
+      }`}
     />
   );
 }
@@ -681,8 +694,9 @@ export function EventVarSelector({
         }
       }}
       name={"Event Variable"}
-      value={`${value} --- ${value !== undefined ? getVarName(value, "event").name : ""
-        }`}
+      value={`${value} --- ${
+        value !== undefined ? getVarName(value, "event").name : ""
+      }`}
     />
   );
 }

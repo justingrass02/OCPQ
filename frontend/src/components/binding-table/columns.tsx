@@ -108,13 +108,15 @@ export function columnsForBinding(
                     <div className="h-4 w-full flex items-center gap-x-2 pr-1">
                       <Checkbox disabled checked crossicon title="Violated" />
                       {(node as BindingBoxTreeNode & { Box: any })?.Box[0]
-                            .constraints[v] != null && <FilterOrConstraintDisplay
-                        compact={true}
-                        value={
-                          (node as BindingBoxTreeNode & { Box: any }).Box[0]
-                            .constraints[v]
-                        }
-                      />}
+                        .constraints[v] != null && (
+                        <FilterOrConstraintDisplay
+                          compact={true}
+                          value={
+                            (node as BindingBoxTreeNode & { Box: any }).Box[0]
+                              .constraints[v]
+                          }
+                        />
+                      )}
                     </div>
                   )}
                 </div>
