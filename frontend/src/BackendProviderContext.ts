@@ -77,7 +77,7 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
     ).json();
   },
   "ocel/upload": async (ocelFile) => {
-    const type = ocelFile.name.endsWith(".json") ? "json" : "xml";
+    const type = ocelFile.name.endsWith(".json") ? "json" : ocelFile.name.endsWith(".xml") ? "xml" : "sqlite";
     return await (
       await fetch(BACKEND_URL + `/ocel/upload-${type}`, {
         method: "post",

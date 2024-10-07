@@ -6,13 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axum = "0.6.20"
+axum = "0.7.7"
 tokio = { version = "1", features = ["full"] }
 serde = {version = "1.0.192" , features = ["derive"]}
 serde_json = "1.0.108"
-process_mining = "0.3.14"
+process_mining = { version = "0.3.17", features=["ocel-sqlite"]}
 ocedeclare-shared = {path = "../shared"}
-tower-http = { version = "0.4.3", features = ["cors"] }
+tower-http = { version = "0.6.1", features = ["cors"] }
 rayon = "1.8.0"
 itertools = "0.11.0"
 chrono = "0.4.33"

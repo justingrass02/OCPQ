@@ -92,17 +92,11 @@ pub fn get_events_of_type_associated_with_objects(
 }
 
 pub fn get_event_relationships(ev: &OCELEvent) -> Vec<OCELRelationship> {
-    match &ev.relationships {
-        Some(rels) => rels.clone(),
-        None => Vec::default(),
-    }
+  ev.relationships.clone()
 }
 
 pub fn get_object_relationships(obj: &OCELObject) -> Vec<OCELRelationship> {
-    match &obj.relationships {
-        Some(rels) => rels.clone(),
-        None => Vec::new(),
-    }
+    obj.relationships.clone()
 }
 
 ///
@@ -361,7 +355,7 @@ pub fn link_ocel_info(ocel: OCEL) -> IndexLinkedOCEL {
     let mut types_rel_counts: HashMap<EventOrObjectType, usize> = HashMap::new();
     for (e_index_usize, e) in ocel.events.iter().enumerate() {
         let e_index = EventOrObjectIndex::Event(EventIndex(e_index_usize));
-        for r in e.relationships.iter().flatten() {
+        for r in e.relationships.iter() {
             if let Some(object_index) = object_index_map.get(&r.object_id) {
                 let o2_index = EventOrObjectIndex::Object(*object_index);
                 symmetric_rels.entry(e_index).or_default().insert((
@@ -390,7 +384,7 @@ pub fn link_ocel_info(ocel: OCEL) -> IndexLinkedOCEL {
     }
     for (o_index_usize, o) in ocel.objects.iter().enumerate() {
         let o_index = EventOrObjectIndex::Object(ObjectIndex(o_index_usize));
-        for r in o.relationships.iter().flatten() {
+        for r in o.relationships.iter() {
             if let Some(object_index) = object_index_map.get(&r.object_id) {
                 let o2_index = EventOrObjectIndex::Object(*object_index);
                 symmetric_rels.entry(o_index).or_default().insert((

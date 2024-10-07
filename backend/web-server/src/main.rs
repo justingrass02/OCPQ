@@ -6,6 +6,7 @@ use axum::{
     Json, Router,
 };
 use itertools::Itertools;
+use tokio::net::TcpListener;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -28,9 +29,7 @@ use ocedeclare_shared::{
     EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
 };
 use process_mining::{
-    event_log::ocel::ocel_struct::OCEL,
-    import_ocel_xml_slice,
-    ocel::ocel_struct::{OCELEvent, OCELObject},
+    event_log::ocel::ocel_struct::OCEL, import_ocel_sqlite_from_slice, import_ocel_xml_slice, ocel::ocel_struct::{OCELEvent, OCELObject}
 };
 use tower_http::cors::CorsLayer;
 
@@ -70,6 +69,10 @@ async fn main() {
             "/ocel/upload-xml",
             post(upload_ocel_xml).layer(DefaultBodyLimit::disable()),
         )
+        .route(
+            "/ocel/upload-sqlite",
+            post(upload_ocel_sqlite).layer(DefaultBodyLimit::disable()),
+        )
         .route("/ocel/available", get(get_available_ocels))
         .route(
             "/ocel/event-qualifiers",
@@ -93,8 +96,8 @@ async fn main() {
         .route("/", get(|| async { "Hello, Aaron!" }))
         .layer(cors);
     // run it with hyper on localhost:3000
-    axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
-        .serve(app.into_make_service())
+    let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
+        axum::serve(listener,app.into_make_service())
         .await
         .unwrap();
 }
@@ -114,6 +117,18 @@ async fn upload_ocel_xml<'a>(
 ) -> (StatusCode, Json<OCELInfo>) {
     let ocel = import_ocel_xml_slice(&ocel_bytes);
     let mut x = state.ocel.write().unwrap();
+    let ocel_info: OCELInfo = (&ocel).into();
+    *x = Some(IndexLinkedOCEL::new(ocel));
+
+    (StatusCode::OK, Json(ocel_info))
+}
+
+async fn upload_ocel_sqlite<'a>(
+    State(state): State<AppState>,
+    ocel_bytes: Bytes,
+) -> (StatusCode, Json<OCELInfo>) {
+    let ocel = import_ocel_sqlite_from_slice(&ocel_bytes).unwrap();
+    let mut x: std::sync::RwLockWriteGuard<'_, Option<IndexLinkedOCEL>> = state.ocel.write().unwrap();
     let ocel_info: OCELInfo = (&ocel).into();
     *x = Some(IndexLinkedOCEL::new(ocel));
 

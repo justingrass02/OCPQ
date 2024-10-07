@@ -617,18 +617,15 @@ impl Filter {
             } => {
                 let ob = b.get_ob(object, ocel).unwrap();
                 let ev = b.get_ev(event, ocel).unwrap();
-                ev.relationships.as_ref().is_some_and(
-                    |rels: &Vec<process_mining::ocel::ocel_struct::OCELRelationship>| {
-                        rels.iter().any(|rel| {
-                            rel.object_id == ob.id
-                                && if let Some(q) = qualifier {
-                                    &rel.qualifier == q
-                                } else {
-                                    true
-                                }
-                        })
-                    },
-                )
+
+                ev.relationships.iter().any(|rel| {
+                    rel.object_id == ob.id
+                        && if let Some(q) = qualifier {
+                            &rel.qualifier == q
+                        } else {
+                            true
+                        }
+                })
             }
             Filter::O2O {
                 object,
@@ -637,8 +634,7 @@ impl Filter {
             } => {
                 let ob1 = b.get_ob(object, ocel).unwrap();
                 let ob2 = b.get_ob(other_object, ocel).unwrap();
-                ob1.relationships.as_ref().is_some_and(|rels| {
-                    rels.iter().any(|rel| {
+                ob1.relationships.iter().any(|rel| {
                         rel.object_id == ob2.id
                             && if let Some(q) = qualifier {
                                 &rel.qualifier == q
@@ -646,7 +642,6 @@ impl Filter {
                                 true
                             }
                     })
-                })
             }
             Filter::TimeBetweenEvents {
                 from_event: ev_var_1,

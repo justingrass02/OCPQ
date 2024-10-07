@@ -123,7 +123,6 @@ impl BindingBox {
                             let obj_types = self.new_object_vars.get(ob_var).unwrap();
                             e.relationships
                                 .iter()
-                                .flatten()
                                 .filter(|rel| {
                                     obj_types.contains(
                                         &ocel.ob_by_id(&rel.object_id).unwrap().object_type,

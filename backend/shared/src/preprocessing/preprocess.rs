@@ -82,17 +82,11 @@ pub fn get_events_of_type_associated_with_objects(
 }
 
 pub fn get_event_relationships(ev: &OCELEvent) -> Vec<OCELRelationship> {
-    match &ev.relationships {
-        Some(rels) => rels.clone(),
-        None => Vec::default(),
-    }
+    ev.relationships.clone()
 }
 
 pub fn get_object_relationships(obj: &OCELObject) -> Vec<OCELRelationship> {
-    match &obj.relationships {
-        Some(rels) => rels.clone(),
-        None => Vec::new(),
-    }
+    obj.relationships.clone()
 }
 
 ///

@@ -21,6 +21,9 @@ const VALID_OCEL_MIME_TYPES = [
   "text/json",
   "text/xml",
   "application/xml",
+  "application/vnd.sqlite3",
+  "application/vnd.sqlite",
+
 ];
 export const OcelInfoContext = createContext<OCELInfo | undefined>(undefined);
 
@@ -279,7 +282,7 @@ function App() {
                       or drag a file here
                     </p>
                     <p className="text-xs text-gray-500">
-                      Supported: OCEL2-JSON, OCEL2-XML
+                      Supported: OCEL2-JSON, OCEL2-XML, OCEL2-SQLITE
                     </p>
                   </div>
                   <input

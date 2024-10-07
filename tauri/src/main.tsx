@@ -23,7 +23,7 @@ const tauriBackend: BackendProvider = {
   "ocel/picker": async () => {
     const path = await dialog.open({
       title: "Select an OCEL2 file",
-      filters: [{ name: "OCEL2", extensions: ["json", "xml"] }],
+      filters: [{ name: "OCEL2", extensions: ["json", "xml","sqlite","sqlite3","db"] }],
     });
     if (typeof path === "string") {
       const ocelInfo: OCELInfo = await invoke("import_ocel", { path });

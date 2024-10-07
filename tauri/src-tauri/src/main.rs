@@ -18,7 +18,7 @@ use ocedeclare_shared::{
     preprocessing::linked_ocel::{link_ocel_info, IndexLinkedOCEL},
     EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
 };
-use process_mining::{import_ocel_json_from_path, import_ocel_xml_file};
+use process_mining::{import_ocel_json_from_path, import_ocel_sqlite_from_path, import_ocel_xml_file};
 use tauri::State;
 
 type OCELStore = Mutex<Option<IndexLinkedOCEL>>;
@@ -27,7 +27,10 @@ type OCELStore = Mutex<Option<IndexLinkedOCEL>>;
 fn import_ocel(path: &str, state: tauri::State<OCELStore>) -> Result<OCELInfo, String> {
     let ocel = match path.ends_with(".json") {
         true => import_ocel_json_from_path(path).map_err(|e| format!("{:?}", e))?,
-        false => import_ocel_xml_file(path),
+        false => match path.ends_with(".xml") {
+            true => import_ocel_xml_file(path),
+            false => import_ocel_sqlite_from_path(path).map_err(|e| format!("{:?}", e))?,
+        },
     };
     let ocel_info: OCELInfo = (&ocel).into();
     let mut state_guard = state.lock().unwrap();
