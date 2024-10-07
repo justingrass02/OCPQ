@@ -44,7 +44,7 @@ Alternatively, the docker files can of the frontend and backend can also be used
 ![image](https://github.com/user-attachments/assets/98210a69-cd3d-4c75-a2c5-0ee5f2e44d94)
 
 In the following examples, we use the order management OCEL from https://zenodo.org/records/8428112.
-JSON and XML OCEL 2.0 files are supported.
+JSON, XML, and SQLite OCEL 2.0 files are supported.
 
 ### Constraint Overview
 ![image](https://github.com/user-attachments/assets/1604911e-e06e-4099-bcb8-628d89b2a4bd)
