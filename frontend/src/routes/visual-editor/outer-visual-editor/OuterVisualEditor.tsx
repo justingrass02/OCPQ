@@ -445,7 +445,7 @@ export default function VisualEditorOuter() {
                                 disabled={constraints.length === 0}
                                 onClick={() => setShowConstraintSelection(true)}
                               >
-                                {constraints.length} Constraints...
+                                {constraints.length} Queries...
                               </Button>
                             )}
                             <Button
@@ -526,7 +526,7 @@ export default function VisualEditorOuter() {
                       {activeIndex !== undefined &&
                         constraints[activeIndex] !== undefined && (
                           <div className="">
-                            <p className="h-[1.5rem]">Selected Constraint</p>
+                            <p className="h-[1.5rem]">Selected Query</p>
                             <div
                               className="w-full flex flex-col gap-y-1 px-2"
                               key={activeIndex}
@@ -582,7 +582,7 @@ export default function VisualEditorOuter() {
                       {activeIndex !== undefined &&
                         constraints[activeIndex] !== undefined && (
                           <div>
-                            <p className="h-[1.5rem]">Constraint Info</p>
+                            <p className="h-[1.5rem]">Query Info</p>
                             <div className="px-2 border rounded flex flex-col items-center justify-around w-full">
                               {prevDataRef.current[activeIndex]?.flowJson !==
                               undefined

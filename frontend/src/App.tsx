@@ -138,17 +138,15 @@ function App() {
               <>
                 <MenuLink to="/ocel-info">OCEL Info</MenuLink>
                 <MenuLink to="/graph">
-                  <PiGraph className="text-lg mr-1 text-purple-700" />
                   Graph
                 </MenuLink>
                 <MenuLink
                   to="/constraints"
                   classNames={[
-                    "bg-purple-200 hover:bg-purple-300 border-purple-300",
+                    "bg-purple-200 hover:bg-purple-300 bg-purple-100 border-purple-300",
                   ]}
                 >
-                  <PiSealCheckBold className="text-lg mr-1 text-purple-700" />
-                  Constraints
+                  Queries & Constraints
                 </MenuLink>
               </>
             )}
