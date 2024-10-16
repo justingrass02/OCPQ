@@ -438,10 +438,6 @@ impl CountConstraint {
     ) -> BindingBoxTree {
         let bbox0 = BindingBoxTreeNode::Box(
             BindingBox {
-                new_event_vars: HashMap::default(),
-                new_object_vars: HashMap::default(),
-                filters: vec![],
-                size_filters: vec![],
                 constraints: vec![Constraint::SizeFilter {
                     filter: SizeFilter::NumChilds {
                         child_name: child_name.clone(),
@@ -449,6 +445,7 @@ impl CountConstraint {
                         max: self.max_count,
                     },
                 }],
+                ..Default::default()
             },
             vec![1],
         );
@@ -509,8 +506,7 @@ impl CountConstraint {
                         },
                     },
                 }],
-                size_filters: vec![],
-                constraints: vec![],
+                ..Default::default()
             },
             vec![],
         );
@@ -707,6 +703,7 @@ impl EFConstraint {
                         max: None,
                     },
                 }],
+                ..Default::default()
             },
             vec![1],
         );
@@ -735,6 +732,7 @@ impl EFConstraint {
                 ],
                 size_filters: vec![],
                 constraints: vec![],
+                ..Default::default()
             },
             vec![],
         );
@@ -1007,6 +1005,7 @@ pub fn merge_or_tree(
         constraints: vec![Constraint::OR {
             child_names: vec![name1.clone(), name2.clone()],
         }],
+        ..Default::default()
     };
     match ocel_type {
         EventOrObjectType::Event(et) => bbox.new_event_vars.insert(

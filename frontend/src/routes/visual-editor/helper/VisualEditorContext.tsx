@@ -44,6 +44,7 @@ export type VisualEditorContextValue = {
       | { req: { id: string } | { index: number }; type: "object" | "event" }
       | undefined,
   ) => unknown;
+  filterMode: "shown" | "hidden";
 };
 
 export const VisualEditorContext = createContext<VisualEditorContextValue>({
@@ -59,4 +60,5 @@ export const VisualEditorContext = createContext<VisualEditorContextValue>({
     color: "black",
   }),
   showElementInfo: () => {},
+  filterMode: "shown",
 });

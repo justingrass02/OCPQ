@@ -23,7 +23,6 @@ const VALID_OCEL_MIME_TYPES = [
   "application/xml",
   "application/vnd.sqlite3",
   "application/vnd.sqlite",
-
 ];
 export const OcelInfoContext = createContext<OCELInfo | undefined>(undefined);
 
@@ -137,9 +136,7 @@ function App() {
             {ocelInfo != null && (
               <>
                 <MenuLink to="/ocel-info">OCEL Info</MenuLink>
-                <MenuLink to="/graph">
-                  Graph
-                </MenuLink>
+                <MenuLink to="/graph">Graph</MenuLink>
                 <MenuLink
                   to="/constraints"
                   classNames={[

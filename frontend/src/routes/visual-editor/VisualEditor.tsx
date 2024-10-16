@@ -555,6 +555,8 @@ export default function VisualEditor(props: VisualEditorProps) {
                 filters: [],
                 sizeFilters: [],
                 constraints: [],
+                evVarLabels: {},
+                obVarLabels: {},
               },
             } satisfies EventTypeNodeData,
           },
@@ -617,6 +619,7 @@ export default function VisualEditor(props: VisualEditorProps) {
         getAvailableChildNames,
         getTypesForVariable,
         getNodeIDByName,
+        filterMode: "shown",
         showElementInfo: (elInfo) => {
           setElementInfo(elInfo);
         },

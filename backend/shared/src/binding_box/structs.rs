@@ -115,7 +115,7 @@ pub type NewEventVariables = HashMap<EventVariable, HashSet<String>>;
 
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct BindingBox {
     pub new_event_vars: NewEventVariables,
@@ -123,6 +123,23 @@ pub struct BindingBox {
     pub filters: Vec<Filter>,
     pub size_filters: Vec<SizeFilter>,
     pub constraints: Vec<Constraint>,
+    #[serde(default)]
+    #[ts(optional)]
+    #[ts(as = "Option<HashMap<EventVariable,VariableLabel>>")]
+    pub ev_var_labels: HashMap<EventVariable,VariableLabel>,
+    #[serde(default)]
+    #[ts(optional)]
+    #[ts(as = "Option<HashMap<EventVariable,VariableLabel>>")]
+    pub ob_var_labels: HashMap<ObjectVariable,VariableLabel>
+}
+
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum VariableLabel {
+    IGNORED,
+    INCLUDED,
+    EXCLUDED
 }
 
 #[derive(TS)]
@@ -190,43 +207,34 @@ impl BindingBoxTreeNode {
             BindingBoxTreeNode::Box(b, children) => (b, children),
             BindingBoxTreeNode::OR(c1, c2) => (
                 BindingBox {
-                    new_event_vars: HashMap::default(),
-                    new_object_vars: HashMap::default(),
-                    filters: Vec::default(),
-                    size_filters: Vec::default(),
                     constraints: vec![Constraint::OR {
                         child_names: vec![
                             format!("{}{}", UNNAMED, c1),
                             format!("{}{}", UNNAMED, c2),
                         ],
                     }],
+                    ..Default::default()
                 },
                 vec![c1, c2],
             ),
             BindingBoxTreeNode::AND(c1, c2) => (
                 BindingBox {
-                    new_event_vars: HashMap::default(),
-                    new_object_vars: HashMap::default(),
-                    filters: Vec::default(),
-                    size_filters: Vec::default(),
                     constraints: vec![Constraint::AND {
                         child_names: vec![
                             format!("{}{}", UNNAMED, c1),
                             format!("{}{}", UNNAMED, c2),
                         ],
                     }],
+                    ..Default::default()
                 },
                 vec![c1, c2],
             ),
             BindingBoxTreeNode::NOT(c1) => (
                 BindingBox {
-                    new_event_vars: HashMap::default(),
-                    new_object_vars: HashMap::default(),
-                    filters: Vec::default(),
-                    size_filters: Vec::default(),
                     constraints: vec![Constraint::NOT {
                         child_names: vec![format!("{}{}", UNNAMED, c1)],
                     }],
+                    ..Default::default()
                 },
                 vec![c1],
             ),

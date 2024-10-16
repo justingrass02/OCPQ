@@ -173,13 +173,10 @@ pub fn test_tree_combinations(
                 let name1 = "A".to_string();
                 let name2: String = "B".to_string();
                 let mut bbox = BindingBox {
-                    new_event_vars: HashMap::new(),
-                    new_object_vars: HashMap::new(),
-                    filters: Vec::default(),
-                    size_filters: Vec::default(),
                     constraints: vec![Constraint::SAT {
                         child_names: vec![name1.clone(), name2.clone()],
                     }],
+                    ..Default::default()
                 };
                 match ocel_type {
                     EventOrObjectType::Event(et) => bbox.new_event_vars.insert(

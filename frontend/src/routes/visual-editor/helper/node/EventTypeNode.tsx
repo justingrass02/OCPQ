@@ -1,24 +1,3 @@
-import AlertHelper from "@/components/AlertHelper";
-import clsx from "clsx";
-import { memo, useContext, useState } from "react";
-import { TbTrash } from "react-icons/tb";
-import { Handle, Position, type NodeProps } from "reactflow";
-import { VisualEditorContext } from "../VisualEditorContext";
-import FilterChooser from "../box/FilterChooser";
-import NewVariableChooser from "../box/NewVariablesChooser";
-import type { EventTypeNodeData } from "../types";
-import MiscNodeConstraints from "./MiscNodeConstraints";
-import ViolationIndicator from "./ViolationIndicator";
-import { getViolationStyles } from "../violation-styles";
-import SituationIndicator from "./SituationIndicator";
-import {
-  ContextMenu,
-  ContextMenuTrigger,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuPortal,
-} from "@/components/ui/context-menu";
-import { LuTrash } from "react-icons/lu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,8 +7,25 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuPortal,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import clsx from "clsx";
+import { memo, useContext, useState } from "react";
+import { LuTrash } from "react-icons/lu";
+import { Handle, Position, type NodeProps } from "reactflow";
+import { VisualEditorContext } from "../VisualEditorContext";
+import FilterChooser from "../box/FilterChooser";
+import NewVariableChooser from "../box/NewVariablesChooser";
+import type { EventTypeNodeData } from "../types";
+import { getViolationStyles } from "../violation-styles";
+import SituationIndicator from "./SituationIndicator";
+import ViolationIndicator from "./ViolationIndicator";
 export default memo(EventTypeNode);
 function EventTypeNode({ data, id, selected }: NodeProps<EventTypeNodeData>) {
   const { violationsPerNode, onNodeDataChange } =
@@ -51,26 +47,6 @@ function EventTypeNode({ data, id, selected }: NodeProps<EventTypeNodeData>) {
             selected && "border-dashed",
           )}
         >
-          {/* <Toggle
-        className="flex w-6 h-6 p-0 absolute right-11"
-        variant="outline"
-        title={
-          data.hideViolations === true
-            ? "Hide violations (just filter)"
-            : "Show violations"
-        }
-        pressed={data.hideViolations === true}
-        onPressedChange={(pressed) => {
-          onNodeDataChange(id, { ...data, hideViolations: pressed });
-        }}
-      >
-        {data.hideViolations !== true && (
-          <PiSirenDuotone className="text-blue-500" />
-        )}
-        {data.hideViolations === true && (
-          <PiSirenThin className="text-gray-400" />
-        )}
-      </Toggle> */}
           {violations !== undefined && (
             <SituationIndicator
               violationsPerNode={violations}
@@ -84,11 +60,6 @@ function EventTypeNode({ data, id, selected }: NodeProps<EventTypeNodeData>) {
               <ViolationIndicator violationsPerNode={violations} nodeID={id} />
             )}
           <div className="text-large font-semibold mx-4 flex flex-col justify-center items-center">
-            <MiscNodeConstraints
-              id={id}
-              data={data}
-              onNodeDataChange={onNodeDataChange}
-            />
             <NewVariableChooser
               id={id}
               box={data.box}
