@@ -125,21 +125,22 @@ pub struct BindingBox {
     pub constraints: Vec<Constraint>,
     #[serde(default)]
     #[ts(optional)]
-    #[ts(as = "Option<HashMap<EventVariable,VariableLabel>>")]
-    pub ev_var_labels: HashMap<EventVariable,VariableLabel>,
+    #[ts(as = "Option<HashMap<EventVariable,FilterLabel>>")]
+    pub ev_var_labels: HashMap<EventVariable, FilterLabel>,
     #[serde(default)]
     #[ts(optional)]
-    #[ts(as = "Option<HashMap<EventVariable,VariableLabel>>")]
-    pub ob_var_labels: HashMap<ObjectVariable,VariableLabel>
+    #[ts(as = "Option<HashMap<EventVariable,FilterLabel>>")]
+    pub ob_var_labels: HashMap<ObjectVariable, FilterLabel>,
 }
 
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum VariableLabel {
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
+pub enum FilterLabel {
+    #[default]
     IGNORED,
     INCLUDED,
-    EXCLUDED
+    EXCLUDED,
 }
 
 #[derive(TS)]
@@ -238,6 +239,13 @@ impl BindingBoxTreeNode {
                 },
                 vec![c1],
             ),
+        }
+    }
+
+    pub fn as_box(&self) -> Option<&BindingBox> {
+        match self {
+            BindingBoxTreeNode::Box(b, _children) => Some(b),
+            _ => None,
         }
     }
 }
@@ -581,12 +589,20 @@ pub enum Filter {
         object: ObjectVariable,
         event: EventVariable,
         qualifier: Qualifier,
+        #[serde(default)]
+        #[ts(optional)]
+        #[serde(rename = "filterLabel")]
+        filter_label: Option<FilterLabel>,
     },
     /// Object1 is associated with object2 (optionally through a qualifier)
     O2O {
         object: ObjectVariable,
         other_object: ObjectVariable,
         qualifier: Qualifier,
+        #[serde(default)]
+        #[ts(optional)]
+        #[serde(rename = "filterLabel")]
+        filter_label: Option<FilterLabel>,
     },
     /// Time duration betweeen event1 and event2 is in the specified interval (min,max) (given in Some(seconds); where None represents no restriction)
     TimeBetweenEvents {
@@ -622,6 +638,7 @@ impl Filter {
                 object,
                 event,
                 qualifier,
+                filter_label: _,
             } => {
                 let ob = b.get_ob(object, ocel).unwrap();
                 let ev = b.get_ev(event, ocel).unwrap();
@@ -639,17 +656,18 @@ impl Filter {
                 object,
                 other_object,
                 qualifier,
+                filter_label: _,
             } => {
                 let ob1 = b.get_ob(object, ocel).unwrap();
                 let ob2 = b.get_ob(other_object, ocel).unwrap();
                 ob1.relationships.iter().any(|rel| {
-                        rel.object_id == ob2.id
-                            && if let Some(q) = qualifier {
-                                &rel.qualifier == q
-                            } else {
-                                true
-                            }
-                    })
+                    rel.object_id == ob2.id
+                        && if let Some(q) = qualifier {
+                            &rel.qualifier == q
+                        } else {
+                            true
+                        }
+                })
             }
             Filter::TimeBetweenEvents {
                 from_event: ev_var_1,
@@ -974,6 +992,7 @@ impl Filter {
                 object,
                 event,
                 qualifier: _,
+                filter_label: _,
             } => vec![Variable::Object(*object), Variable::Event(*event)]
                 .into_iter()
                 .collect(),
@@ -981,6 +1000,7 @@ impl Filter {
                 object,
                 other_object,
                 qualifier: _,
+                filter_label: _,
             } => vec![Variable::Object(*object), Variable::Object(*other_object)]
                 .into_iter()
                 .collect(),
@@ -1007,11 +1027,8 @@ impl Filter {
                 value_filter: _,
             } => {
                 let mut ret: HashSet<_> = vec![Variable::Object(*object)].into_iter().collect();
-                match at_time {
-                    ObjectValueFilterTimepoint::AtEvent { event } => {
-                        ret.insert(Variable::Event(*event));
-                    }
-                    _ => {}
+                if let ObjectValueFilterTimepoint::AtEvent { event } = at_time {
+                    ret.insert(Variable::Event(*event));
                 }
                 ret
             }

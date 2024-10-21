@@ -13,9 +13,11 @@ import { Label } from "@/components/ui/label";
 import MultiSelect from "@/components/ui/multi-select";
 import type { BindingBox } from "@/types/generated/BindingBox";
 import type { EventVariable } from "@/types/generated/EventVariable";
+import { FilterLabel } from "@/types/generated/FilterLabel";
 import type { ObjectVariable } from "@/types/generated/ObjectVariable";
 import { useContext, useState } from "react";
-import { LuFilter, LuFilterX, LuPlus } from "react-icons/lu";
+import { LuPlus } from "react-icons/lu";
+import { TbFilterCheck, TbFilterOff, TbFilterX } from "react-icons/tb";
 import { VisualEditorContext } from "../VisualEditorContext";
 import {
   EvVarName,
@@ -23,18 +25,7 @@ import {
   getEvVarName,
   getObVarName,
 } from "./variable-names";
-import { PiCircleFill } from "react-icons/pi";
-import clsx from "clsx";
-import { VariableLabel } from "@/types/generated/VariableLabel";
-import { MdFilter } from "react-icons/md";
-import {
-  TbFilter,
-  TbFilterCheck,
-  TbFilterMinus,
-  TbFilterOff,
-  TbFilterPlus,
-  TbFilterX,
-} from "react-icons/tb";
+import FilterLabelIcon from "@/components/FilterLabelIcon";
 
 export default function NewVariableChooser({
   id,
@@ -101,7 +92,7 @@ export default function NewVariableChooser({
       </div>
       <ul className="w-full text-left text-sm min-h-[0.5rem]">
         {Object.entries(box.newObjectVars).map(([obVar, obTypes]) => (
-          <li key={obVar} className="flex items-start gap-x-0.5">
+          <li key={obVar} className="flex items-baseline gap-x-0.5">
             <VariableLabelToggle
               labels={box.obVarLabels}
               variable={obVar}
@@ -155,7 +146,7 @@ export default function NewVariableChooser({
       </div>
       <ul className="w-full text-left text-sm min-h-[0.5rem]">
         {Object.entries(box.newEventVars).map(([evVar, evTypes]) => (
-          <li key={evVar} className="flex items-start w-fit max-w-full">
+          <li key={evVar} className="flex items-baseline w-fit max-w-full">
             <VariableLabelToggle
               labels={box.evVarLabels}
               variable={evVar}
@@ -337,7 +328,7 @@ function getVariableLabel(
   if (typeof variable === "string") {
     variable = parseInt(variable);
   }
-  const val: VariableLabel | undefined = (labels ?? {})[variable];
+  const val: FilterLabel | undefined = (labels ?? {})[variable];
   return val ?? "IGNORED";
 }
 
@@ -352,6 +343,10 @@ function VariableLabelToggle({
     newLabels: BindingBox["evVarLabels"] | BindingBox["obVarLabels"],
   ) => unknown;
 }) {
+  const ctx = useContext(VisualEditorContext);
+  if (ctx.filterMode !== "shown") {
+    return null;
+  }
   if (typeof variable === "string") {
     variable = parseInt(variable);
   }
@@ -361,7 +356,7 @@ function VariableLabelToggle({
       onClick={() => {
         const prevLabels = labels ?? {};
         const prevLabel = prevLabels[variable] ?? "IGNORED";
-        let newLabel: VariableLabel = "IGNORED";
+        let newLabel: FilterLabel = "IGNORED";
         if (prevLabel === "IGNORED") {
           newLabel = "INCLUDED";
         } else if (prevLabel === "INCLUDED") {
@@ -371,15 +366,7 @@ function VariableLabelToggle({
         onChange(newLabels);
       }}
     >
-      {getVariableLabel(labels, variable) === "IGNORED" && (
-        <TbFilterOff className="block mt-1.5 size-3 mx-auto fill-neutral-200/50 hover:fill-neutral-300 text-neutral-300 hover:text-neutral-500" />
-      )}
-      {getVariableLabel(labels, variable) === "INCLUDED" && (
-        <TbFilterCheck className="block mt-1.5 size-3 mx-auto fill-green-200 hover:fill-green-300 text-green-600" />
-      )}
-      {getVariableLabel(labels, variable) === "EXCLUDED" && (
-        <TbFilterX className="block mt-1.5 size-3 mx-auto fill-red-200 hover:fill-red-300 text-red-600" />
-      )}
+      <FilterLabelIcon label={getVariableLabel(labels, variable)} />
     </button>
   );
 }

@@ -138,6 +138,7 @@ impl BindingStep {
                     object,
                     event,
                     qualifier,
+                    filter_label: None,
                 } => {
                     var_can_bind
                         .entry(Variable::Object(*object))
@@ -161,6 +162,7 @@ impl BindingStep {
                     object,
                     other_object,
                     qualifier,
+                    filter_label: _
                 } => {
                     var_can_bind
                         .entry(Variable::Object(*object))

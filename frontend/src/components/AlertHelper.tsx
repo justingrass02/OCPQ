@@ -83,10 +83,15 @@ export default function AlertHelper<T>(props: AlertHelperProps<T>) {
                 if (props.mode === "promise") {
                   ev.preventDefault();
                   setLoading(true);
-                  void props.onSubmit(data, ev).finally(() => {
-                    setLoading(false);
-                    setOpen(false);
-                  });
+                  void props
+                    .onSubmit(data, ev)
+                    .then(() => {
+                      setLoading(false);
+                      setOpen(false);
+                    })
+                    .finally(() => {
+                      setLoading(false);
+                    });
                 } else {
                   props.onSubmit(data, ev);
                 }

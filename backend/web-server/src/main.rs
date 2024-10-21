@@ -11,11 +11,15 @@ use tokio::net::TcpListener;
 use std::{
     collections::{HashMap, HashSet},
     env,
+    io::{Cursor, Read},
     sync::{Arc, RwLock},
 };
 
 use ocedeclare_shared::{
-    binding_box::{evaluate_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult},
+    binding_box::{
+        evaluate_box_tree, filter_ocel_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult,
+        ExportFormat, FilterExportWithBoxTreeRequest,
+    },
     discovery::{
         auto_discover_constraints_with_options, AutoDiscoverConstraintsRequest,
         AutoDiscoverConstraintsResponse,
@@ -29,7 +33,9 @@ use ocedeclare_shared::{
     EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
 };
 use process_mining::{
-    event_log::ocel::ocel_struct::OCEL, import_ocel_sqlite_from_slice, import_ocel_xml_slice, ocel::ocel_struct::{OCELEvent, OCELObject}
+    event_log::ocel::ocel_struct::OCEL,
+    export_ocel_json_to_vec, export_ocel_xml, import_ocel_sqlite_from_slice, import_ocel_xml_slice,
+    ocel::ocel_struct::{OCELEvent, OCELObject},
 };
 use tower_http::cors::CorsLayer;
 
@@ -85,6 +91,10 @@ async fn main() {
         .route("/ocel/graph", post(ocel_graph_req))
         .route("/ocel/check-constraints-box", post(check_with_box_tree_req))
         .route(
+            "/ocel/export-filter-box",
+            post(filter_export_with_box_tree_req),
+        )
+        .route(
             "/ocel/discover-constraints",
             post(auto_discover_constraints_handler),
         )
@@ -97,7 +107,7 @@ async fn main() {
         .layer(cors);
     // run it with hyper on localhost:3000
     let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
-        axum::serve(listener,app.into_make_service())
+    axum::serve(listener, app.into_make_service())
         .await
         .unwrap();
 }
@@ -128,7 +138,8 @@ async fn upload_ocel_sqlite<'a>(
     ocel_bytes: Bytes,
 ) -> (StatusCode, Json<OCELInfo>) {
     let ocel = import_ocel_sqlite_from_slice(&ocel_bytes).unwrap();
-    let mut x: std::sync::RwLockWriteGuard<'_, Option<IndexLinkedOCEL>> = state.ocel.write().unwrap();
+    let mut x: std::sync::RwLockWriteGuard<'_, Option<IndexLinkedOCEL>> =
+        state.ocel.write().unwrap();
     let ocel_info: OCELInfo = (&ocel).into();
     *x = Some(IndexLinkedOCEL::new(ocel));
 
@@ -213,6 +224,30 @@ pub async fn check_with_box_tree_req<'a>(
         )
     })
     .unwrap_or((StatusCode::INTERNAL_SERVER_ERROR, Json(None)))
+}
+
+pub async fn filter_export_with_box_tree_req<'a>(
+    state: State<AppState>,
+    Json(req): Json<FilterExportWithBoxTreeRequest>,
+) -> (StatusCode, Bytes) {
+    with_ocel_from_state(&state, |ocel| {
+        let res = filter_ocel_box_tree(req.tree, ocel).unwrap();
+        let bytes = match req.export_format {
+            ExportFormat::XML => {
+                let inner = Vec::new();
+                let mut w = Cursor::new(inner);
+                export_ocel_xml(&mut w, &res).unwrap();
+                Bytes::from(w.into_inner())
+            }
+            ExportFormat::JSON => {
+                let res = export_ocel_json_to_vec(&res).unwrap();
+                Bytes::from(res)
+            }
+            ExportFormat::SQLITE => todo!(),
+        };
+        (StatusCode::OK, bytes)
+    })
+    .unwrap_or((StatusCode::INTERNAL_SERVER_ERROR, Bytes::default()))
 }
 
 pub async fn auto_discover_constraints_handler<'a>(

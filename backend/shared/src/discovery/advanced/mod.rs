@@ -194,28 +194,22 @@ pub fn test_tree_combinations(
                     edge_names: HashMap::default(),
                 };
                 for tn in &tree1.nodes {
-                    match tn {
-                        BindingBoxTreeNode::Box(tn_box, tn_children) => {
-                            or_tree.nodes.push(BindingBoxTreeNode::Box(
-                                tn_box.clone(),
-                                tn_children.iter().map(|c| c + 1).collect(),
-                            ))
-                        }
-                        _ => {}
+                    if let BindingBoxTreeNode::Box(tn_box, tn_children) = tn {
+                        or_tree.nodes.push(BindingBoxTreeNode::Box(
+                            tn_box.clone(),
+                            tn_children.iter().map(|c| c + 1).collect(),
+                        ))
                     }
                 }
                 for tn in &tree2.nodes {
-                    match tn {
-                        BindingBoxTreeNode::Box(tn_box, tn_children) => {
-                            or_tree.nodes.push(BindingBoxTreeNode::Box(
-                                tn_box.clone(),
-                                tn_children
-                                    .iter()
-                                    .map(|c| c + 1 + tree1.nodes.len())
-                                    .collect(),
-                            ))
-                        }
-                        _ => {}
+                    if let BindingBoxTreeNode::Box(tn_box, tn_children) = tn {
+                        or_tree.nodes.push(BindingBoxTreeNode::Box(
+                            tn_box.clone(),
+                            tn_children
+                                .iter()
+                                .map(|c| c + 1 + tree1.nodes.len())
+                                .collect(),
+                        ))
                     }
                 }
                 or_tree.edge_names.insert((0, 1), name1.clone());

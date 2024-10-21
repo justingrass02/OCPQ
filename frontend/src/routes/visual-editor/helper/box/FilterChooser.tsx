@@ -23,6 +23,8 @@ import FilterOrConstraintEditor, {
   FilterOrConstraintDisplay,
 } from "./FilterOrConstraintEditor";
 import { getEvVarName, getObVarName } from "./variable-names";
+import FilterLabelIcon from "@/components/FilterLabelIcon";
+import { FilterLabel } from "@/types/generated/FilterLabel";
 
 export default function FilterChooser({
   id,
@@ -35,7 +37,7 @@ export default function FilterChooser({
   updateBox: (box: BindingBox) => unknown;
   type: "filter" | "constraint";
 }) {
-  const { getAvailableVars, getAvailableChildNames } =
+  const { getAvailableVars, getAvailableChildNames, filterMode } =
     useContext(VisualEditorContext);
   const availableObjectVars = getAvailableVars(id, "object");
   const availableEventVars = getAvailableVars(id, "event");
@@ -73,9 +75,28 @@ export default function FilterChooser({
       <ul className="w-full">
         {type === "filter" &&
           box.filters.map((fc, i) => (
-            <li key={i}>
+            <li key={i} className="flex items-baseline gap-x-1">
+              {(fc.type === "O2E" || fc.type === "O2O") &&
+                filterMode === "shown" && (
+                  <button
+                    onClick={() => {
+                      let prevFilterLabel = fc.filterLabel ?? "IGNORED";
+                      let newFilterLabel: FilterLabel = "IGNORED";
+                      if (prevFilterLabel === "IGNORED") {
+                        newFilterLabel = "INCLUDED";
+                      } else if (prevFilterLabel === "INCLUDED") {
+                        newFilterLabel = "EXCLUDED";
+                      }
+                      const newFilters = [...box.filters];
+                      newFilters[i] = { ...fc, filterLabel: newFilterLabel };
+                      updateBox({ ...box, filters: newFilters });
+                    }}
+                  >
+                    <FilterLabelIcon label={fc.filterLabel ?? "IGNORED"} />
+                  </button>
+                )}
               <button
-                className="hover:bg-blue-200/50 rounded-sm text-left w-fit max-w-full"
+                className="hover:bg-blue-200/50 rounded-sm text-left w-full max-w-full"
                 onContextMenuCapture={(ev) => {
                   ev.stopPropagation();
                 }}

@@ -2,11 +2,14 @@ import TimeDurationInput, {
   formatSeconds,
 } from "@/components/TimeDurationInput";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type { Constraint } from "@/types/generated/Constraint";
 import type { Filter } from "@/types/generated/Filter";
 import type { SizeFilter } from "@/types/generated/SizeFilter";
+import type { ValueFilter } from "@/types/generated/ValueFilter";
 import { lazy, type ReactNode, Suspense, useContext } from "react";
 import { LuArrowRight, LuDelete, LuLink, LuTrash } from "react-icons/lu";
 import { VisualEditorContext } from "../VisualEditorContext";
@@ -16,13 +19,10 @@ import {
   ObjectVarSelector,
 } from "./FilterChooser";
 import { EvOrObVarName, EvVarName, ObVarName } from "./variable-names";
-import type { ValueFilter } from "@/types/generated/ValueFilter";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 // import CELEditor from "@/components/CELEditor";
-import { PiCodeFill } from "react-icons/pi";
-import clsx from "clsx";
 import Spinner from "@/components/Spinner";
+import clsx from "clsx";
+import { PiCodeFill } from "react-icons/pi";
 
 const CELEditor = lazy(async () => await import("@/components/CELEditor"));
 export default function FilterOrConstraintEditor<

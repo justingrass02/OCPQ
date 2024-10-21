@@ -23,6 +23,10 @@ export type BackendProvider = {
     tree: BindingBoxTree,
     measurePerformance?: boolean,
   ) => Promise<EvaluateBoxTreeResult>;
+  "ocel/export-filter-box": (
+    tree: BindingBoxTree,
+    format: "XML" | "JSON" | "SQLITE",
+  ) => Promise<Blob>;
   "ocel/event-qualifiers": () => Promise<EventTypeQualifiers>;
   "ocel/object-qualifiers": () => Promise<ObjectTypeQualifiers>;
   "ocel/discover-constraints": (
@@ -50,6 +54,7 @@ export async function warnForNoBackendProvider<T>(): Promise<T> {
 export const BackendProviderContext = createContext<BackendProvider>({
   "ocel/info": warnForNoBackendProvider,
   "ocel/check-constraints-box": warnForNoBackendProvider,
+  "ocel/export-filter-box": warnForNoBackendProvider,
   "ocel/event-qualifiers": warnForNoBackendProvider,
   "ocel/object-qualifiers": warnForNoBackendProvider,
   "ocel/discover-constraints": warnForNoBackendProvider,
@@ -107,6 +112,15 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
         headers: { "Content-Type": "application/json" },
       })
     ).json();
+  },
+  "ocel/export-filter-box": async (tree, exportFormat) => {
+    return await (
+      await fetch(BACKEND_URL + "/ocel/export-filter-box", {
+        method: "post",
+        body: JSON.stringify({ tree, exportFormat }),
+        headers: { "Content-Type": "application/json" },
+      })
+    ).blob();
   },
   "ocel/event-qualifiers": async () => {
     return await (

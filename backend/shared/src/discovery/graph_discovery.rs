@@ -483,6 +483,7 @@ impl CountConstraint {
                         object: ObjectVariable(new_variable),
                         event: EventVariable(inner_variable),
                         qualifier: None,
+                        filter_label: None,
                     },
 
                     EventOrObjectType::Object(_) => match self.related_type {
@@ -490,6 +491,7 @@ impl CountConstraint {
                             object: ObjectVariable(inner_variable),
                             event: EventVariable(new_variable),
                             qualifier: None,
+                            filter_label: None,
                         },
                         EventOrObjectType::Object(_) => Filter::O2O {
                             object: if !self.ocel_relation_flipped {
@@ -503,6 +505,7 @@ impl CountConstraint {
                                 ObjectVariable(inner_variable)
                             },
                             qualifier: None,
+                            filter_label: None
                         },
                     },
                 }],
@@ -694,6 +697,7 @@ impl EFConstraint {
                     object: ObjectVariable(inner_variable),
                     event: EventVariable(new_from_ev_var),
                     qualifier: None,
+                    filter_label: None,
                 }],
                 size_filters: vec![],
                 constraints: vec![Constraint::SizeFilter {
@@ -722,6 +726,7 @@ impl EFConstraint {
                         object: ObjectVariable(inner_variable),
                         event: EventVariable(new_to_ev_var),
                         qualifier: None,
+                        filter_label: None,
                     },
                     Filter::TimeBetweenEvents {
                         from_event: EventVariable(new_from_ev_var),
@@ -1023,28 +1028,22 @@ pub fn merge_or_tree(
         edge_names: HashMap::default(),
     };
     for tn in &tree1.nodes {
-        match tn {
-            BindingBoxTreeNode::Box(tn_box, tn_children) => {
-                or_tree.nodes.push(BindingBoxTreeNode::Box(
-                    tn_box.clone(),
-                    tn_children.iter().map(|c| c + 1).collect(),
-                ))
-            }
-            _ => {}
+        if let BindingBoxTreeNode::Box(tn_box, tn_children) = tn {
+            or_tree.nodes.push(BindingBoxTreeNode::Box(
+                tn_box.clone(),
+                tn_children.iter().map(|c| c + 1).collect(),
+            ))
         }
     }
     for tn in &tree2.nodes {
-        match tn {
-            BindingBoxTreeNode::Box(tn_box, tn_children) => {
-                or_tree.nodes.push(BindingBoxTreeNode::Box(
-                    tn_box.clone(),
-                    tn_children
-                        .iter()
-                        .map(|c| c + 1 + tree1.nodes.len())
-                        .collect(),
-                ))
-            }
-            _ => {}
+        if let BindingBoxTreeNode::Box(tn_box, tn_children) = tn {
+            or_tree.nodes.push(BindingBoxTreeNode::Box(
+                tn_box.clone(),
+                tn_children
+                    .iter()
+                    .map(|c| c + 1 + tree1.nodes.len())
+                    .collect(),
+            ))
         }
     }
     or_tree.edge_names.insert((0, 1), name1.clone());

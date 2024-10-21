@@ -38,9 +38,9 @@ import {
   LuLayoutDashboard,
   LuTrash,
 } from "react-icons/lu";
-import { PiPlayFill } from "react-icons/pi";
+import { PiExport, PiExportBold, PiPlayFill } from "react-icons/pi";
 import { RxReset } from "react-icons/rx";
-import { TbLogicAnd, TbPlus, TbSquare } from "react-icons/tb";
+import { TbFileExport, TbLogicAnd, TbPlus, TbSquare } from "react-icons/tb";
 import "reactflow/dist/style.css";
 import type { EventTypeQualifiers, OCELInfo, OCELType } from "../../types/ocel";
 import { FlowContext } from "./helper/FlowContext";
@@ -78,6 +78,11 @@ import {
   ContextMenuItem,
   ContextMenuPortal,
 } from "@/components/ui/context-menu";
+import { BsFiletypeJson, BsFiletypeXml } from "react-icons/bs";
+import { Toggle } from "@/components/ui/toggle";
+import { Switch } from "@/components/ui/switch";
+import { CgExport } from "react-icons/cg";
+import { Label } from "@/components/ui/label";
 
 function isEditorElementTarget(el: HTMLElement | EventTarget | null) {
   return (
@@ -579,6 +584,7 @@ export default function VisualEditor(props: VisualEditorProps) {
       ev.preventDefault();
     }
   }, []);
+  const [filterMode, setFilterMode] = useState<"shown" | "hidden">("hidden");
 
   const COLORS = {
     // https://colordesigner.io/color-scheme-builder?mode=lch#0067A6-FA9805-CE2727-00851D-A90A76-E0F20D-e9488f-0481cc-16cc9d-080999
@@ -619,7 +625,7 @@ export default function VisualEditor(props: VisualEditorProps) {
         getAvailableChildNames,
         getTypesForVariable,
         getNodeIDByName,
-        filterMode: "shown",
+        filterMode: filterMode,
         showElementInfo: (elInfo) => {
           setElementInfo(elInfo);
         },
@@ -841,21 +847,18 @@ export default function VisualEditor(props: VisualEditorProps) {
               className="absolute right-1.5 bottom-1.5"
             />
           </Button>
-          <div className="flex flex-col-reverse items-center gap-y-1">
-            {violationInfo.violationsPerNode !== undefined && (
-              <Button
-                size="icon"
-                variant="outline"
-                title={"Clear evaluation"}
-                className=""
-                onClick={async () => {
-                  setViolationInfo({});
-                  flushData({ violations: undefined });
+          <div className="flex flex-col items-center gap-y-1 min-w-[3rem] min-h-[5rem]">
+            <label className="flex flex-col text-sm">
+              Filter
+              <Switch
+                checked={filterMode === "shown"}
+                onCheckedChange={(checked) => {
+                  setFilterMode(checked ? "shown" : "hidden");
                 }}
-              >
-                <RxReset size={16} />
-              </Button>
-            )}
+              />
+            </label>
+          </div>
+          <div className="flex flex-col items-center gap-y-1">
             <Button
               disabled={isEvaluationLoading}
               variant="outline"
@@ -956,6 +959,95 @@ export default function VisualEditor(props: VisualEditorProps) {
                 )}
               />
             </Button>
+            {filterMode === "shown" && (
+              <AlertHelper
+                trigger={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-white"
+                    title="Export filtered OCEL"
+                  >
+                    <TbFileExport size={22} />
+                  </Button>
+                }
+                mode="promise"
+                title="Export Filtered OCEL"
+                initialData={{
+                  exportFormat: "JSON" as "JSON" | "XML" | "SQLITE",
+                }}
+                content={({ data, setData }) => {
+                  return (
+                    <div>
+                      <Label>OCEL Export Format</Label>
+                      <br />
+                      <Combobox
+                        value={data.exportFormat}
+                        options={[
+                          { value: "JSON", label: "JSON" },
+                          { value: "XML", label: "XML" },
+                          { value: "SQLITE", label: "SQLite" },
+                        ]}
+                        name="Export format"
+                        onChange={(v) => {
+                          setData({ ...data, exportFormat: v as any });
+                        }}
+                      />
+                    </div>
+                  );
+                }}
+                submitAction={"Export"}
+                onSubmit={async (cfg, ev) => {
+                  if ((cfg.exportFormat as any) === "") {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    toast("Please select a valid export format!");
+                    throw new Error("Invalid Option");
+                  }
+                  setEvaluationLoading(true);
+                  const subTrees = evaluateConstraints(
+                    instance.getNodes(),
+                    instance.getEdges(),
+                  );
+                  await Promise.allSettled(
+                    subTrees.map(async ({ tree, nodesOrder }) => {
+                      let type: "JSON" | "XML" | "SQLITE" = cfg.exportFormat;
+                      const res = await toast
+                        .promise(
+                          backend["ocel/export-filter-box"](tree, type),
+                          {
+                            success: "Exported!",
+                            loading: "Exporting...",
+                            error: "Failed to export!",
+                          },
+                        )
+                        .then((res) => {
+                          const url = URL.createObjectURL(res);
+                          downloadURL(url, `export.${type.toLowerCase()}`);
+                          setTimeout(() => {
+                            URL.revokeObjectURL(url);
+                          }, 1000);
+                          console.log({ res });
+                        });
+                    }),
+                  ).then(() => setEvaluationLoading(false));
+                }}
+              />
+            )}
+            {violationInfo.violationsPerNode !== undefined && (
+              <Button
+                size="icon"
+                variant="outline"
+                title={"Clear evaluation"}
+                className=""
+                onClick={async () => {
+                  setViolationInfo({});
+                  flushData({ violations: undefined });
+                }}
+              >
+                <RxReset size={16} />
+              </Button>
+            )}
           </div>
         </Panel>
         <Background />
