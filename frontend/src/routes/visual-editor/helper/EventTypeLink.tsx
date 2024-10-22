@@ -12,12 +12,6 @@ import {
 import { useContext, useEffect, useState } from "react";
 import { LuHash, LuPen, LuTrash } from "react-icons/lu";
 
-import { Input } from "@/components/ui/input";
-import { MdRemoveCircleOutline } from "react-icons/md";
-import { EdgeLabelRenderer, getBezierPath, type EdgeProps } from "reactflow";
-import QuantifiedObjectEdge from "./QuantifiedObjectEdge";
-import { VisualEditorContext } from "./VisualEditorContext";
-import type { EventTypeLinkData } from "./types";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -25,6 +19,11 @@ import {
   ContextMenuPortal,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { Input } from "@/components/ui/input";
+import { EdgeLabelRenderer, getBezierPath, type EdgeProps } from "reactflow";
+import QuantifiedObjectEdge from "./QuantifiedObjectEdge";
+import { VisualEditorContext } from "./VisualEditorContext";
+import type { EventTypeLinkData } from "./types";
 
 export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
   const {
