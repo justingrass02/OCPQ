@@ -33,9 +33,7 @@ use ocedeclare_shared::{
     EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
 };
 use process_mining::{
-    event_log::ocel::ocel_struct::OCEL,
-    export_ocel_json_to_vec, export_ocel_xml, import_ocel_sqlite_from_slice, import_ocel_xml_slice,
-    ocel::ocel_struct::{OCELEvent, OCELObject},
+    event_log::ocel::ocel_struct::OCEL, export_ocel_json_to_vec, export_ocel_sqlite_to_slice, export_ocel_xml, import_ocel_sqlite_from_slice, import_ocel_xml_slice, ocel::ocel_struct::{OCELEvent, OCELObject}
 };
 use tower_http::cors::CorsLayer;
 
@@ -243,7 +241,10 @@ pub async fn filter_export_with_box_tree_req<'a>(
                 let res = export_ocel_json_to_vec(&res).unwrap();
                 Bytes::from(res)
             }
-            ExportFormat::SQLITE => todo!(),
+            ExportFormat::SQLITE => {
+                let res = export_ocel_sqlite_to_slice(&res).unwrap();
+                Bytes::from(res)
+            },
         };
         (StatusCode::OK, bytes)
     })

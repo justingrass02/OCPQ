@@ -3,11 +3,16 @@
 
 use std::{
     collections::{HashMap, HashSet},
+    fs::{self, File},
+    io::Cursor,
     sync::Mutex,
 };
 
 use ocedeclare_shared::{
-    binding_box::{evaluate_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult},
+    binding_box::{
+        evaluate_box_tree, filter_ocel_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult,
+        ExportFormat, FilterExportWithBoxTreeRequest,
+    },
     discovery::{
         auto_discover_constraints_with_options, AutoDiscoverConstraintsRequest,
         AutoDiscoverConstraintsResponse,
@@ -18,8 +23,12 @@ use ocedeclare_shared::{
     preprocessing::linked_ocel::{link_ocel_info, IndexLinkedOCEL},
     EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
 };
-use process_mining::{import_ocel_json_from_path, import_ocel_sqlite_from_path, import_ocel_xml_file};
-use tauri::State;
+use process_mining::{
+    export_ocel_json_path, export_ocel_json_to_vec, export_ocel_sqlite_to_path,
+    export_ocel_sqlite_to_slice, export_ocel_xml, export_ocel_xml_path, import_ocel_json_from_path,
+    import_ocel_sqlite_from_path, import_ocel_xml_file,
+};
+use tauri::{api::dialog::FileDialogBuilder, State};
 
 type OCELStore = Mutex<Option<IndexLinkedOCEL>>;
 
@@ -83,6 +92,44 @@ fn check_with_box_tree(
 }
 
 #[tauri::command(async)]
+fn export_filter_box(
+    req: FilterExportWithBoxTreeRequest,
+    state: State<OCELStore>,
+) -> Result<(), String> {
+    let res = match state.lock().unwrap().as_ref() {
+        Some(ocel) => {
+            let res: process_mining::OCEL = filter_ocel_box_tree(req.tree, ocel).unwrap();
+            Some(res)
+        }
+        None => None,
+    }
+    .unwrap();
+
+    FileDialogBuilder::new()
+        .set_title("Save Filtered OCEL")
+        .add_filter(&format!("OCEL {:?} Files",req.export_format), &[req.export_format.to_extension()])
+        .set_file_name(format!("filtered-export.{}", req.export_format.to_extension()).as_str())
+        .save_file(move |f| {
+            if let Some(path) = f {
+                if let Ok(_file) = File::open(&path) {
+                    let _ = std::fs::remove_file(&path);
+                }
+                match req.export_format {
+                    ExportFormat::XML => {
+                        export_ocel_xml_path(&res, path).unwrap();
+                    }
+                    ExportFormat::JSON => {
+                        export_ocel_json_path(&res, path).unwrap();
+                    }
+                    ExportFormat::SQLITE => {
+                        export_ocel_sqlite_to_path(&res, path).unwrap();
+                    }
+                }
+            }
+        });
+    Ok(())
+}
+#[tauri::command(async)]
 fn auto_discover_constraints(
     options: AutoDiscoverConstraintsRequest,
     state: State<OCELStore>,
@@ -128,6 +175,7 @@ fn main() {
             get_current_ocel_info,
             get_event_qualifiers,
             get_object_qualifiers,
+            export_filter_box,
             check_with_box_tree,
             auto_discover_constraints,
             ocel_graph,

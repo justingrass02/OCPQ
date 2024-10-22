@@ -1012,7 +1012,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                   await Promise.allSettled(
                     subTrees.map(async ({ tree, nodesOrder }) => {
                       let type: "JSON" | "XML" | "SQLITE" = cfg.exportFormat;
-                      const res = await toast
+                      await toast
                         .promise(
                           backend["ocel/export-filter-box"](tree, type),
                           {
@@ -1022,12 +1022,20 @@ export default function VisualEditor(props: VisualEditorProps) {
                           },
                         )
                         .then((res) => {
-                          const url = URL.createObjectURL(res);
-                          downloadURL(url, `export.${type.toLowerCase()}`);
-                          setTimeout(() => {
-                            URL.revokeObjectURL(url);
-                          }, 1000);
-                          console.log({ res });
+                          if (res) {
+                            console.log(res);
+                            // Otherwise, it might be tauri export
+                            const url = URL.createObjectURL(res);
+                            downloadURL(
+                              url,
+                              `${
+                                props.constraintInfo.name
+                              }-export.${type.toLowerCase()}`,
+                            );
+                            setTimeout(() => {
+                              URL.revokeObjectURL(url);
+                            }, 1000);
+                          }
                         });
                     }),
                   ).then(() => setEvaluationLoading(false));

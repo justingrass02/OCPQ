@@ -125,7 +125,9 @@ function EventTypeNode({ data, id, selected }: NodeProps<EventTypeNodeData>) {
           <ContextMenuItem>Cancel</ContextMenuItem>
           <ContextMenuItem
             onSelect={() => {
-              setDeleteAlertOpen(true);
+              setTimeout(() => {
+                setDeleteAlertOpen(true);
+              }, 100);
             }}
             className="font-semibold text-red-400 focus:text-red-500"
           >

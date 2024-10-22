@@ -50,12 +50,23 @@ pub struct FilterExportWithBoxTreeRequest {
 }
 
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum ExportFormat {
     XML,
     JSON,
     SQLITE
 }
+
+impl ExportFormat {
+   pub fn to_extension(&self) -> &'static str {
+    match self {
+        ExportFormat::XML => "xml",
+        ExportFormat::JSON => "json",
+        ExportFormat::SQLITE => "sqlite",
+    }
+    }
+}
+
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]

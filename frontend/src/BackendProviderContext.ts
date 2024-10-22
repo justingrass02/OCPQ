@@ -26,7 +26,7 @@ export type BackendProvider = {
   "ocel/export-filter-box": (
     tree: BindingBoxTree,
     format: "XML" | "JSON" | "SQLITE",
-  ) => Promise<Blob>;
+  ) => Promise<Blob | void>;
   "ocel/event-qualifiers": () => Promise<EventTypeQualifiers>;
   "ocel/object-qualifiers": () => Promise<ObjectTypeQualifiers>;
   "ocel/discover-constraints": (

@@ -67,18 +67,33 @@ export default function AutoDiscoveryButton({
         {
           countConstraints: {
             coverFraction: 0.85,
-            objectTypes: [ocelInfo.object_types[0].name],
-            eventTypes: [ocelInfo.event_types[0].name],
+            objectTypes:
+              ocelInfo.object_types.length > 0
+                ? [ocelInfo.object_types[0].name]
+                : [],
+            eventTypes:
+              ocelInfo.event_types.length > 0
+                ? [ocelInfo.event_types[0].name]
+                : [],
             enabled: true,
           },
           eventuallyFollowsConstraints: {
-            objectTypes: [ocelInfo.object_types[0].name],
+            objectTypes:
+              ocelInfo.object_types.length > 0
+                ? [ocelInfo.object_types[0].name]
+                : [],
             coverFraction: 0.85,
             enabled: true,
           },
           orConstraints: {
-            objectTypes: [ocelInfo.object_types[0].name],
-            eventTypes: [ocelInfo.event_types[0].name],
+            objectTypes:
+              ocelInfo.object_types.length > 0
+                ? [ocelInfo.object_types[0].name]
+                : [],
+            eventTypes:
+              ocelInfo.event_types.length > 0
+                ? [ocelInfo.event_types[0].name]
+                : [],
             coverFraction: 0.85,
             enabled: true,
           },

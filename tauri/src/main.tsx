@@ -14,6 +14,7 @@ import type {
   ObjectTypeQualifiers,
 } from "$/types/ocel";
 import type { DiscoverConstraintsResponse } from "$/routes/visual-editor/helper/types";
+import { BindingBoxTree } from "$/types/generated/BindingBoxTree";
 
 const tauriBackend: BackendProvider = {
   "ocel/info": async () => {
@@ -23,7 +24,7 @@ const tauriBackend: BackendProvider = {
   "ocel/picker": async () => {
     const path = await dialog.open({
       title: "Select an OCEL2 file",
-      filters: [{ name: "OCEL2", extensions: ["json", "xml","sqlite","sqlite3","db"] }],
+      filters: [{ name: "OCEL2", extensions: ["json", "xml", "sqlite", "sqlite3", "db"] }],
     });
     if (typeof path === "string") {
       const ocelInfo: OCELInfo = await invoke("import_ocel", { path });
@@ -32,7 +33,7 @@ const tauriBackend: BackendProvider = {
     throw new Error("No file selected");
   },
 
-  "ocel/check-constraints-box": async (tree,measurePerformance) => {
+  "ocel/check-constraints-box": async (tree, measurePerformance) => {
     return await invoke("check_with_box_tree", { req: { tree, measurePerformance } });
   },
   "ocel/event-qualifiers": async () => {
@@ -44,17 +45,24 @@ const tauriBackend: BackendProvider = {
   "ocel/discover-constraints": async (options) => {
     return await invoke<DiscoverConstraintsResponse>(
       "auto_discover_constraints",
-      { options },
+      { options }
     );
   },
   "ocel/graph": async (options) => {
     return await invoke("ocel_graph", { options });
   },
   "ocel/get-event": async (req) => {
-    return await invoke("get_event", {req})
+    return await invoke("get_event", { req });
   },
   "ocel/get-object": async (req) => {
-    return await invoke("get_object", {req})
+    return await invoke("get_object", { req });
+  },
+  "ocel/export-filter-box": async (tree: BindingBoxTree, format: "XML" | "JSON" | "SQLITE") => {
+   const res: undefined = await invoke("export_filter_box",{req: {tree, exportFormat: format}});
+  //  const blob = new Blob([res],{type: format === "JSON" ? 
+  //   "application/json" : (format === "XML" ? "text/xml" : "application/vnd.sqlite3")})
+  //  return blob;
+    return undefined;
   }
 };
 
