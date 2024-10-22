@@ -377,7 +377,7 @@ function VariableLabelToggle({
     <button
       onClick={() => {
         const prevLabels = labels ?? {};
-        const prevLabel = prevLabels[variable] ?? "IGNORED";
+        const prevLabel = prevLabels[variable as number] ?? "IGNORED";
         let newLabel: FilterLabel = "IGNORED";
         if (prevLabel === "IGNORED") {
           newLabel = "INCLUDED";
