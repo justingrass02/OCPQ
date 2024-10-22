@@ -111,10 +111,10 @@ const MultiSelect = React.forwardRef<
             onClick={() => {
               setIsPopoverOpen(!isPopoverOpen);
             }}
-            className="flex w-full px-1 py-1 rounded-md border min-h-10 min-h-[3rem] h-auto items-center justify-between bg-inherit hover:bg-card"
+            className="flex w-full px-1 py-1 rounded-md border min-h-[2rem] h-auto items-center justify-between bg-inherit hover:bg-card"
           >
             {selectedValues.length > 0 ? (
-              <div className="flex justify-between items-center w-full">
+              <div className="flex justify-between items-center w-full max-h-[15rem] overflow-y-scroll ">
                 <div className="flex flex-wrap items-center">
                   {selectedValues.map((value) => {
                     const option = options.find((o) => o.value === value);
@@ -175,6 +175,34 @@ const MultiSelect = React.forwardRef<
             <CommandList>
               <CommandEmpty>No results found.</CommandEmpty>
               <CommandGroup>
+                {options.length > 0 && (
+                  <CommandItem
+                    onSelect={() => {
+                      if (selectedValues.length === options.length) {
+                        setSelectedValues([]);
+                        selectedValuesSet.current.clear();
+                        onValueChange([]);
+                      } else {
+                        const allOptions = options.map((o) => o.value);
+                        selectedValuesSet.current = new Set(allOptions);
+                        setSelectedValues(allOptions);
+                        onValueChange(allOptions);
+                      }
+                    }}
+                  >
+                    <div
+                      className={cn(
+                        "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                        selectedValues.length == options.length
+                          ? "bg-primary text-primary-foreground"
+                          : "opacity-50 [&_svg]:invisible",
+                      )}
+                    >
+                      <LuCheck className="h-4 w-4" />
+                    </div>
+                    <span className="font-semibold">Select All</span>
+                  </CommandItem>
+                )}
                 {options.map((option) => {
                   const isSelected = selectedValuesSet.current.has(
                     option.value,

@@ -10,7 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useContext, useEffect, useState } from "react";
-import { LuHash, LuTrash } from "react-icons/lu";
+import { LuHash, LuPen, LuTrash } from "react-icons/lu";
 
 import { Input } from "@/components/ui/input";
 import { MdRemoveCircleOutline } from "react-icons/md";
@@ -57,6 +57,7 @@ export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
       });
     }
   }, [data]);
+  const [dialogOpen, setDialogOpen] = useState(false);
   return (
     <>
       <QuantifiedObjectEdge {...props} />
@@ -74,6 +75,8 @@ export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
                 className="nodrag nopan flex flex-col items-center -mt-1"
               >
                 <NameChangeDialog
+                  open={dialogOpen}
+                  onOpenChange={(o) => setDialogOpen(o)}
                   data={data}
                   onChange={(name) => {
                     onEdgeDataChange(id, { name });
@@ -84,6 +87,17 @@ export default function EventTypeLink(props: EdgeProps<EventTypeLinkData>) {
             <ContextMenuPortal>
               <ContextMenuContent>
                 <ContextMenuItem>Cancel</ContextMenuItem>
+                <ContextMenuItem
+                  onSelect={(ev) => {
+                    // ev.preventDefault();
+                    // ev.stopPropagation();
+                    setTimeout(() => {
+                      setDialogOpen(true);
+                    }, 100);
+                  }}
+                >
+                  <LuPen className="mr-1" /> Edit Name
+                </ContextMenuItem>
                 <ContextMenuItem
                   onSelect={() => {
                     onEdgeDataChange(id, undefined);
@@ -192,20 +206,26 @@ function CountChangeDialog({
 function NameChangeDialog({
   data,
   onChange,
+  open,
+  onOpenChange,
 }: {
   data: EventTypeLinkData;
   onChange: (newName: string | undefined) => unknown;
+  open: boolean;
+  onOpenChange: (nowOpen: boolean) => unknown;
 }) {
   const [name, setName] = useState(data.name);
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={onOpenChange} modal={true}>
       <DialogTrigger asChild>
-        <button
-          className="flex flex-col items-center my-1 py-0.5 px-2 font-bold text-sm rounded-md bg-blue-50/60 hover:bg-blue-200/70"
-          title="Update Name..."
-        >
-          {name ?? "-"}
-        </button>
+        {name != null && (
+          <button
+            className="flex flex-col items-center my-1 py-0.5 px-2 font-bold text-sm rounded-md bg-blue-50/60 hover:bg-blue-200/70"
+            title="Update Name..."
+          >
+            {name}
+          </button>
+        )}
       </DialogTrigger>
       <DialogPortal>
         <DialogContent>

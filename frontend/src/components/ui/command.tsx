@@ -60,6 +60,10 @@ const CommandList = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof CommandPrimitive.List>
 >(({ className, ...props }, ref) => (
   <CommandPrimitive.List
+    onWheelCapture={(ev) => {
+      // Otherwise seomething up the chain prevents scrolling
+      ev.stopPropagation();
+    }}
     ref={ref}
     className={cn(
       "max-h-[300px] overflow-y-scroll z-10 overflow-x-hidden",
