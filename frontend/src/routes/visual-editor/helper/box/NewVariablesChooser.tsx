@@ -16,7 +16,7 @@ import type { EventVariable } from "@/types/generated/EventVariable";
 import { FilterLabel } from "@/types/generated/FilterLabel";
 import type { ObjectVariable } from "@/types/generated/ObjectVariable";
 import { useContext, useState } from "react";
-import { LuPlus } from "react-icons/lu";
+import { LuAsterisk, LuPlus } from "react-icons/lu";
 import { TbFilterCheck, TbFilterOff, TbFilterX } from "react-icons/tb";
 import { VisualEditorContext } from "../VisualEditorContext";
 import {
@@ -26,6 +26,7 @@ import {
   getObVarName,
 } from "./variable-names";
 import FilterLabelIcon from "@/components/FilterLabelIcon";
+import { BsAsterisk } from "react-icons/bs";
 
 export default function NewVariableChooser({
   id,
@@ -83,7 +84,10 @@ export default function NewVariableChooser({
               mode: "add",
               variant: "object",
               key: getAvailableObjVars()[0],
-              value: [ocelInfo.object_types[0].name],
+              value:
+                ocelInfo.object_types.length > 0
+                  ? [ocelInfo.object_types[0].name]
+                  : [],
             })
           }
         >
@@ -115,13 +119,22 @@ export default function NewVariableChooser({
                 })
               }
             >
-              <ObVarName obVar={parseInt(obVar)} />:
-              <span
-                className="ml-1 max-w-[13ch] shrink overflow-ellipsis overflow-hidden inline-block whitespace-pre text-left"
-                title={obTypes.join(",\n")}
-              >
-                {obTypes.join(",\n")}
-              </span>
+              <ObVarName obVar={parseInt(obVar)} />
+              <span className="text-muted-foreground">:</span>
+              {ocelInfo.object_types.length === obTypes.length && (
+                <LuAsterisk
+                  className="self-center size-4 text-gray-600"
+                  title="Any object type included in the OCEL"
+                />
+              )}
+              {ocelInfo.object_types.length !== obTypes.length && (
+                <span
+                  className="ml-1 max-w-[13ch] shrink overflow-ellipsis overflow-hidden inline-block whitespace-pre text-left"
+                  title={obTypes.join(",\n")}
+                >
+                  {obTypes.join(",\n")}
+                </span>
+              )}
             </button>
           </li>
         ))}
@@ -137,7 +150,10 @@ export default function NewVariableChooser({
               mode: "add",
               variant: "event",
               key: getAvailableEvVars()[0],
-              value: [ocelInfo.event_types[0].name],
+              value:
+                ocelInfo.event_types.length >= 1
+                  ? [ocelInfo.event_types[0].name]
+                  : [],
             })
           }
         >
@@ -146,7 +162,7 @@ export default function NewVariableChooser({
       </div>
       <ul className="w-full text-left text-sm min-h-[0.5rem]">
         {Object.entries(box.newEventVars).map(([evVar, evTypes]) => (
-          <li key={evVar} className="flex items-baseline w-fit max-w-full">
+          <li key={evVar} className="flex items-baseline gap-x-0.5">
             <VariableLabelToggle
               labels={box.evVarLabels}
               variable={evVar}
@@ -169,15 +185,22 @@ export default function NewVariableChooser({
                 })
               }
             >
-              <span className="shrink-0">
-                <EvVarName eventVar={parseInt(evVar)} />:
-              </span>
-              <span
-                className="ml-1 max-w-full shrink overflow-ellipsis overflow-hidden inline-block whitespace-pre text-left"
-                title={evTypes.join(",\n")}
-              >
-                {evTypes.join(",\n")}
-              </span>
+              <EvVarName eventVar={parseInt(evVar)} />
+              <span className="text-muted-foreground">:</span>
+              {ocelInfo.event_types.length === evTypes.length && (
+                <LuAsterisk
+                  className="self-center size-4 text-gray-600"
+                  title="Any event type included in the OCEL"
+                />
+              )}
+              {ocelInfo.event_types.length !== evTypes.length && (
+                <span
+                  className="ml-1 max-w-full shrink overflow-ellipsis overflow-hidden inline-block whitespace-pre text-left"
+                  title={evTypes.join(",\n")}
+                >
+                  {evTypes.join(",\n")}
+                </span>
+              )}
             </button>
           </li>
         ))}
@@ -352,7 +375,6 @@ function VariableLabelToggle({
   }
   return (
     <button
-      className={"size-3"}
       onClick={() => {
         const prevLabels = labels ?? {};
         const prevLabel = prevLabels[variable] ?? "IGNORED";
