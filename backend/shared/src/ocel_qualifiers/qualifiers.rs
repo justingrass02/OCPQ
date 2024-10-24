@@ -25,7 +25,8 @@ pub fn get_qualifiers_for_event_types(
                 ocel.events
                     .iter()
                     .filter(|ev| ev.event_type == et.name)
-                    .map(|ev| ev.relationships
+                    .map(|ev| {
+                        ev.relationships
                             .iter()
                             .filter_map(|r| {
                                 let obj = ocel.objects.iter().find(|o| o.id == r.object_id);
@@ -34,7 +35,8 @@ pub fn get_qualifiers_for_event_types(
                             .fold(HashMap::new(), |mut acc, c| {
                                 *acc.entry(c).or_insert(0) += 1;
                                 acc
-                            }))
+                            })
+                    })
                     .fold(HashMap::new(), |mut acc, c| {
                         c.into_iter().for_each(|(a, b)| {
                             let entry: &mut Vec<i32> = acc.entry(a).or_default();

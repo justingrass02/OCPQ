@@ -505,7 +505,7 @@ impl CountConstraint {
                                 ObjectVariable(inner_variable)
                             },
                             qualifier: None,
-                            filter_label: None
+                            filter_label: None,
                         },
                     },
                 }],

@@ -3,30 +3,29 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    fs::{self, File},
-    io::Cursor,
+    fs::File,
+    io::{Cursor, Write},
     sync::Mutex,
 };
 
 use ocedeclare_shared::{
     binding_box::{
         evaluate_box_tree, filter_ocel_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult,
-        ExportFormat, FilterExportWithBoxTreeRequest,
+        EvaluationResultWithCount, ExportFormat, FilterExportWithBoxTreeRequest,
     },
     discovery::{
         auto_discover_constraints_with_options, AutoDiscoverConstraintsRequest,
         AutoDiscoverConstraintsResponse,
     },
-    get_event_info, get_object_info,
+    export_bindings_to_csv_writer, get_event_info, get_object_info,
     ocel_graph::{get_ocel_graph, OCELGraph, OCELGraphOptions},
     ocel_qualifiers::qualifiers::{get_qualifiers_for_event_types, QualifiersForEventType},
     preprocessing::linked_ocel::{link_ocel_info, IndexLinkedOCEL},
-    EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
+    EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex, TableExportOptions,
 };
 use process_mining::{
-    export_ocel_json_path, export_ocel_json_to_vec, export_ocel_sqlite_to_path,
-    export_ocel_sqlite_to_slice, export_ocel_xml, export_ocel_xml_path, import_ocel_json_from_path,
-    import_ocel_sqlite_from_path, import_ocel_xml_file,
+    export_ocel_json_path, export_ocel_sqlite_to_path, export_ocel_xml_path,
+    import_ocel_json_from_path, import_ocel_sqlite_from_path, import_ocel_xml_file,
 };
 use tauri::{api::dialog::FileDialogBuilder, State};
 
@@ -107,7 +106,10 @@ fn export_filter_box(
 
     FileDialogBuilder::new()
         .set_title("Save Filtered OCEL")
-        .add_filter(&format!("OCEL {:?} Files",req.export_format), &[req.export_format.to_extension()])
+        .add_filter(
+            format!("OCEL {:?} Files", req.export_format),
+            &[req.export_format.to_extension()],
+        )
         .set_file_name(format!("filtered-export.{}", req.export_format.to_extension()).as_str())
         .save_file(move |f| {
             if let Some(path) = f {
@@ -129,6 +131,7 @@ fn export_filter_box(
         });
     Ok(())
 }
+
 #[tauri::command(async)]
 fn auto_discover_constraints(
     options: AutoDiscoverConstraintsRequest,
@@ -138,6 +141,35 @@ fn auto_discover_constraints(
         Some(ocel) => Ok(auto_discover_constraints_with_options(ocel, options)),
         None => Err("No OCEL loaded".to_string()),
     }
+}
+#[tauri::command(async)]
+fn export_bindings_csv(
+    bindings: EvaluationResultWithCount,
+    options: TableExportOptions,
+    state: State<OCELStore>,
+) -> Result<(), String> {
+    match state.lock().unwrap().as_ref() {
+        Some(ocel) => {
+            let mut writer = Cursor::new(Vec::new());
+            export_bindings_to_csv_writer(ocel, &bindings, &mut writer, &options).unwrap();
+            FileDialogBuilder::new()
+                .set_title("Save Filtered OCEL")
+                .add_filter("CSV Files", &["csv"])
+                .set_file_name("situation-table.csv")
+                .save_file(move |f| {
+                    if let Some(path) = f {
+                        if let Ok(_file) = File::open(&path) {
+                            let _ = std::fs::remove_file(&path);
+                        }
+                        let mut f = File::create(path).unwrap();
+                        f.write_all(&writer.into_inner()).unwrap();
+                    }
+                });
+            Ok(())
+        }
+        None => Err("No OCEL loaded".to_string()),
+    }
+    // Ok(())
 }
 
 #[tauri::command(async)]
@@ -178,6 +210,7 @@ fn main() {
             export_filter_box,
             check_with_box_tree,
             auto_discover_constraints,
+            export_bindings_csv,
             ocel_graph,
             get_event,
             get_object

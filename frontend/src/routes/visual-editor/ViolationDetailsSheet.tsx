@@ -16,14 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { downloadURL } from "@/lib/download-url";
 import type { BindingBoxTreeNode } from "@/types/generated/BindingBoxTreeNode";
 import { TableExportOptions } from "@/types/generated/TableExportOptions";
-import {
-  Suspense,
-  lazy,
-  memo,
-  useContext,
-  useMemo,
-  useState
-} from "react";
+import { Suspense, lazy, memo, useContext, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { TbTableExport } from "react-icons/tb";
 import type { EvaluationRes, EvaluationResPerNodes } from "./helper/types";
@@ -105,41 +98,92 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                     {numViolations} Violations
                   </p>
                   <AlertHelper
-                    title="Export CSV"
+                    title="Export Situation Table CSV"
                     mode="promise"
-                    initialData={{ includeIds: true, includeViolationStatus: hasConstraints, omitHeader: false } satisfies TableExportOptions as TableExportOptions}
+                    initialData={
+                      {
+                        includeIds: true,
+                        includeViolationStatus: hasConstraints,
+                        omitHeader: false,
+                      } satisfies TableExportOptions as TableExportOptions
+                    }
                     trigger={
-                      <Button size="icon" variant="outline">
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        title="Export as CSV (Situation Table)"
+                      >
                         <TbTableExport />
-                      </Button>}
-                    content={({ data, setData }) => <div className="grid grid-cols-[auto,1fr] gap-x-2 gap-y-2 items-center">
-                      <Label>
-                        Include IDs
-                      </Label>
-                      <Switch checked={data.includeIds} onCheckedChange={(b) => {
-                        setData({ ...data, includeIds: b })
-                      }} />
-                      <Label>
-                        Include Headers
-                      </Label>
-                      <Switch checked={!data.omitHeader} onCheckedChange={(b) => {
-                        setData({ ...data, omitHeader: !b })
-                      }}/>
-                      {hasConstraints && <><Label>
-                        Include Violation Status
-                      </Label><Switch checked={data.includeViolationStatus} onCheckedChange={(b) => {
-                        setData({ ...data, includeViolationStatus: b })
-                      }} /></>}
-                    </div>}
+                      </Button>
+                    }
+                    content={({ data, setData }) => (
+                      <div>
+                        <p className="mb-4">
+                          All event or object attributes will be included as an
+                          extra column. The object/event ID can also be included
+                          as a column (on by default).
+                        </p>
+                        <div className="grid grid-cols-[auto,1fr] gap-x-2 gap-y-2 items-center">
+                          <Label>Include IDs</Label>
+                          <Switch
+                            checked={data.includeIds}
+                            onCheckedChange={(b) => {
+                              setData({ ...data, includeIds: b });
+                            }}
+                          />
+                          <Label>Include Headers</Label>
+                          <Switch
+                            checked={!data.omitHeader}
+                            onCheckedChange={(b) => {
+                              setData({ ...data, omitHeader: !b });
+                            }}
+                          />
+                          {hasConstraints && (
+                            <>
+                              <Label>Include Violation Status</Label>
+                              <Switch
+                                checked={data.includeViolationStatus}
+                                onCheckedChange={(b) => {
+                                  setData({
+                                    ...data,
+                                    includeViolationStatus: b,
+                                  });
+                                }}
+                              />
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     submitAction="Export CSV"
                     onSubmit={async (data, ev) => {
-                        const res = await toast.promise(backend["ocel/export-bindings-csv"](violationDetails,data), { loading: "Exporting to CSV...", error: (e) => <p>Failed to export to CSV!<br />{String(e)}</p>, success: "Finished CSV Export!" })
-                        if(res !== undefined){
+                      try {
+                        const res = await toast.promise(
+                          backend["ocel/export-bindings-csv"](
+                            violationDetails,
+                            data,
+                          ),
+                          {
+                            loading: "Exporting to CSV...",
+                            error: (e) => (
+                              <p>
+                                Failed to export to CSV!
+                                <br />
+                                {String(e)}
+                              </p>
+                            ),
+                            success: "Finished CSV Export!",
+                          },
+                        );
+                        if (res !== undefined) {
                           const url = URL.createObjectURL(res);
                           downloadURL(url, "situation-table.csv");
                           URL.revokeObjectURL(url);
                         }
-                      
+                      } catch (e) {
+                        toast.error(String(e));
+                        throw e;
+                      }
                     }}
                   />
                 </div>

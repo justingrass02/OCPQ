@@ -11,7 +11,7 @@ use tokio::net::TcpListener;
 use std::{
     collections::{HashMap, HashSet},
     env,
-    io::{Cursor, Read},
+    io::Cursor,
     sync::{Arc, RwLock},
 };
 
@@ -99,7 +99,10 @@ async fn main() {
             "/ocel/discover-constraints",
             post(auto_discover_constraints_handler),
         )
-        .route("/ocel/export-bindings-csv", post(export_bindings_csv).layer(DefaultBodyLimit::disable()))
+        .route(
+            "/ocel/export-bindings-csv",
+            post(export_bindings_csv).layer(DefaultBodyLimit::disable()),
+        )
         .route("/ocel/event/:event_id", get(get_event_info_req))
         .route("/ocel/object/:object_id", get(get_object_info_req))
         .route("/ocel/get-event", post(get_event_req))

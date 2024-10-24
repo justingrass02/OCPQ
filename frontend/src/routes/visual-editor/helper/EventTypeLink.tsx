@@ -216,10 +216,10 @@ function NameChangeDialog({
   const [name, setName] = useState(data.name);
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if(open){
+    if (open) {
       inputRef.current?.focus();
     }
-  },[open]);
+  }, [open]);
   return (
     <Dialog open={open} onOpenChange={onOpenChange} modal={true}>
       <DialogTrigger asChild>
@@ -239,13 +239,15 @@ function NameChangeDialog({
             <DialogDescription>Update the name of the edge.</DialogDescription>
           </DialogHeader>
           <h3>Name</h3>
-          <Input autoFocus ref={inputRef}
+          <Input
+            autoFocus
+            ref={inputRef}
             type="text"
             className="w-full"
             placeholder="Name"
             value={name ?? ""}
             onKeyDown={(ev) => {
-              if(ev.key === "Enter"){
+              if (ev.key === "Enter") {
                 onChange(name);
                 onOpenChange(false);
               }

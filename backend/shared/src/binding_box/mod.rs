@@ -7,12 +7,7 @@ pub mod expand_step;
 #[cfg(test)]
 pub mod test;
 
-use std::{
-    collections::HashSet,
-    fs::File,
-    io::BufWriter,
-    time::Instant,
-};
+use std::{collections::HashSet, fs::File, io::BufWriter, time::Instant};
 
 use chrono::DateTime;
 use itertools::Itertools;
@@ -46,24 +41,23 @@ pub struct CheckWithBoxTreeRequest {
 
 pub struct FilterExportWithBoxTreeRequest {
     pub tree: BindingBoxTree,
-    pub export_format:  ExportFormat,
+    pub export_format: ExportFormat,
 }
-
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ExportFormat {
     XML,
     JSON,
-    SQLITE
+    SQLITE,
 }
 
 impl ExportFormat {
-   pub fn to_extension(&self) -> &'static str {
-    match self {
-        ExportFormat::XML => "xml",
-        ExportFormat::JSON => "json",
-        ExportFormat::SQLITE => "sqlite",
-    }
+    pub fn to_extension(&self) -> &'static str {
+        match self {
+            ExportFormat::XML => "xml",
+            ExportFormat::JSON => "json",
+            ExportFormat::SQLITE => "sqlite",
+        }
     }
 }
 
@@ -116,7 +110,6 @@ pub fn evaluate_box_tree(
         })
         .collect_vec();
 
-
     for (index, binding, viol) in evaluation_results_flat {
         let r = &mut evaluation_results[index];
         r.situations.push((binding, viol));
@@ -138,9 +131,7 @@ pub fn evaluate_box_tree(
     }
 }
 
-
 pub fn filter_ocel_box_tree(tree: BindingBoxTree, ocel: &IndexLinkedOCEL) -> Option<OCEL> {
-
     let now = Instant::now();
     let evaluation_results_flat = tree.evaluate(ocel);
     println!("Tree Evaluated in {:?}", now.elapsed());
@@ -157,7 +148,7 @@ pub fn filter_ocel_box_tree(tree: BindingBoxTree, ocel: &IndexLinkedOCEL) -> Opt
     let mut o2o_rels_included: HashSet<(ObjectIndex, ObjectIndex, Option<String>)> = HashSet::new();
     let mut o2o_rels_excluded: HashSet<(ObjectIndex, ObjectIndex, Option<String>)> = HashSet::new();
 
-    for (index, binding, viol) in evaluation_results_flat {
+    for (index, binding, _viol) in evaluation_results_flat {
         for (var, label) in tree.nodes[index]
             .as_box()
             .iter()
@@ -302,12 +293,12 @@ pub fn filter_ocel_box_tree(tree: BindingBoxTree, ocel: &IndexLinkedOCEL) -> Opt
             }
             let mut ob = ob.clone();
             ob.relationships.retain(|rel| {
-                    check_o2o_inclusion(
-                        **ob_index,
-                        *ocel.object_index_map.get(&rel.object_id).unwrap(),
-                        &rel.qualifier,
-                    )
-                });
+                check_o2o_inclusion(
+                    **ob_index,
+                    *ocel.object_index_map.get(&rel.object_id).unwrap(),
+                    &rel.qualifier,
+                )
+            });
             filtered_ocel.objects.push(ob);
         }
     }
@@ -330,12 +321,12 @@ pub fn filter_ocel_box_tree(tree: BindingBoxTree, ocel: &IndexLinkedOCEL) -> Opt
             }
             let mut ev = ev.clone();
             ev.relationships.retain(|rel| {
-                    check_e2o_inclusion(
-                        **ev_index,
-                        *ocel.object_index_map.get(&rel.object_id).unwrap(),
-                        &rel.qualifier,
-                    )
-                });
+                check_e2o_inclusion(
+                    **ev_index,
+                    *ocel.object_index_map.get(&rel.object_id).unwrap(),
+                    &rel.qualifier,
+                )
+            });
             filtered_ocel.events.push(ev.clone());
         }
     }

@@ -4,7 +4,7 @@ use binding_box::EvaluationResultWithCount;
 use itertools::Itertools;
 use preprocessing::linked_ocel::IndexLinkedOCEL;
 use process_mining::{
-    ocel::ocel_struct::{OCELAttributeValue, OCELEvent, OCELObject, OCELType},
+    ocel::ocel_struct::{OCELEvent, OCELObject, OCELType},
     OCEL,
 };
 use serde::{Deserialize, Serialize};
@@ -113,7 +113,7 @@ impl Default for TableExportOptions {
 pub fn export_bindings_to_csv_writer<W: std::io::Write>(
     ocel: &IndexLinkedOCEL,
     bindings: &EvaluationResultWithCount,
-    writer: W,
+    writer: &mut W,
     options: &TableExportOptions,
 ) -> Result<(), csv::Error> {
     let mut w = csv::WriterBuilder::new().from_writer(writer);
@@ -130,8 +130,7 @@ pub fn export_bindings_to_csv_writer<W: std::io::Write>(
                     .flat_map(|(b, _)| {
                         b.get_ev(ev_var, ocel)
                             .iter()
-                            .map(|e| e.attributes.iter().map(|a| &a.name))
-                            .flatten()
+                            .flat_map(|e| e.attributes.iter().map(|a| &a.name))
                             .collect::<Vec<_>>()
                     })
                     .collect::<HashSet<_>>()
@@ -149,8 +148,7 @@ pub fn export_bindings_to_csv_writer<W: std::io::Write>(
                     .flat_map(|(b, _)| {
                         b.get_ob(ob_var, ocel)
                             .iter()
-                            .map(|e| e.attributes.iter().map(|a| &a.name))
-                            .flatten()
+                            .flat_map(|e| e.attributes.iter().map(|a| &a.name))
                             .collect::<Vec<_>>()
                     })
                     .collect::<HashSet<_>>()
@@ -163,18 +161,18 @@ pub fn export_bindings_to_csv_writer<W: std::io::Write>(
             // First object/event ID, then attributes, then next object/event ID, ..
             for (ob, ob_attrs) in ob_vars.iter().zip(&ob_attrs) {
                 if options.include_ids {
-                    w.write_field(format!("o{}", ob.0+1))?;
+                    w.write_field(format!("o{}", ob.0 + 1))?;
                 }
                 for attr in ob_attrs {
-                    w.write_field(format!("o{}.{}", ob.0+1, attr))?;
+                    w.write_field(format!("o{}.{}", ob.0 + 1, attr))?;
                 }
             }
             for (ev, ev_attrs) in ev_vars.iter().zip(&ev_attrs) {
                 if options.include_ids {
-                    w.write_field(format!("e{}", ev.0+1))?;
+                    w.write_field(format!("e{}", ev.0 + 1))?;
                 }
                 for attr in ev_attrs {
-                    w.write_field(format!("e{}.{}", ev.0+1, attr))?;
+                    w.write_field(format!("e{}.{}", ev.0 + 1, attr))?;
                 }
             }
 
@@ -186,7 +184,7 @@ pub fn export_bindings_to_csv_writer<W: std::io::Write>(
 
         for (b, v) in &bindings.situations {
             for (ob_v, ob_attrs) in ob_vars.iter().zip(&ob_attrs) {
-                if let Some(ob) = b.get_ob(&ob_v, ocel) {
+                if let Some(ob) = b.get_ob(ob_v, ocel) {
                     if options.include_ids {
                         w.write_field(&ob.id)?;
                     }
@@ -213,7 +211,7 @@ pub fn export_bindings_to_csv_writer<W: std::io::Write>(
                 }
             }
             for (ev_v, ev_attrs) in ev_vars.iter().zip(&ev_attrs) {
-                if let Some(ev) = b.get_ev(&ev_v, ocel) {
+                if let Some(ev) = b.get_ev(ev_v, ocel) {
                     if options.include_ids {
                         w.write_field(&ev.id)?;
                     }

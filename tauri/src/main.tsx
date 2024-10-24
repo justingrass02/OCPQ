@@ -48,6 +48,10 @@ const tauriBackend: BackendProvider = {
       { options }
     );
   },
+  "ocel/export-bindings-csv": async (bindings, options) => {
+    const res: undefined = await invoke("export_bindings_csv",{bindings,options});
+     return undefined;
+  },
   "ocel/graph": async (options) => {
     return await invoke("ocel_graph", { options });
   },

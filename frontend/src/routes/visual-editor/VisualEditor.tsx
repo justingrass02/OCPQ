@@ -1033,7 +1033,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                               }-export.${type.toLowerCase()}`,
                             );
                             // setTimeout(() => {
-                              URL.revokeObjectURL(url);
+                            URL.revokeObjectURL(url);
                             // }, 1000);
                           }
                         });
