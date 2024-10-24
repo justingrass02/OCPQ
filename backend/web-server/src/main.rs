@@ -30,7 +30,7 @@ use ocedeclare_shared::{
         get_qualifiers_for_event_types, QualifierAndObjectType, QualifiersForEventType,
     },
     preprocessing::{linked_ocel::IndexLinkedOCEL, preprocess::link_ocel_info},
-    EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
+    EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex, TableExportOptions,
 };
 use process_mining::{
     event_log::ocel::ocel_struct::OCEL,
@@ -271,7 +271,7 @@ pub async fn export_bindings_csv(
     with_ocel_from_state(&state, |ocel| {
         let inner = Vec::new();
         let mut w: Cursor<Vec<u8>> = Cursor::new(inner);
-        export_bindings_to_csv_writer(ocel, &req, &mut w).unwrap();
+        export_bindings_to_csv_writer(ocel, &req, &mut w,&TableExportOptions::default()).unwrap();
 
         let b = Bytes::from(w.into_inner());
         (StatusCode::OK, b)

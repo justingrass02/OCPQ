@@ -163,18 +163,18 @@ pub fn export_bindings_to_csv_writer<W: std::io::Write>(
             // First object/event ID, then attributes, then next object/event ID, ..
             for (ob, ob_attrs) in ob_vars.iter().zip(&ob_attrs) {
                 if options.include_ids {
-                    w.write_field(format!("o{}", ob.0))?;
+                    w.write_field(format!("o{}", ob.0+1))?;
                 }
                 for attr in ob_attrs {
-                    w.write_field(format!("o{}.{}", ob.0, attr))?;
+                    w.write_field(format!("o{}.{}", ob.0+1, attr))?;
                 }
             }
             for (ev, ev_attrs) in ev_vars.iter().zip(&ev_attrs) {
                 if options.include_ids {
-                    w.write_field(format!("e{}", ev.0))?;
+                    w.write_field(format!("e{}", ev.0+1))?;
                 }
                 for attr in ev_attrs {
-                    w.write_field(format!("e{}.{}", ev.0, attr))?;
+                    w.write_field(format!("e{}.{}", ev.0+1, attr))?;
                 }
             }
 
