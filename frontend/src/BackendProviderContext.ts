@@ -14,6 +14,7 @@ import type {
   ObjectTypeQualifiers,
 } from "./types/ocel";
 import { EvaluationResultWithCount } from "./types/generated/EvaluationResultWithCount";
+import { TableExportOptions } from "./types/generated/TableExportOptions";
 export type BackendProvider = {
   "ocel/info": () => Promise<OCELInfo>;
   "ocel/upload"?: (file: File) => Promise<OCELInfo>;
@@ -33,7 +34,7 @@ export type BackendProvider = {
   "ocel/discover-constraints": (
     autoDiscoveryOptions: DiscoverConstraintsRequest,
   ) => Promise<DiscoverConstraintsResponse>;
-  "ocel/export-bindings-csv": (bindings: EvaluationResultWithCount) => Promise<Blob | undefined>
+  "ocel/export-bindings-csv": (bindings: EvaluationResultWithCount, options: TableExportOptions) => Promise<Blob | undefined>
   "ocel/graph": (options: OCELGraphOptions) => Promise<{
     nodes: (OCELEvent | OCELObject)[];
     links: { source: string; target: string; qualifier: string }[];
@@ -141,11 +142,11 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
       })
     ).json();
   },
-  "ocel/export-bindings-csv": async (bindings) => {
+  "ocel/export-bindings-csv": async (bindings, options) => {
     const res = (await fetch(BACKEND_URL + "/ocel/export-bindings-csv", {
       method: "post",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(bindings),
+      body: JSON.stringify([bindings, options]),
     }));
     if (res.ok) {
       return await res.blob()

@@ -99,7 +99,7 @@ async fn main() {
             "/ocel/discover-constraints",
             post(auto_discover_constraints_handler),
         )
-        .route("/ocel/export-bindings-csv", post(export_bindings_csv))
+        .route("/ocel/export-bindings-csv", post(export_bindings_csv).layer(DefaultBodyLimit::disable()))
         .route("/ocel/event/:event_id", get(get_event_info_req))
         .route("/ocel/object/:object_id", get(get_object_info_req))
         .route("/ocel/get-event", post(get_event_req))
@@ -266,12 +266,12 @@ pub async fn auto_discover_constraints_handler<'a>(
 
 pub async fn export_bindings_csv(
     state: State<AppState>,
-    Json(req): Json<EvaluationResultWithCount>,
+    Json((eval_res, table_options)): Json<(EvaluationResultWithCount, TableExportOptions)>,
 ) -> (StatusCode, Bytes) {
     with_ocel_from_state(&state, |ocel| {
         let inner = Vec::new();
         let mut w: Cursor<Vec<u8>> = Cursor::new(inner);
-        export_bindings_to_csv_writer(ocel, &req, &mut w,&TableExportOptions::default()).unwrap();
+        export_bindings_to_csv_writer(ocel, &eval_res, &mut w, &table_options).unwrap();
 
         let b = Bytes::from(w.into_inner());
         (StatusCode::OK, b)

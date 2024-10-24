@@ -1,8 +1,10 @@
 import { BackendProviderContext } from "@/BackendProviderContext";
+import AlertHelper from "@/components/AlertHelper";
 import { columnsForBinding } from "@/components/binding-table/columns";
 import type PaginatedBindingTable from "@/components/binding-table/PaginatedBindingTable";
 import Spinner from "@/components/Spinner";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
@@ -10,8 +12,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Switch } from "@/components/ui/switch";
 import { downloadURL } from "@/lib/download-url";
 import type { BindingBoxTreeNode } from "@/types/generated/BindingBoxTreeNode";
+import { TableExportOptions } from "@/types/generated/TableExportOptions";
 import {
   Suspense,
   lazy,
@@ -100,18 +104,44 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                     <br />
                     {numViolations} Violations
                   </p>
-                  <Button size="icon" variant="outline" onClick={() => {
-                    toast.promise(backend["ocel/export-bindings-csv"](violationDetails), { loading: "Exporting to CSV...", error: (e) => <p>Failed to export to CSV!<br />{String(e)}</p>, success: "Finished CSV Export!" }).then((res) => {
-                      console.log({ res });
-                      if(res){
-                        const url = URL.createObjectURL(res);
-                        downloadURL(url,"situation-table.csv");
-                        URL.revokeObjectURL(url);
-                      }
-                    }).catch(err => console.error(err))
-                  }}>
-                    <TbTableExport />
-                  </Button>
+                  <AlertHelper
+                    title="Export CSV"
+                    mode="promise"
+                    initialData={{ includeIds: true, includeViolationStatus: hasConstraints, omitHeader: false } satisfies TableExportOptions as TableExportOptions}
+                    trigger={
+                      <Button size="icon" variant="outline">
+                        <TbTableExport />
+                      </Button>}
+                    content={({ data, setData }) => <div className="grid grid-cols-[auto,1fr] gap-x-2 gap-y-2 items-center">
+                      <Label>
+                        Include IDs
+                      </Label>
+                      <Switch checked={data.includeIds} onCheckedChange={(b) => {
+                        setData({ ...data, includeIds: b })
+                      }} />
+                      <Label>
+                        Include Headers
+                      </Label>
+                      <Switch checked={!data.omitHeader} onCheckedChange={(b) => {
+                        setData({ ...data, omitHeader: !b })
+                      }}/>
+                      {hasConstraints && <><Label>
+                        Include Violation Status
+                      </Label><Switch checked={data.includeViolationStatus} onCheckedChange={(b) => {
+                        setData({ ...data, includeViolationStatus: b })
+                      }} /></>}
+                    </div>}
+                    submitAction="Export CSV"
+                    onSubmit={async (data, ev) => {
+                        const res = await toast.promise(backend["ocel/export-bindings-csv"](violationDetails,data), { loading: "Exporting to CSV...", error: (e) => <p>Failed to export to CSV!<br />{String(e)}</p>, success: "Finished CSV Export!" })
+                        if(res !== undefined){
+                          const url = URL.createObjectURL(res);
+                          downloadURL(url, "situation-table.csv");
+                          URL.revokeObjectURL(url);
+                        }
+                      
+                    }}
+                  />
                 </div>
                 {numBindings > DEFAULT_CUTOFF && (
                   <div className="flex items-center gap-x-2">
