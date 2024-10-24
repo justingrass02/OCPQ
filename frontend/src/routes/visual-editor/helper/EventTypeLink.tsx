@@ -9,7 +9,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { LuHash, LuPen, LuTrash } from "react-icons/lu";
 
 import {
@@ -214,6 +214,12 @@ function NameChangeDialog({
   onOpenChange: (nowOpen: boolean) => unknown;
 }) {
   const [name, setName] = useState(data.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if(open){
+      inputRef.current?.focus();
+    }
+  },[open]);
   return (
     <Dialog open={open} onOpenChange={onOpenChange} modal={true}>
       <DialogTrigger asChild>
@@ -233,11 +239,17 @@ function NameChangeDialog({
             <DialogDescription>Update the name of the edge.</DialogDescription>
           </DialogHeader>
           <h3>Name</h3>
-          <Input
+          <Input autoFocus ref={inputRef}
             type="text"
             className="w-full"
             placeholder="Name"
             value={name ?? ""}
+            onKeyDown={(ev) => {
+              if(ev.key === "Enter"){
+                onChange(name);
+                onOpenChange(false);
+              }
+            }}
             onChange={(ev) => {
               if (ev.currentTarget.value === "") {
                 setName(undefined);

@@ -1,26 +1,29 @@
+import { BackendProviderContext } from "@/BackendProviderContext";
+import { columnsForBinding } from "@/components/binding-table/columns";
+import type PaginatedBindingTable from "@/components/binding-table/PaginatedBindingTable";
+import Spinner from "@/components/Spinner";
+import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetDescription,
 } from "@/components/ui/sheet";
+import { downloadURL } from "@/lib/download-url";
+import type { BindingBoxTreeNode } from "@/types/generated/BindingBoxTreeNode";
 import {
-  memo,
-  useState,
-  useEffect,
-  useContext,
-  useMemo,
   Suspense,
   lazy,
+  memo,
+  useContext,
+  useMemo,
+  useState
 } from "react";
-import type { BindingBoxTreeNode } from "@/types/generated/BindingBoxTreeNode";
+import toast from "react-hot-toast";
+import { TbTableExport } from "react-icons/tb";
 import type { EvaluationRes, EvaluationResPerNodes } from "./helper/types";
 import { VisualEditorContext } from "./helper/VisualEditorContext";
-import { columnsForBinding } from "@/components/binding-table/columns";
-import Spinner from "@/components/Spinner";
-import { Button } from "@/components/ui/button";
-import type PaginatedBindingTable from "@/components/binding-table/PaginatedBindingTable";
 const DataTablePaginationLazy = lazy(
   async () => await import("@/components/binding-table/PaginatedBindingTable"),
 ) as typeof PaginatedBindingTable;
@@ -39,6 +42,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
   node: BindingBoxTreeNode;
   reset: () => unknown;
 }) {
+  const backend = useContext(BackendProviderContext);
   const hasConstraints =
     "Box" in node ? node.Box[0].constraints.length > 0 : true;
 
@@ -90,11 +94,25 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
             </SheetTitle>
             <SheetDescription asChild>
               <div>
-                <p className="text-primary text-base">
-                  {numBindings} Bindings
-                  <br />
-                  {numViolations} Violations
-                </p>
+                <div className="flex justify-between">
+                  <p className="text-primary text-base">
+                    {numBindings} Bindings
+                    <br />
+                    {numViolations} Violations
+                  </p>
+                  <Button size="icon" variant="outline" onClick={() => {
+                    toast.promise(backend["ocel/export-bindings-csv"](violationDetails), { loading: "Exporting to CSV...", error: (e) => <p>Failed to export to CSV!<br />{String(e)}</p>, success: "Finished CSV Export!" }).then((res) => {
+                      console.log({ res });
+                      if(res){
+                        const url = URL.createObjectURL(res);
+                        downloadURL(url,"situation-table.csv");
+                        URL.revokeObjectURL(url);
+                      }
+                    }).catch(err => console.error(err))
+                  }}>
+                    <TbTableExport />
+                  </Button>
+                </div>
                 {numBindings > DEFAULT_CUTOFF && (
                   <div className="flex items-center gap-x-2">
                     {appliedCutoff !== undefined

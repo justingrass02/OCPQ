@@ -1022,9 +1022,9 @@ export default function VisualEditor(props: VisualEditorProps) {
                           },
                         )
                         .then((res) => {
+                          // Otherwise, it might be tauri export
                           if (res) {
                             console.log(res);
-                            // Otherwise, it might be tauri export
                             const url = URL.createObjectURL(res);
                             downloadURL(
                               url,
@@ -1032,9 +1032,9 @@ export default function VisualEditor(props: VisualEditorProps) {
                                 props.constraintInfo.name
                               }-export.${type.toLowerCase()}`,
                             );
-                            setTimeout(() => {
+                            // setTimeout(() => {
                               URL.revokeObjectURL(url);
-                            }, 1000);
+                            // }, 1000);
                           }
                         });
                     }),

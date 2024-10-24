@@ -18,13 +18,13 @@ use std::{
 use ocedeclare_shared::{
     binding_box::{
         evaluate_box_tree, filter_ocel_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult,
-        ExportFormat, FilterExportWithBoxTreeRequest,
+        EvaluationResultWithCount, ExportFormat, FilterExportWithBoxTreeRequest,
     },
     discovery::{
         auto_discover_constraints_with_options, AutoDiscoverConstraintsRequest,
         AutoDiscoverConstraintsResponse,
     },
-    get_event_info, get_object_info,
+    export_bindings_to_csv_writer, get_event_info, get_object_info,
     ocel_graph::{get_ocel_graph, OCELGraph, OCELGraphOptions},
     ocel_qualifiers::qualifiers::{
         get_qualifiers_for_event_types, QualifierAndObjectType, QualifiersForEventType,
@@ -33,7 +33,10 @@ use ocedeclare_shared::{
     EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
 };
 use process_mining::{
-    event_log::ocel::ocel_struct::OCEL, export_ocel_json_to_vec, export_ocel_sqlite_to_slice, export_ocel_xml, import_ocel_sqlite_from_slice, import_ocel_xml_slice, ocel::ocel_struct::{OCELEvent, OCELObject}
+    event_log::ocel::ocel_struct::OCEL,
+    export_ocel_json_to_vec, export_ocel_sqlite_to_slice, export_ocel_xml,
+    import_ocel_sqlite_from_slice, import_ocel_xml_slice,
+    ocel::ocel_struct::{OCELEvent, OCELObject},
 };
 use tower_http::cors::CorsLayer;
 
@@ -96,6 +99,7 @@ async fn main() {
             "/ocel/discover-constraints",
             post(auto_discover_constraints_handler),
         )
+        .route("/ocel/export-bindings-csv", post(export_bindings_csv))
         .route("/ocel/event/:event_id", get(get_event_info_req))
         .route("/ocel/object/:object_id", get(get_object_info_req))
         .route("/ocel/get-event", post(get_event_req))
@@ -244,7 +248,7 @@ pub async fn filter_export_with_box_tree_req<'a>(
             ExportFormat::SQLITE => {
                 let res = export_ocel_sqlite_to_slice(&res).unwrap();
                 Bytes::from(res)
-            },
+            }
         };
         (StatusCode::OK, bytes)
     })
@@ -258,6 +262,21 @@ pub async fn auto_discover_constraints_handler<'a>(
     Json(with_ocel_from_state(&state, |ocel| {
         auto_discover_constraints_with_options(ocel, req)
     }))
+}
+
+pub async fn export_bindings_csv(
+    state: State<AppState>,
+    Json(req): Json<EvaluationResultWithCount>,
+) -> (StatusCode, Bytes) {
+    with_ocel_from_state(&state, |ocel| {
+        let inner = Vec::new();
+        let mut w: Cursor<Vec<u8>> = Cursor::new(inner);
+        export_bindings_to_csv_writer(ocel, &req, &mut w).unwrap();
+
+        let b = Bytes::from(w.into_inner());
+        (StatusCode::OK, b)
+    })
+    .unwrap_or((StatusCode::NOT_FOUND, Bytes::default()))
 }
 
 pub async fn get_event_info_req<'a>(

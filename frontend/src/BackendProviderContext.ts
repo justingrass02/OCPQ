@@ -13,6 +13,7 @@ import type {
   OCELObject,
   ObjectTypeQualifiers,
 } from "./types/ocel";
+import { EvaluationResultWithCount } from "./types/generated/EvaluationResultWithCount";
 export type BackendProvider = {
   "ocel/info": () => Promise<OCELInfo>;
   "ocel/upload"?: (file: File) => Promise<OCELInfo>;
@@ -32,6 +33,7 @@ export type BackendProvider = {
   "ocel/discover-constraints": (
     autoDiscoveryOptions: DiscoverConstraintsRequest,
   ) => Promise<DiscoverConstraintsResponse>;
+  "ocel/export-bindings-csv": (bindings: EvaluationResultWithCount) => Promise<Blob | undefined>
   "ocel/graph": (options: OCELGraphOptions) => Promise<{
     nodes: (OCELEvent | OCELObject)[];
     links: { source: string; target: string; qualifier: string }[];
@@ -58,6 +60,7 @@ export const BackendProviderContext = createContext<BackendProvider>({
   "ocel/event-qualifiers": warnForNoBackendProvider,
   "ocel/object-qualifiers": warnForNoBackendProvider,
   "ocel/discover-constraints": warnForNoBackendProvider,
+  "ocel/export-bindings-csv": warnForNoBackendProvider,
   "ocel/graph": warnForNoBackendProvider,
   "ocel/get-event": warnForNoBackendProvider,
   "ocel/get-object": warnForNoBackendProvider,
@@ -85,8 +88,8 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
     const type = ocelFile.name.endsWith(".json")
       ? "json"
       : ocelFile.name.endsWith(".xml")
-      ? "xml"
-      : "sqlite";
+        ? "xml"
+        : "sqlite";
     return await (
       await fetch(BACKEND_URL + `/ocel/upload-${type}`, {
         method: "post",
@@ -137,6 +140,18 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
         headers: {},
       })
     ).json();
+  },
+  "ocel/export-bindings-csv": async (bindings) => {
+    const res = (await fetch(BACKEND_URL + "/ocel/export-bindings-csv", {
+      method: "post",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(bindings),
+    }));
+    if (res.ok) {
+      return await res.blob()
+    } else {
+      throw new Error(res.status + " " + res.statusText);
+    }
   },
   "ocel/discover-constraints": async (autoDiscoveryOptions) => {
     return await (
