@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde = {version = "1.0.192" , features = ["derive"]}
+serde = {version = "1.0.192" , features = ["derive", "rc"]}
 serde_json = "1.0.108"
 serde_with = "3.8.1"
 ts-rs = { version = "8.1", features = ["serde-compat","chrono-impl"] }
@@ -21,3 +21,4 @@ cel-interpreter = "0.8.1"
 once_cell = "1.19.0"
 dirs-next = "2.0.0"
 csv = "1.3.0"
+ordered-float = {version = "4.4.0", features = ["default","serde"]}

@@ -64,7 +64,7 @@ export default function FilterChooser({
         <Button
           size="icon"
           variant="ghost"
-          className="h-4 w-4 hover:bg-blue-400/50 hover:border-blue-500/50 mt-1"
+          className="h-4 w-4 hover:bg-blue-400/50 hover:border-blue-500/50 mt-1 rounded-full"
           onClick={() => {
             setAlertState({ mode: "add", type });
           }}

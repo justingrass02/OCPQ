@@ -1,3 +1,4 @@
+import FilterLabelIcon from "@/components/FilterLabelIcon";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,7 +18,6 @@ import { FilterLabel } from "@/types/generated/FilterLabel";
 import type { ObjectVariable } from "@/types/generated/ObjectVariable";
 import { useContext, useState } from "react";
 import { LuAsterisk, LuPlus } from "react-icons/lu";
-import { TbFilterCheck, TbFilterOff, TbFilterX } from "react-icons/tb";
 import { VisualEditorContext } from "../VisualEditorContext";
 import {
   EvVarName,
@@ -25,8 +25,6 @@ import {
   getEvVarName,
   getObVarName,
 } from "./variable-names";
-import FilterLabelIcon from "@/components/FilterLabelIcon";
-import { BsAsterisk } from "react-icons/bs";
 
 export default function NewVariableChooser({
   id,
@@ -78,7 +76,7 @@ export default function NewVariableChooser({
         <Button
           size="icon"
           variant="ghost"
-          className="h-4 w-4 hover:bg-blue-400/50 hover:border-blue-500/50 mt-1"
+          className="h-4 w-4 hover:bg-blue-400/50 hover:border-blue-500/50 mt-1 rounded-full"
           onClick={() =>
             setAlertState({
               mode: "add",
@@ -144,7 +142,7 @@ export default function NewVariableChooser({
         <Button
           size="icon"
           variant="ghost"
-          className="h-4 w-4 hover:bg-blue-400/50 hover:border-blue-500/50 mt-1"
+          className="h-4 w-4 hover:bg-blue-400/50 hover:border-blue-500/50 mt-1 rounded-full"
           onClick={() =>
             setAlertState({
               mode: "add",

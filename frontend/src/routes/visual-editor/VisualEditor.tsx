@@ -104,7 +104,7 @@ export default function VisualEditor(props: VisualEditorProps) {
   const instance = useReactFlow();
 
   const [violationDetails, setViolationDetails] = useState<{
-    res: EvaluationRes;
+    id: string;
     initialMode?: "violations" | "situations" | "satisfied-situations";
     node: BindingBoxTreeNode;
   }>();
@@ -131,7 +131,7 @@ export default function VisualEditor(props: VisualEditorProps) {
       nodeID in violationInfo.violationsPerNode.evalNodes
     ) {
       setViolationDetails({
-        res: violationInfo.violationsPerNode.evalRes[nodeID],
+        id: nodeID,
         initialMode: im,
         node: violationInfo.violationsPerNode.evalNodes[nodeID],
       });
@@ -1059,21 +1059,12 @@ export default function VisualEditor(props: VisualEditorProps) {
           </div>
         </Panel>
         <Background />
-        {/* <ContextMenu > <ContextMenuPortal>
-          <ContextMenuContent data-state={edgeContextMenu === undefined ? "closed" : "open"}>
-            <ContextMenuItem>Cancel</ContextMenuItem>
-            <ContextMenuItem onSelect={() => {
-              // setDeleteAlertOpen(true);
-            }} className="font-semibold text-red-400 focus:text-red-500"><LuTrash className="mr-1" /> Delete Node</ContextMenuItem>
-          </ContextMenuContent>
-        </ContextMenuPortal>
-        </ContextMenu> */}
       </ReactFlow>
       {violationDetails !== undefined &&
         violationInfo.violationsPerNode !== undefined && (
           <ViolationDetailsSheet
             initialMode={violationDetails.initialMode}
-            violationDetails={violationDetails.res}
+            nodeID={violationDetails.id}
             reset={() => setViolationDetails(undefined)}
             violationResPerNodes={violationInfo.violationsPerNode}
             node={violationDetails.node}

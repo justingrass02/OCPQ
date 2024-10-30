@@ -5,16 +5,17 @@ use std::{
 };
 
 use cel_interpreter::{
-    extractors::This, objects::Map, Context, FunctionContext, Program, ResolveResult, Value,
+    extractors::This, objects::Map, Context, ExecutionError, FunctionContext, Program,
+    ResolveResult, Value,
 };
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, FixedOffset, Local};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use process_mining::ocel::ocel_struct::OCELAttributeValue;
 
 use crate::{
     binding_box::{
-        structs::{EventVariable, ObjectVariable, Variable},
+        structs::{EventVariable, LabelFunction, LabelValue, ObjectVariable, Variable},
         Binding, ViolationReason,
     },
     preprocessing::linked_ocel::{
@@ -96,7 +97,7 @@ pub fn evaluate_cel<'a>(
     binding: &'a Binding,
     child_res: Option<&HashMap<String, Vec<(Binding, Option<ViolationReason>)>>>,
     ocel: &'a IndexLinkedOCEL,
-) -> bool {
+) -> Result<Value, CELEvalError> {
     // let now = Instant::now();
     lazy_compile_and_insert_into_cache(cel);
     let cache_read = CEL_PROGRAM_CACHE.read().unwrap();
@@ -114,6 +115,17 @@ pub fn evaluate_cel<'a>(
             let value = ob_index_to_name(o_index);
             context.add_variable(name, value).unwrap();
         }
+
+        for (label, value) in binding.label_map.iter() {
+            context
+                .add_variable(label, Into::<cel_interpreter::Value>::into(value.clone()))
+                .unwrap();
+        }
+
+        context
+            .add_variable("now", Value::Timestamp(Local::now().into()))
+            .unwrap();
+
         if let Some(child_res) = child_res {
             for (child_name, child_out) in child_res {
                 let value: Vec<Value> = child_out
@@ -361,24 +373,62 @@ pub fn evaluate_cel<'a>(
                 Ok((sum / count as f64).into())
             },
         );
-
-        let res = match p.execute(&context) {
-            Ok(Value::Bool(b)) => b,
-            Ok(_) => false,
-            Err(e) => {
-                eprintln!("{e}");
-                false
-            }
-        };
-
+        let res = p.execute(&context);
         unsafe {
             let _ocel_box = Box::from_raw(ocel_raw.0);
         }
-        res
+        Ok(res?)
     } else {
-        false
+        Err(CELEvalError::ParseError)
     }
 }
+
+#[derive(Debug)]
+pub enum CELEvalError {
+    ExecError(ExecutionError),
+    ParseError,
+}
+
+impl From<ExecutionError> for CELEvalError {
+    fn from(value: ExecutionError) -> Self {
+        Self::ExecError(value)
+    }
+}
+
+pub fn check_cel_predicate<'a>(
+    cel: &str,
+    binding: &'a Binding,
+    child_res: Option<&HashMap<String, Vec<(Binding, Option<ViolationReason>)>>>,
+    ocel: &'a IndexLinkedOCEL,
+) -> bool {
+    match evaluate_cel(cel, binding, child_res, ocel) {
+        Ok(Value::Bool(b)) => b,
+        _ => false,
+    }
+}
+
+pub fn add_cel_label<'a>(
+    binding: &'a mut Binding,
+    child_res: Option<&HashMap<String, Vec<(Binding, Option<ViolationReason>)>>>,
+    ocel: &'a IndexLinkedOCEL,
+    label_fun: &'a LabelFunction,
+) {
+    match evaluate_cel(&label_fun.cel, binding, child_res, ocel) {
+        Ok(v) => {
+            binding.label_map.insert(label_fun.label.clone(), v.into());
+        }
+        Err(e) => {
+            binding
+                .label_map
+                .insert(label_fun.label.clone(), LabelValue::Null);
+            eprintln!(
+                "Error while computing binding label {} with error {e:?}",
+                label_fun.label
+            )
+        }
+    }
+}
+
 fn value_to_float(val: &Value) -> f64 {
     match val {
         Value::Int(i) => *i as f64,
@@ -418,4 +468,31 @@ pub fn get_vars_in_cel_program(cel: &str) -> HashSet<Variable> {
         .into_iter()
         .map(string_to_var)
         .collect()
+}
+
+impl From<cel_interpreter::Value> for LabelValue {
+    fn from(value: cel_interpreter::Value) -> Self {
+        match value {
+            Value::Int(i) => LabelValue::Int(i),
+            Value::UInt(i) => LabelValue::Int(i as i64),
+            Value::Float(f) => LabelValue::Float(f.into()),
+            Value::String(arc) => LabelValue::String(arc),
+            Value::Bool(b) => LabelValue::Bool(b),
+            Value::Duration(time_delta) => LabelValue::String(Arc::new(time_delta.to_string())),
+            Value::Timestamp(date_time) => LabelValue::String(Arc::new(date_time.to_rfc3339())),
+            _ => LabelValue::Null,
+        }
+    }
+}
+
+impl From<LabelValue> for cel_interpreter::Value {
+    fn from(val: LabelValue) -> Self {
+        match val {
+            LabelValue::String(arc) => Value::String(arc),
+            LabelValue::Int(i) => Value::Int(i),
+            LabelValue::Float(f) => Value::Float(f.into()),
+            LabelValue::Bool(b) => Value::Bool(b),
+            LabelValue::Null => Value::Null,
+        }
+    }
 }

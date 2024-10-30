@@ -99,6 +99,7 @@ pub struct TableExportOptions {
     include_violation_status: bool,
     include_ids: bool,
     omit_header: bool,
+    labels: Vec<String>,
 }
 impl Default for TableExportOptions {
     fn default() -> Self {
@@ -106,6 +107,7 @@ impl Default for TableExportOptions {
             include_violation_status: true,
             include_ids: true,
             omit_header: false,
+            labels: Vec::default(),
         }
     }
 }
@@ -176,6 +178,10 @@ pub fn export_bindings_to_csv_writer<W: std::io::Write>(
                 }
             }
 
+            for label in &options.labels {
+                w.write_field(label)?;
+            }
+
             if options.include_violation_status {
                 w.write_field("Violated")?;
             }
@@ -229,6 +235,13 @@ pub fn export_bindings_to_csv_writer<W: std::io::Write>(
                     for _attr in ev_attrs {
                         w.write_field("")?;
                     }
+                }
+            }
+
+            for label in &options.labels {
+                match b.label_map.get(label) {
+                    Some(val) => w.write_field(val.to_string())?,
+                    None => w.write_field("null")?,
                 }
             }
 

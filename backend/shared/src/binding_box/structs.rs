@@ -1,16 +1,18 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fmt::Display,
+    hash::Hash,
 };
 
 use itertools::Itertools;
+use ordered_float::OrderedFloat;
 use process_mining::ocel::ocel_struct::{OCELAttributeValue, OCELEvent, OCELObject};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use ts_rs::TS;
 
 use crate::{
-    cel::{evaluate_cel, get_vars_in_cel_program},
+    cel::{add_cel_label, check_cel_predicate, get_vars_in_cel_program},
     preprocessing::linked_ocel::{EventIndex, EventOrObjectIndex, IndexLinkedOCEL, ObjectIndex},
 };
 #[derive(TS)]
@@ -58,6 +60,32 @@ pub type Qualifier = Option<String>;
 pub struct Binding {
     pub event_map: BTreeMap<EventVariable, EventIndex>,
     pub object_map: BTreeMap<ObjectVariable, ObjectIndex>,
+    pub label_map: BTreeMap<String, LabelValue>,
+}
+
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "camelCase")]
+#[serde(tag = "type", content = "value")]
+pub enum LabelValue {
+    String(std::sync::Arc<String>),
+    Int(i64),
+    Float(#[ts(as = "f64")] OrderedFloat<f64>),
+    Bool(bool),
+    Null,
+}
+
+impl LabelValue {
+    pub fn to_string(&self) -> String {
+        match self {
+            LabelValue::String(arc) => arc.to_string(),
+            LabelValue::Int(i) => i.to_string(),
+            LabelValue::Float(f) => f.to_string(),
+            LabelValue::Bool(b) => b.to_string(),
+            LabelValue::Null => "null".to_string(),
+        }
+    }
 }
 
 impl Binding {
@@ -131,6 +159,10 @@ pub struct BindingBox {
     #[ts(optional)]
     #[ts(as = "Option<HashMap<EventVariable,FilterLabel>>")]
     pub ob_var_labels: HashMap<ObjectVariable, FilterLabel>,
+    #[serde(default)]
+    #[ts(optional)]
+    #[ts(as = "Option<Vec<LabelFunction>>")]
+    pub labels: Vec<LabelFunction>,
 }
 
 #[derive(TS)]
@@ -141,6 +173,15 @@ pub enum FilterLabel {
     IGNORED,
     INCLUDED,
     EXCLUDED,
+}
+
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct LabelFunction {
+    pub label: String,
+    pub cel: String,
 }
 
 #[derive(TS)]
@@ -293,13 +334,13 @@ impl BindingBoxTreeNode {
         }
         let re: Vec<_> = expanded
             .into_par_iter()
-            .map(|b| {
+            .map(|mut b| {
                 let _passed_size_filter = true;
-                let mut all_res: EvaluationResults = Vec::new();
-                let mut child_res: HashMap<String, Vec<(Binding, Option<ViolationReason>)>> =
-                    HashMap::new();
-                // let mut c_name_map = HashMap::with_capacity(children.len());
-                // let mut child_res = Vec::with_capacity(children.len());
+                // let mut all_res: EvaluationResults = Vec::new();
+                // let mut child_res: HashMap<String, Vec<(Binding, Option<ViolationReason>)>> =
+                //     HashMap::new();
+                let mut all_res = Vec::with_capacity(children.len());
+                let mut child_res = HashMap::with_capacity(children.len());
                 for c in &children {
                     let c_name = tree
                         .edge_names
@@ -310,40 +351,13 @@ impl BindingBoxTreeNode {
                     let (c_res, violations) =
                         // Evaluate Child
                             tree.nodes[*c].evaluate(*c, b.clone(), tree, ocel);
-                    // Check if size binding count is passes size filters
-                    // passed_size_filter =
-                    //     bbox.size_filters
-                    //         .iter()
-                    //         .all(|size_filter| match size_filter {
-                    //             SizeFilter::NumChilds {
-                    //                 child_name,
-                    //                 min,
-                    //                 max,
-                    //             } => {
-                    //                 // println!("{child_index} {c} Min: {:?} Max: {:?} Len: {}",min,max,violations.len());
-                    //                 if child_name != &c_name {
-                    //                     true
-                    //                 } else {
-                    //                     if min.is_some_and(|min| violations.len() < min) {
-                    //                         false
-                    //                     } else if max
-                    //                         .is_some_and(|max| violations.len() > max)
-                    //                     {
-                    //                         false
-                    //                     } else {
-                    //                         true
-                    //                     }
-                    //                 }
-                    //             }
-                    //         });
-                    // if !passed_size_filter {
-                    //     // println!("Did not pass size filter");
-                    //     return BindingResult::FilteredOutBySizeFilter;
-                    // }
                     child_res.insert(c_name, violations);
 
                     // This line determines if child results are always included
                     all_res.extend(c_res);
+                }
+                for label_fun in &bbox.labels {
+                    add_cel_label(&mut b, Some(&child_res), ocel, label_fun);
                 }
                 for sf in &bbox.size_filters {
                     if !sf.check(&b, &child_res, ocel) {
@@ -748,7 +762,7 @@ impl Filter {
                 // let now = Instant::now();
 
                 // println!("Took {:?}",now.elapsed());
-                evaluate_cel(cel, b, None, ocel)
+                check_cel_predicate(cel, b, None, ocel)
             }
         }
     }
@@ -964,7 +978,9 @@ impl SizeFilter {
                     false
                 }
             }
-            SizeFilter::AdvancedCEL { cel } => evaluate_cel(cel, binding, Some(child_res), ocel),
+            SizeFilter::AdvancedCEL { cel } => {
+                check_cel_predicate(cel, binding, Some(child_res), ocel)
+            }
         }
     }
 }

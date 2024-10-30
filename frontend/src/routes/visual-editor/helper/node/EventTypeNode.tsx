@@ -26,6 +26,8 @@ import type { EventTypeNodeData } from "../types";
 import { getViolationStyles } from "../violation-styles";
 import SituationIndicator from "./SituationIndicator";
 import ViolationIndicator from "./ViolationIndicator";
+import { Label } from "@/components/ui/label";
+import LabelFunctionChooser from "../box/LabelFunctionChooser";
 export default memo(EventTypeNode);
 function EventTypeNode({ data, id, selected }: NodeProps<EventTypeNodeData>) {
   const { violationsPerNode, onNodeDataChange } =
@@ -67,6 +69,11 @@ function EventTypeNode({ data, id, selected }: NodeProps<EventTypeNodeData>) {
             />
             <FilterChooser
               type="filter"
+              id={id}
+              box={data.box}
+              updateBox={(box) => onNodeDataChange(id, { box })}
+            />
+            <LabelFunctionChooser
               id={id}
               box={data.box}
               updateBox={(box) => onNodeDataChange(id, { box })}

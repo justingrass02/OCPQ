@@ -3,6 +3,7 @@ import type { Constraint } from "./Constraint";
 import type { EventVariable } from "./EventVariable";
 import type { Filter } from "./Filter";
 import type { FilterLabel } from "./FilterLabel";
+import type { LabelFunction } from "./LabelFunction";
 import type { ObjectVariable } from "./ObjectVariable";
 import type { SizeFilter } from "./SizeFilter";
 
@@ -14,4 +15,5 @@ export type BindingBox = {
   constraints: Array<Constraint>;
   evVarLabels?: { [key: EventVariable]: FilterLabel };
   obVarLabels?: { [key: EventVariable]: FilterLabel };
+  labels?: Array<LabelFunction>;
 };

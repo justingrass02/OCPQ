@@ -9,8 +9,28 @@ import type { BindingBoxTreeNode } from "@/types/generated/BindingBoxTreeNode";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Link } from "react-router-dom";
 import { Checkbox } from "../ui/checkbox";
+import { LabelValue } from "@/types/generated/LabelValue";
 
+function getLabelValuePrimitive(l: LabelValue | null) {
+  if (l == null) {
+    return "null";
+  }
+  if (l.type === "string") {
+    return l.value;
+  }
+  if (l.type === "bool") {
+    return String(l.value);
+  }
+  if (l.type === "float") {
+    return String(l.value);
+  }
+  if (l.type === "int") {
+    return String(l.value);
+  }
+  return "null";
+}
 type BindingInfo = EvaluationRes["situations"][number];
+
 export function columnsForBinding(
   binding: Binding,
   objectIds: string[],
@@ -23,6 +43,11 @@ export function columnsForBinding(
   node: BindingBoxTreeNode,
   addViolationStatus: boolean,
 ): ColumnDef<BindingInfo>[] {
+  let labels = Object.keys(binding.labelMap);
+  if ("Box" in node) {
+    labels = node.Box[0].labels?.map((l) => l.label) ?? labels;
+  }
+
   return [
     ...Object.entries(binding.objectMap).map(
       ([obVarName, _obIndex]) =>
@@ -82,6 +107,22 @@ export function columnsForBinding(
           ),
           header: () => <EvVarName eventVar={parseInt(evVarName)} />,
           accessorFn: ([b, _x]) => eventIds[b.eventMap[parseInt(evVarName)]],
+        }) satisfies ColumnDef<BindingInfo>,
+    ),
+    ...labels.map(
+      (label) =>
+        ({
+          id: label,
+          cell: (c) => (
+            <span
+              title={c.getValue<string>()}
+              className="max-w-[7.66rem] w-fit align-top whitespace-nowrap inline-block text-ellipsis overflow-hidden"
+            >
+              {c.getValue<string>()}
+            </span>
+          ),
+          header: () => <span className="text-indigo-500">{label}</span>,
+          accessorFn: ([b, _x]) => getLabelValuePrimitive(b.labelMap[label]),
         }) satisfies ColumnDef<BindingInfo>,
     ),
     ...(addViolationStatus

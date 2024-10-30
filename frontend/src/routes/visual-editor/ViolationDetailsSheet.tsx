@@ -21,48 +21,64 @@ import toast from "react-hot-toast";
 import { TbTableExport } from "react-icons/tb";
 import type { EvaluationRes, EvaluationResPerNodes } from "./helper/types";
 import { VisualEditorContext } from "./helper/VisualEditorContext";
+import { Combobox } from "@/components/ui/combobox";
+import MultiSelect from "@/components/ui/multi-select";
 const DataTablePaginationLazy = lazy(
   async () => await import("@/components/binding-table/PaginatedBindingTable"),
 ) as typeof PaginatedBindingTable;
 
 const DEFAULT_CUTOFF = 20_000;
 const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
-  violationDetails,
   violationResPerNodes,
   reset,
   initialMode,
   node,
+  nodeID,
 }: {
-  violationDetails: EvaluationRes;
   violationResPerNodes: EvaluationResPerNodes;
   initialMode: "violations" | "situations" | "satisfied-situations" | undefined;
   node: BindingBoxTreeNode;
+  nodeID: string;
   reset: () => unknown;
 }) {
   const backend = useContext(BackendProviderContext);
   const hasConstraints =
     "Box" in node ? node.Box[0].constraints.length > 0 : true;
 
-  const { showElementInfo } = useContext(VisualEditorContext);
+  const labels =
+    "Box" in node ? node.Box[0].labels?.map((l) => l.label) ?? [] : [];
+  const { showElementInfo, violationsPerNode } =
+    useContext(VisualEditorContext);
   const [appliedCutoff, setAppliedCutoff] = useState<number | undefined>(
     DEFAULT_CUTOFF,
   );
+  const violationDetails = useMemo(() => {
+    return violationsPerNode?.evalRes[nodeID];
+  }, [nodeID, violationsPerNode]);
   const items = useMemo(() => {
-    return violationDetails.situations.slice(0, appliedCutoff);
-  }, [appliedCutoff, violationDetails, node]);
+    return (
+      violationsPerNode?.evalRes[nodeID]?.situations.slice(0, appliedCutoff) ??
+      []
+    );
+  }, [appliedCutoff, violationsPerNode, nodeID]);
 
-  const numBindings = violationDetails.situationCount;
-  const numViolations = violationDetails.situationViolatedCount;
+  const numBindings = violationsPerNode?.evalRes[nodeID].situationCount ?? 0;
+  const numViolations =
+    violationsPerNode?.evalRes[nodeID].situationViolatedCount ?? 0;
 
   const columns = useMemo(() => {
-    return columnsForBinding(
-      items[0][0],
-      violationResPerNodes.objectIds,
-      violationResPerNodes.eventIds,
-      showElementInfo,
-      node,
-      hasConstraints,
-    );
+    if (items.length >= 1) {
+      return columnsForBinding(
+        items[0][0],
+        violationResPerNodes.objectIds,
+        violationResPerNodes.eventIds,
+        showElementInfo,
+        node,
+        hasConstraints,
+      );
+    } else {
+      return [];
+    }
   }, [violationResPerNodes, node]);
 
   return (
@@ -105,6 +121,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                         includeIds: true,
                         includeViolationStatus: hasConstraints,
                         omitHeader: false,
+                        labels: labels,
                       } satisfies TableExportOptions as TableExportOptions
                     }
                     trigger={
@@ -138,6 +155,23 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                               setData({ ...data, omitHeader: !b });
                             }}
                           />
+                          {labels.length >= 1 && (
+                            <>
+                              <Label>Labels to Include</Label>
+                              <MultiSelect
+                                options={labels.map((l) => ({
+                                  value: l,
+                                  label: l,
+                                }))}
+                                onValueChange={(value: string[]) => {
+                                  setData({ ...data, labels: value });
+                                }}
+                                name={"Labels"}
+                                defaultValue={data.labels}
+                                placeholder={""}
+                              />
+                            </>
+                          )}
                           {hasConstraints && (
                             <>
                               <Label>Include Violation Status</Label>

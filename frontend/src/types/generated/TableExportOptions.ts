@@ -4,4 +4,5 @@ export type TableExportOptions = {
   includeViolationStatus: boolean;
   includeIds: boolean;
   omitHeader: boolean;
+  labels: Array<string>;
 };
