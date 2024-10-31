@@ -23,6 +23,7 @@ import type { EvaluationRes, EvaluationResPerNodes } from "./helper/types";
 import { VisualEditorContext } from "./helper/VisualEditorContext";
 import { Combobox } from "@/components/ui/combobox";
 import MultiSelect from "@/components/ui/multi-select";
+import { LabelLabel } from "./helper/box/LabelFunctionChooser";
 const DataTablePaginationLazy = lazy(
   async () => await import("@/components/binding-table/PaginatedBindingTable"),
 ) as typeof PaginatedBindingTable;
@@ -161,7 +162,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                               <MultiSelect
                                 options={labels.map((l) => ({
                                   value: l,
-                                  label: l,
+                                  label: <LabelLabel label={l} />,
                                 }))}
                                 onValueChange={(value: string[]) => {
                                   setData({ ...data, labels: value });

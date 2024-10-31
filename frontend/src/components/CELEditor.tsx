@@ -14,6 +14,7 @@ export default function CELEditor({
   availableEventVars,
   availableObjectVars,
   availableChildSets,
+  availableLabels,
   nodeID,
 }: {
   cel?: string;
@@ -21,6 +22,7 @@ export default function CELEditor({
   availableEventVars: number[];
   availableObjectVars: number[];
   availableChildSets?: string[];
+  availableLabels?: string[];
   nodeID: string;
 }) {
   const monaco = useMonaco();
@@ -373,6 +375,26 @@ export default function CELEditor({
       description:
         "Returns the maximum value of either all provided arguments or, if the first argument is a list, the maximum value in this list.\n\nExamples:<br/>`max([3,4,5]) == 5`<br/>`max(3,4,5) == 5`",
     },
+    // CUSTOM implementation (but is pretty standard, not sure why it does not exist)
+    {
+      name: "min",
+      for_type: ["standalone"],
+      insertTemplate: "min(${1:arg}, [... ${2:arg2}])",
+      signatureLabel: "bool (arg1: value|list, ...args: value)",
+      parameters: [
+        {
+          label: "arg1: value|list",
+          documentation: "Either a single value or list of values.",
+        },
+        {
+          label: "...args: value",
+          documentation:
+            "If arg1 is a single value, args are the other passed values.",
+        },
+      ],
+      description:
+        "Returns the minimal value of either all provided arguments or, if the first argument is a list, the minimal value in this list.\n\nExamples:<br/>`min([3,4,5]) == 3`<br/>`min(3,4,5) == 3`",
+    },
     {
       name: "sum",
       for_type: ["value"],
@@ -393,9 +415,11 @@ export default function CELEditor({
       return;
     }
     const dispos: { dispose: () => unknown }[] = [];
-    const specialSymbols = [...varSymbols, ...(availableChildSets ?? [])].map(
-      (s) => [`${s}(?![a-zA-Z\\d])`, "constant"] as [string, string],
-    );
+    const specialSymbols = [
+      ...varSymbols,
+      ...(availableChildSets ?? []),
+      ...(availableLabels ?? []),
+    ].map((s) => [`${s}(?![a-zA-Z\\d])`, "constant"] as [string, string]);
     monaco.languages.register({ id: "cel" });
 
     // Register a tokens provider for the language
@@ -602,6 +626,14 @@ export default function CELEditor({
                 range: null as any,
                 kind: monaco.languages.CompletionItemKind.Variable, // CompletionItemKind Variable
               })),
+              ...(availableLabels ?? []).map((s) => ({
+                label: s,
+                insertText: s,
+                filterText: s,
+                detail: "Label",
+                range: null as any,
+                kind: monaco.languages.CompletionItemKind.Variable, // CompletionItemKind Variable
+              })),
               ...[...standardFunctions, ...specialFunctions]
                 .filter((s) => s.for_type.includes("standalone"))
                 .map((s) => ({
@@ -787,6 +819,15 @@ export default function CELEditor({
               contents: [
                 {
                   value: `**${word}**\n\nEvaluated Child Binding Set\n\nList that contains one entry for each child output binding. Variables in the binding can be accessed using the corresponding name strings (e.g., \`'o1'\`). Additionally, each map contains a field \`satisfied\` which indicates if this child binding was satisfied in the child.\n\nExample: \`${word}.all(b,b['satisfied'])\`\n\n\`${word}.all(b,b['o1'].attr('price') >= 100)\``,
+                  supportHtml: true,
+                },
+              ],
+            };
+          } else if (availableLabels?.includes(word) === true) {
+            return {
+              contents: [
+                {
+                  value: `**${word}**\n\nLabel Value\n\nValue of this label. Labels are evaluated in the order they are listed, so only labels that are evaluated first can be used here.`,
                   supportHtml: true,
                 },
               ],

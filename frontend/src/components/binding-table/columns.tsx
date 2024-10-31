@@ -10,6 +10,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Link } from "react-router-dom";
 import { Checkbox } from "../ui/checkbox";
 import { LabelValue } from "@/types/generated/LabelValue";
+import { LabelLabel } from "@/routes/visual-editor/helper/box/LabelFunctionChooser";
 
 function getLabelValuePrimitive(l: LabelValue | null) {
   if (l == null) {
@@ -121,7 +122,7 @@ export function columnsForBinding(
               {c.getValue<string>()}
             </span>
           ),
-          header: () => <span className="text-indigo-500">{label}</span>,
+          header: () => <LabelLabel label={label} />,
           accessorFn: ([b, _x]) => getLabelValuePrimitive(b.labelMap[label]),
         }) satisfies ColumnDef<BindingInfo>,
     ),

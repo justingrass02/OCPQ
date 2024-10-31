@@ -58,7 +58,7 @@ export default function FilterChooser({
   >();
 
   return (
-    <div className="w-full text-left border-t border-t-slate-700 mt-2 pt-2">
+    <div className="w-full text-left border-t border-t-slate-700 mt-1 pt-1">
       <div className="flex items-center gap-x-1">
         <Label>{type === "filter" ? "Filters" : "Constraints"}</Label>
         <Button
@@ -434,6 +434,7 @@ export default function FilterChooser({
                   availableEventVars={availableEventVars}
                   availableObjectVars={availableObjectVars}
                   availableChildSets={availableChildSets}
+                  availableLabels={box.labels?.map((l) => l.label)}
                   nodeID={id}
                 />
               </div>

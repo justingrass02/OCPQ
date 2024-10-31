@@ -1,29 +1,24 @@
-import { BindingBox } from "@/types/generated/BindingBox";
-import { Constraint } from "@/types/generated/Constraint";
-import { Filter } from "@/types/generated/Filter";
-import { SizeFilter } from "@/types/generated/SizeFilter";
-import { Suspense, useContext, useState } from "react";
-import { VisualEditorContext } from "../VisualEditorContext";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { type } from "os";
-import { LuPlus } from "react-icons/lu";
+import Spinner from "@/components/Spinner";
 import {
-  AlertDialogHeader,
-  AlertDialogFooter,
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Combobox } from "@/components/ui/combobox";
-import FilterOrConstraintEditor from "./FilterOrConstraintEditor";
-import { LabelFunction } from "@/types/generated/LabelFunction";
-import CELEditor from "@/components/CELEditor";
-import Spinner from "@/components/Spinner";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { BindingBox } from "@/types/generated/BindingBox";
+import { LabelFunction } from "@/types/generated/LabelFunction";
 import clsx from "clsx";
+import { lazy, Suspense, useContext, useState } from "react";
+import { IoPricetagOutline } from "react-icons/io5";
+import { LuPlus } from "react-icons/lu";
+import { VisualEditorContext } from "../VisualEditorContext";
+const CELEditor = lazy(async () => await import("@/components/CELEditor"));
 
 export default function FilterChooser({
   id,
@@ -46,7 +41,7 @@ export default function FilterChooser({
     )
   >();
   return (
-    <div className="w-full text-left border-t border-t-slate-700 mt-2 pt-2">
+    <div className="w-full text-left border-t border-t-slate-700 mt-1 pt-1">
       <div className="flex items-center gap-x-1">
         <Label>Labels</Label>
         <Button
@@ -112,7 +107,7 @@ export default function FilterChooser({
                     });
                   }}
                 />
-                <Label className="mb-1">CEL Editor</Label>
+                <Label className="mb-1">CEL Script</Label>
                 <div className="max-h-[10rem]">
                   <Suspense
                     fallback={
@@ -134,6 +129,7 @@ export default function FilterChooser({
                       availableEventVars={availableEventVars}
                       availableObjectVars={availableObjectVars}
                       availableChildSets={availableChildSets}
+                      availableLabels={(box.labels ?? []).map((l) => l.label)}
                       nodeID={id}
                     />
                   </Suspense>
@@ -195,17 +191,15 @@ function LabelFunctionItem({
     <li>
       <button
         onClick={() => onEdit()}
-        className="flex items-center gap-x-0.5 hover:bg-blue-200/50 rounded-sm text-left w-fit px-0.5 max-w-full"
+        className="flex items-baseline gap-x-1 hover:bg-blue-200/50 rounded-sm text-left w-fit px-0.5 max-w-full"
         onContextMenuCapture={(ev) => {
           ev.stopPropagation();
         }}
       >
-        <span className="font-medium text-[0.66rem] text-indigo-500">
-          {labelFun.label}:
-        </span>
+        <LabelLabel label={labelFun.label} className="text-[0.5rem]" />
         <pre
           className={clsx(
-            "mt-0.5 text-[0.5rem] overflow-ellipsis overflow-hidden leading-tight font-semibold",
+            " text-[0.5rem] overflow-ellipsis overflow-hidden leading-tight font-medium text-muted-foreground",
             !(compact ?? false) && " break-all whitespace-normal",
             compact === true && "whitespace-nowrap max-w-[5rem]",
           )}
@@ -215,5 +209,18 @@ function LabelFunctionItem({
         </pre>
       </button>
     </li>
+  );
+}
+export function LabelLabel({
+  label,
+  className,
+}: {
+  label: string;
+  className?: string;
+}) {
+  return (
+    <span className={clsx("font-bold text-indigo-500", className)}>
+      <IoPricetagOutline className="inline" /> {label}
+    </span>
   );
 }

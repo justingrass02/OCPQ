@@ -223,14 +223,12 @@ function NameChangeDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange} modal={true}>
       <DialogTrigger asChild>
-        {name != null && (
-          <button
-            className="flex flex-col items-center my-1 py-0.5 px-2 font-bold text-sm rounded-md bg-blue-50/60 hover:bg-blue-200/70"
-            title="Update Name..."
-          >
-            {name}
-          </button>
-        )}
+        <button
+          className="w-fit min-w-[1.5rem] h-[1.5rem] flex items-center justify-center px-1 font-bold text-sm rounded-full bg-blue-50/60 hover:bg-blue-200/70"
+          title="Update Name..."
+        >
+          {name ?? "-"}
+        </button>
       </DialogTrigger>
       <DialogPortal>
         <DialogContent>

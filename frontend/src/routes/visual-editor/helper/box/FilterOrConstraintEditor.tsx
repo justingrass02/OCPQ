@@ -33,6 +33,7 @@ export default function FilterOrConstraintEditor<
   availableObjectVars,
   availableEventVars,
   availableChildSets,
+  availableLabels,
   nodeID,
 }: {
   value: T;
@@ -40,6 +41,7 @@ export default function FilterOrConstraintEditor<
   availableObjectVars: number[];
   availableEventVars: number[];
   availableChildSets: string[];
+  availableLabels?: string[];
   nodeID: string;
 }) {
   const { getAvailableVars, getNodeIDByName, getTypesForVariable } =
@@ -208,6 +210,7 @@ export default function FilterOrConstraintEditor<
               availableEventVars={availableEventVars}
               availableObjectVars={availableObjectVars}
               availableChildSets={availableChildSets}
+              availableLabels={availableLabels}
               nodeID={nodeID}
             />
           </Suspense>
@@ -496,6 +499,7 @@ export default function FilterOrConstraintEditor<
           availableEventVars={availableEventVars}
           availableObjectVars={availableObjectVars}
           availableChildSets={availableChildSets}
+          availableLabels={availableLabels}
           nodeID={nodeID}
         />
       );
