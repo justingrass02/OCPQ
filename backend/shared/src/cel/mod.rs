@@ -180,6 +180,30 @@ pub fn evaluate_cel<'a>(
             },
         );
 
+        context.add_function("min", |cel_interpreter::extractors::Arguments(args): cel_interpreter::extractors::Arguments| -> Result<Value,ExecutionError> {
+            // If items is a list of values, then operate on the list
+            let items = if args.len() == 1 {
+                match &args[0] {
+                    Value::List(values) => values,
+                    _ => return Ok(args[0].clone()),
+                }
+            } else {
+                &args
+            };
+        
+            items
+                .iter()
+                .skip(1)
+                .try_fold(items.first().unwrap_or(&Value::Null), |acc, x| {
+                    match acc.partial_cmp(x) {
+                        Some(std::cmp::Ordering::Less) => Ok(acc),
+                        Some(_) => Ok(x),
+                        None => Err(ExecutionError::ValuesNotComparable(acc.clone(), x.clone())),
+                    }
+                })
+                .cloned()
+        });
+
         context.add_function(
             "attr",
             move |ftx: &FunctionContext,
