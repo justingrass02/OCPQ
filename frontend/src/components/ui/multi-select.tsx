@@ -47,7 +47,7 @@ interface MultiSelectFormFieldProps
     VariantProps<typeof multiSelectVariants> {
   asChild?: boolean;
   options: {
-    label: string;
+    label: string | React.ReactNode;
     value: string;
     icon?: React.ComponentType<{ className?: string }>;
   }[];
