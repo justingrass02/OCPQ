@@ -115,7 +115,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                     {numViolations} Violations
                   </p>
                   <AlertHelper
-                    title="Export Situation Table CSV"
+                    title="Export Situation Table CSV/XLSX"
                     mode="promise"
                     initialData={
                       {
@@ -123,13 +123,14 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                         includeViolationStatus: hasConstraints,
                         omitHeader: false,
                         labels: labels,
+                        format: "CSV",
                       } satisfies TableExportOptions as TableExportOptions
                     }
                     trigger={
                       <Button
                         size="icon"
                         variant="outline"
-                        title="Export as CSV (Situation Table)"
+                        title="Export as CSV/XLSX (Situation Table)"
                       >
                         <TbTableExport />
                       </Button>
@@ -142,6 +143,16 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                           as a column (on by default).
                         </p>
                         <div className="grid grid-cols-[auto,1fr] gap-x-2 gap-y-2 items-center">
+                          <Label>Format</Label>
+                          <Combobox options={[{ label: "CSV (Basic)", value: "CSV" }, { label: "XLSX (Formatted)", value: "XLSX" }]}
+                            name="Export Format"
+                            value={data.format}
+                            onChange={(f) => {
+                              if (f == "CSV" || f == "XLSX") {
+                                setData({ ...data, format: f as "CSV" | "XLSX" })
+                              }
+                            }
+                            } />
                           <Label>Include IDs</Label>
                           <Switch
                             checked={data.includeIds}
@@ -190,7 +201,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                         </div>
                       </div>
                     )}
-                    submitAction="Export CSV"
+                    submitAction="Export"
                     onSubmit={async (data, ev) => {
                       try {
                         const res = await toast.promise(
@@ -212,7 +223,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                         );
                         if (res !== undefined) {
                           const url = URL.createObjectURL(res);
-                          downloadURL(url, "situation-table.csv");
+                          downloadURL(url, `situation-table.${data.format === "CSV" ? "csv" : "xlsx"}`);
                           URL.revokeObjectURL(url);
                         }
                       } catch (e) {

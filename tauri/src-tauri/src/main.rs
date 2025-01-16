@@ -12,16 +12,10 @@ use ocedeclare_shared::{
     binding_box::{
         evaluate_box_tree, filter_ocel_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult,
         EvaluationResultWithCount, ExportFormat, FilterExportWithBoxTreeRequest,
-    },
-    discovery::{
+    }, discovery::{
         auto_discover_constraints_with_options, AutoDiscoverConstraintsRequest,
         AutoDiscoverConstraintsResponse,
-    },
-    export_bindings_to_csv_writer, get_event_info, get_object_info,
-    ocel_graph::{get_ocel_graph, OCELGraph, OCELGraphOptions},
-    ocel_qualifiers::qualifiers::{get_qualifiers_for_event_types, QualifiersForEventType},
-    preprocessing::linked_ocel::{link_ocel_info, IndexLinkedOCEL},
-    EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex, TableExportOptions,
+    }, get_event_info, get_object_info, ocel_graph::{get_ocel_graph, OCELGraph, OCELGraphOptions}, ocel_qualifiers::qualifiers::{get_qualifiers_for_event_types, QualifiersForEventType}, preprocessing::linked_ocel::{link_ocel_info, IndexLinkedOCEL}, table_export::{export_bindings_to_csv_writer, TableExportOptions}, EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex
 };
 use process_mining::{
     export_ocel_json_path, export_ocel_sqlite_to_path, export_ocel_xml_path,

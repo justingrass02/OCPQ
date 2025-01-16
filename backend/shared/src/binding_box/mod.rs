@@ -88,7 +88,29 @@ pub fn evaluate_box_tree(
         serde_json::to_writer_pretty(BufWriter::new(tree_json_file), &tree).unwrap();
         for _ in 0..n {
             let start = Instant::now();
-            tree.evaluate(ocel);
+            let evaluation_results_flat = tree.evaluate(ocel);
+            // Also gather results in evaluation mode
+            // if this should be included in the reported evaluation measurements of course depends...
+            let mut evaluation_results = tree
+                .nodes
+                .iter()
+                .map(|_| EvaluationResultWithCount {
+                    situations: Vec::new(),
+                    situation_count: 0,
+                    situation_violated_count: 0,
+                })
+                .collect_vec();
+        
+            for (index, binding, viol) in evaluation_results_flat {
+                let r = &mut evaluation_results[index];
+                r.situations.push((binding, viol));
+                r.situation_count += 1;
+                if viol.is_some() {
+                    r.situation_violated_count += 1;
+                }
+            }
+
+            
             eval_times.push(start.elapsed().as_secs_f64());
         }
         let mut durations_path = dirs_next::download_dir().unwrap_or_default();

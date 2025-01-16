@@ -24,17 +24,18 @@ use ocedeclare_shared::{
         auto_discover_constraints_with_options, AutoDiscoverConstraintsRequest,
         AutoDiscoverConstraintsResponse,
     },
-    export_bindings_to_csv_writer, get_event_info, get_object_info,
+    get_event_info, get_object_info,
     ocel_graph::{get_ocel_graph, OCELGraph, OCELGraphOptions},
     ocel_qualifiers::qualifiers::{
         get_qualifiers_for_event_types, QualifierAndObjectType, QualifiersForEventType,
     },
     preprocessing::{linked_ocel::IndexLinkedOCEL, preprocess::link_ocel_info},
-    EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex, TableExportOptions,
+    table_export::{export_bindings_to_writer, TableExportOptions},
+    EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
 };
 use process_mining::{
     event_log::ocel::ocel_struct::OCEL,
-    export_ocel_json_to_vec, export_ocel_sqlite_to_slice, export_ocel_xml,
+    export_ocel_json_to_vec, export_ocel_sqlite_to_vec, export_ocel_xml,
     import_ocel_sqlite_from_slice, import_ocel_xml_slice,
     ocel::ocel_struct::{OCELEvent, OCELObject},
 };
@@ -101,7 +102,7 @@ async fn main() {
         )
         .route(
             "/ocel/export-bindings-csv",
-            post(export_bindings_csv).layer(DefaultBodyLimit::disable()),
+            post(export_bindings_table).layer(DefaultBodyLimit::disable()),
         )
         .route("/ocel/event/:event_id", get(get_event_info_req))
         .route("/ocel/object/:object_id", get(get_object_info_req))
@@ -249,7 +250,7 @@ pub async fn filter_export_with_box_tree_req<'a>(
                 Bytes::from(res)
             }
             ExportFormat::SQLITE => {
-                let res = export_ocel_sqlite_to_slice(&res).unwrap();
+                let res = export_ocel_sqlite_to_vec(&res).unwrap();
                 Bytes::from(res)
             }
         };
@@ -267,14 +268,14 @@ pub async fn auto_discover_constraints_handler<'a>(
     }))
 }
 
-pub async fn export_bindings_csv(
+pub async fn export_bindings_table(
     state: State<AppState>,
     Json((eval_res, table_options)): Json<(EvaluationResultWithCount, TableExportOptions)>,
 ) -> (StatusCode, Bytes) {
     with_ocel_from_state(&state, |ocel| {
         let inner = Vec::new();
         let mut w: Cursor<Vec<u8>> = Cursor::new(inner);
-        export_bindings_to_csv_writer(ocel, &eval_res, &mut w, &table_options).unwrap();
+        export_bindings_to_writer(ocel, &eval_res, &mut w, &table_options).unwrap();
 
         let b = Bytes::from(w.into_inner());
         (StatusCode::OK, b)
