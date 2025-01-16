@@ -12,10 +12,17 @@ use ocedeclare_shared::{
     binding_box::{
         evaluate_box_tree, filter_ocel_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult,
         EvaluationResultWithCount, ExportFormat, FilterExportWithBoxTreeRequest,
-    }, discovery::{
+    },
+    discovery::{
         auto_discover_constraints_with_options, AutoDiscoverConstraintsRequest,
         AutoDiscoverConstraintsResponse,
-    }, get_event_info, get_object_info, ocel_graph::{get_ocel_graph, OCELGraph, OCELGraphOptions}, ocel_qualifiers::qualifiers::{get_qualifiers_for_event_types, QualifiersForEventType}, preprocessing::linked_ocel::{link_ocel_info, IndexLinkedOCEL}, table_export::{export_bindings_to_csv_writer, TableExportOptions}, EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex
+    },
+    get_event_info, get_object_info,
+    ocel_graph::{get_ocel_graph, OCELGraph, OCELGraphOptions},
+    ocel_qualifiers::qualifiers::{get_qualifiers_for_event_types, QualifiersForEventType},
+    preprocessing::linked_ocel::{link_ocel_info, IndexLinkedOCEL},
+    table_export::{export_bindings_to_csv_writer, TableExportFormat, TableExportOptions},
+    EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
 };
 use process_mining::{
     export_ocel_json_path, export_ocel_sqlite_to_path, export_ocel_xml_path,
@@ -149,7 +156,13 @@ fn export_bindings_csv(
             FileDialogBuilder::new()
                 .set_title("Save Filtered OCEL")
                 .add_filter("CSV Files", &["csv"])
-                .set_file_name("situation-table.csv")
+                .set_file_name(&format!(
+                    "situation-table.{}",
+                    match options.format {
+                        TableExportFormat::CSV => "csv",
+                        TableExportFormat::XLSX => "xlsx",
+                    }
+                ))
                 .save_file(move |f| {
                     if let Some(path) = f {
                         if let Ok(_file) = File::open(&path) {

@@ -254,11 +254,11 @@ impl<'a, W: std::io::Write + std::io::Seek + std::marker::Send> TableWriter<'a, 
 #[derive(TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
 pub struct TableExportOptions {
-    include_violation_status: bool,
-    include_ids: bool,
-    omit_header: bool,
-    labels: Vec<String>,
-    format: TableExportFormat,
+    pub include_violation_status: bool,
+    pub include_ids: bool,
+    pub omit_header: bool,
+    pub labels: Vec<String>,
+    pub format: TableExportFormat,
 }
 #[derive(Debug, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../frontend/src/types/generated/")]
