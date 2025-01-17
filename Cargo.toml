@@ -4,5 +4,6 @@ resolver = "2"
 members = [
 	"backend/shared",
   "backend/web-server",
+  "backend/ocpq_cli",
   "tauri/src-tauri/"
 ]
