@@ -22,7 +22,7 @@ pub enum CellContent<'a> {
     Value(&'a OCELAttributeValue),
 }
 
-impl<'b> IntoExcelData for CellContent<'b> {
+impl IntoExcelData for CellContent<'_> {
     fn write(
         self,
         worksheet: &mut Worksheet,
@@ -110,9 +110,9 @@ where
 //     }
 // }
 
-impl<'a> Into<Vec<u8>> for &CellContent<'a> {
-    fn into(self) -> Vec<u8> {
-        match self {
+impl From<&CellContent<'_>> for Vec<u8> {
+    fn from(val: &CellContent<'_>) -> Self {
+        match val {
             CellContent::String(s) => s.as_bytes().to_vec(),
             CellContent::Value(v) => {
                 match v {
@@ -182,7 +182,7 @@ impl<'a, W: std::io::Write + std::io::Seek + std::marker::Send> TableWriter<'a, 
             column: 0,
             row: 0,
             max_columns: 0,
-            max_rows: 0
+            max_rows: 0,
         }
     }
 
@@ -224,7 +224,7 @@ impl<'a, W: std::io::Write + std::io::Seek + std::marker::Send> TableWriter<'a, 
         };
         self.worksheet
             .write_with_format(self.row, self.column, s.into(), &format)?;
-        
+
         // Save maximum position of written content
         self.max_columns = self.column;
         self.max_rows = self.row;
@@ -241,7 +241,8 @@ impl<'a, W: std::io::Write + std::io::Seek + std::marker::Send> TableWriter<'a, 
 
     fn save(mut self) -> Result<(), Error> {
         self.worksheet.autofit();
-        self.worksheet.autofilter(0, 0, self.max_rows, self.max_columns)?;
+        self.worksheet
+            .autofilter(0, 0, self.max_rows, self.max_columns)?;
         let mut workbook = Workbook::new();
         workbook.push_worksheet(self.worksheet);
         workbook.save_to_writer(self.writer)?;
@@ -392,7 +393,8 @@ pub fn export_bindings_to_table_writer<'a, W: std::io::Write>(
                     }
                     for attr in ev_attrs {
                         if let Some(val) = ev.attributes.iter().find(|a| &&a.name == attr) {
-                            w.write_cell(CellContent::Value(&val.value),
+                            w.write_cell(
+                                CellContent::Value(&val.value),
                                 CellType::ValueType((&val.value).into()),
                             )?;
                         } else {
@@ -444,7 +446,7 @@ pub fn export_bindings_to_csv_writer<'a, W: std::io::Write>(
     options: &'a TableExportOptions,
 ) -> Result<(), Error> {
     let csv_writer = CSVTableWriter::new(w);
-    export_bindings_to_table_writer(&ocel, bindings, csv_writer, &options)
+    export_bindings_to_table_writer(ocel, bindings, csv_writer, options)
 }
 
 pub fn export_bindings_to_xlsx_writer<'a, W: std::io::Write + std::io::Seek + std::marker::Send>(
@@ -454,7 +456,7 @@ pub fn export_bindings_to_xlsx_writer<'a, W: std::io::Write + std::io::Seek + st
     options: &'a TableExportOptions,
 ) -> Result<(), Error> {
     let xlsx_writer = XLSXTableWriter::new(w);
-    export_bindings_to_table_writer(&ocel, bindings, xlsx_writer, &options)
+    export_bindings_to_table_writer(ocel, bindings, xlsx_writer, options)
 }
 
 pub fn export_bindings_to_writer<'a, W: std::io::Write + std::io::Seek + std::marker::Send>(

@@ -8,7 +8,7 @@ use std::{
     sync::Mutex,
 };
 
-use ocedeclare_shared::{
+use ocpq_shared::{
     binding_box::{
         evaluate_box_tree, filter_ocel_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult,
         EvaluationResultWithCount, ExportFormat, FilterExportWithBoxTreeRequest,

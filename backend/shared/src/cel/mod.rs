@@ -38,15 +38,15 @@ fn string_to_index(s: &str) -> Option<EventOrObjectIndex> {
 
 struct RawBindingContextPtr<'a, T>(*mut &'a T);
 
-unsafe impl<'a, T> Send for RawBindingContextPtr<'a, T> {}
-unsafe impl<'a, T> Sync for RawBindingContextPtr<'a, T> {}
-impl<'a, T> Clone for RawBindingContextPtr<'a, T> {
+unsafe impl<T> Send for RawBindingContextPtr<'_, T> {}
+unsafe impl<T> Sync for RawBindingContextPtr<'_, T> {}
+impl<T> Clone for RawBindingContextPtr<'_, T> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<'a, T> Copy for RawBindingContextPtr<'a, T> {}
+impl<T> Copy for RawBindingContextPtr<'_, T> {}
 
 fn index_string_to_val<'a>(s: &str, ocel: &'a IndexLinkedOCEL) -> Option<OCELNodeRef<'a>> {
     let index = string_to_index(s)?;
@@ -190,7 +190,6 @@ pub fn evaluate_cel<'a>(
             } else {
                 &args
             };
-        
             items
                 .iter()
                 .skip(1)

@@ -15,6 +15,9 @@ import type {
 } from "./types/ocel";
 import { EvaluationResultWithCount } from "./types/generated/EvaluationResultWithCount";
 import { TableExportOptions } from "./types/generated/TableExportOptions";
+import { z } from "zod";
+import { ConnectionConfig, JobStatus } from "./types/hpc-backend";
+import { OCPQJobOptions } from "./types/generated/OCPQJobOptions";
 export type BackendProvider = {
   "ocel/info": () => Promise<OCELInfo>;
   "ocel/upload"?: (file: File) => Promise<OCELInfo>;
@@ -48,6 +51,9 @@ export type BackendProvider = {
   "ocel/get-event": (
     specifier: { id: string } | { index: number },
   ) => Promise<{ index: number; event: OCELEvent }>;
+  "hpc/login": (connectionConfig: ConnectionConfig) => Promise<void>,
+  "hpc/start": (jobOptions: OCPQJobOptions) => Promise<string>,
+  "hpc/job-status": (jobID: string) => Promise<JobStatus>,
 };
 
 export async function warnForNoBackendProvider<T>(): Promise<T> {
@@ -57,7 +63,7 @@ export async function warnForNoBackendProvider<T>(): Promise<T> {
   });
 }
 
-export const BackendProviderContext = createContext<BackendProvider>({
+export const ErrorBackendContext: BackendProvider = {
   "ocel/info": warnForNoBackendProvider,
   "ocel/check-constraints-box": warnForNoBackendProvider,
   "ocel/export-filter-box": warnForNoBackendProvider,
@@ -68,13 +74,19 @@ export const BackendProviderContext = createContext<BackendProvider>({
   "ocel/graph": warnForNoBackendProvider,
   "ocel/get-event": warnForNoBackendProvider,
   "ocel/get-object": warnForNoBackendProvider,
-});
+  "hpc/login": warnForNoBackendProvider,
+  "hpc/start": warnForNoBackendProvider,
+  "hpc/job-status": warnForNoBackendProvider,
+};
 
-export const BACKEND_URL = "http://localhost:3000";
+export const BackendProviderContext = createContext<BackendProvider>(ErrorBackendContext);
 
-export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
+export const DEFAULT_BACKEND_URL = "http://localhost:3000";
+
+export function getAPIServerBackendProvider(localBackendURL: string):  BackendProvider {
+  return {
   "ocel/info": async () => {
-    const res = await fetch(BACKEND_URL + "/ocel/info", {
+    const res = await fetch(localBackendURL + "/ocel/info", {
       method: "get",
       headers: {},
     });
@@ -82,7 +94,7 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
   },
   "ocel/available": async () => {
     return await (
-      await fetch(BACKEND_URL + "/ocel/available", {
+      await fetch(localBackendURL + "/ocel/available", {
         method: "get",
         headers: {},
       })
@@ -95,7 +107,7 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
       ? "xml"
       : "sqlite";
     return await (
-      await fetch(BACKEND_URL + `/ocel/upload-${type}`, {
+      await fetch(localBackendURL + `/ocel/upload-${type}`, {
         method: "post",
         body: ocelFile,
         headers: {},
@@ -104,7 +116,7 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
   },
   "ocel/load": async (name) => {
     return await (
-      await fetch(BACKEND_URL + "/ocel/load", {
+      await fetch(localBackendURL + "/ocel/load", {
         method: "post",
         body: JSON.stringify({ name }),
         headers: { "Content-Type": "application/json" },
@@ -113,7 +125,7 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
   },
   "ocel/check-constraints-box": async (tree, measurePerformance) => {
     return await (
-      await fetch(BACKEND_URL + "/ocel/check-constraints-box", {
+      await fetch(localBackendURL + "/ocel/check-constraints-box", {
         method: "post",
         body: JSON.stringify({ tree, measurePerformance }),
         headers: { "Content-Type": "application/json" },
@@ -122,7 +134,7 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
   },
   "ocel/export-filter-box": async (tree, exportFormat) => {
     return await (
-      await fetch(BACKEND_URL + "/ocel/export-filter-box", {
+      await fetch(localBackendURL + "/ocel/export-filter-box", {
         method: "post",
         body: JSON.stringify({ tree, exportFormat }),
         headers: { "Content-Type": "application/json" },
@@ -131,7 +143,7 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
   },
   "ocel/event-qualifiers": async () => {
     return await (
-      await fetch(BACKEND_URL + "/ocel/event-qualifiers", {
+      await fetch(localBackendURL + "/ocel/event-qualifiers", {
         method: "get",
         headers: {},
       })
@@ -139,14 +151,14 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
   },
   "ocel/object-qualifiers": async () => {
     return await (
-      await fetch(BACKEND_URL + "/ocel/object-qualifiers", {
+      await fetch(localBackendURL + "/ocel/object-qualifiers", {
         method: "get",
         headers: {},
       })
     ).json();
   },
   "ocel/export-bindings-csv": async (bindings, options) => {
-    const res = await fetch(BACKEND_URL + "/ocel/export-bindings-csv", {
+    const res = await fetch(localBackendURL + "/ocel/export-bindings-csv", {
       method: "post",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify([bindings, options]),
@@ -159,7 +171,7 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
   },
   "ocel/discover-constraints": async (autoDiscoveryOptions) => {
     return await (
-      await fetch(BACKEND_URL + "/ocel/discover-constraints", {
+      await fetch(localBackendURL + "/ocel/discover-constraints", {
         method: "post",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(autoDiscoveryOptions),
@@ -167,7 +179,7 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
     ).json();
   },
   "ocel/graph": async (options) => {
-    const res = await fetch(BACKEND_URL + "/ocel/graph", {
+    const res = await fetch(localBackendURL + "/ocel/graph", {
       method: "post",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(options),
@@ -180,7 +192,7 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
     }
   },
   "ocel/get-event": async (specifier) => {
-    const res = await fetch(BACKEND_URL + "/ocel/get-event", {
+    const res = await fetch(localBackendURL + "/ocel/get-event", {
       method: "post",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(specifier),
@@ -193,7 +205,7 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
     }
   },
   "ocel/get-object": async (specifier) => {
-    const res = await fetch(BACKEND_URL + "/ocel/get-object", {
+    const res = await fetch(localBackendURL + "/ocel/get-object", {
       method: "post",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(specifier),
@@ -205,4 +217,38 @@ export const API_WEB_SERVER_BACKEND_PROVIDER: BackendProvider = {
       throw new Error(res.statusText);
     }
   },
+  "hpc/login": async (connectionConfig) => {
+    const res = await fetch(localBackendURL + "/hpc/login", {
+        method: "post",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(connectionConfig),
+      });
+      if(res.ok){
+        return await res.json()
+      }else{
+        throw Error(await res.text())
+      }
+  },
+  "hpc/start": async (jobConfig) => {
+    const res = await fetch(localBackendURL + "/hpc/start", {
+        method: "post",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(jobConfig),
+      });
+      if(res.ok){
+        return await res.json()
+      }else{
+        throw Error(await res.text())
+      }
+  },
+  "hpc/job-status": async (jobID) => {
+    const res = await fetch(localBackendURL + `/hpc/job-status/${jobID}`, {
+        method: "get",
+      });
+      if(res.ok){
+        return await res.json()
+      }else{
+        throw Error(await res.text())
+      }
+  }}
 };

@@ -4,7 +4,7 @@ use std::{
 };
 
 use axum::{extract::State, http::StatusCode, Json};
-use ocedeclare_shared::{preprocessing::linked_ocel::IndexLinkedOCEL, OCELInfo};
+use ocpq_shared::{preprocessing::linked_ocel::IndexLinkedOCEL, OCELInfo};
 use serde::{Deserialize, Serialize};
 
 use process_mining::{

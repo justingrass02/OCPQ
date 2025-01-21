@@ -20,6 +20,8 @@ pub mod preprocessing {
 pub mod cel;
 pub mod table_export;
 
+pub mod hpc_backend;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OCELInfo {
     pub num_objects: usize,
@@ -86,4 +88,3 @@ pub fn get_object_info(ocel: &IndexLinkedOCEL, req: IndexOrID) -> Option<ObjectW
     };
     ob_with_index.map(|(object, index)| ObjectWithIndex { object, index })
 }
-

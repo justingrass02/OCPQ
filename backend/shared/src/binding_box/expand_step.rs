@@ -52,7 +52,7 @@ impl BindingBox {
         steps: &[BindingStep],
     ) -> Vec<Binding> {
         let mut ret = vec![parent_binding];
-        let mut sizes_per_step: Vec<usize> = Vec::with_capacity(steps.len());
+        // let mut sizes_per_step: Vec<usize> = Vec::with_capacity(steps.len());
         for step_index in 0..steps.len() {
             let step = &steps[step_index];
             match &step {
@@ -226,7 +226,7 @@ impl BindingBox {
                         .collect()
                 }
             }
-            sizes_per_step.push(ret.len())
+            // sizes_per_step.push(ret.len())
         }
 
         // if !steps.is_empty() {

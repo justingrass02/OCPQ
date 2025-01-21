@@ -334,6 +334,7 @@ impl BindingBoxTreeNode {
         }
         let re: Vec<_> = expanded
             .into_par_iter()
+            // .with_min_len(100)
             .map(|mut b| {
                 let _passed_size_filter = true;
                 // let mut all_res: EvaluationResults = Vec::new();
@@ -353,7 +354,6 @@ impl BindingBoxTreeNode {
                             tree.nodes[*c].evaluate(*c, b.clone(), tree, ocel);
                     child_res.insert(c_name, violations);
 
-                    // This line determines if child results are always included
                     all_res.extend(c_res);
                 }
                 for label_fun in &bbox.labels {

@@ -448,7 +448,7 @@ export default function VisualEditor(props: VisualEditorProps) {
       ev.preventDefault();
       if (ev.clipboardData !== null) {
         const data = JSON.stringify(selectedRef.current);
-        ev.clipboardData.setData("application/json+ocedeclare-flow", data);
+        ev.clipboardData.setData("application/json+ocpq-flow", data);
       }
       toast("Copied selection!", { icon: <LuClipboardCopy /> });
     }
@@ -462,7 +462,7 @@ export default function VisualEditor(props: VisualEditorProps) {
     //   ev.preventDefault();
     //   if (ev.clipboardData !== null) {
     //     const data = JSON.stringify(selectedRef.current);
-    //     ev.clipboardData.setData("application/json+ocedeclare-flow", data);
+    //     ev.clipboardData.setData("application/json+ocpq-flow", data);
     //     const nodeIDSet = new Set(selectedRef.current.nodes.map((n) => n.id));
     //     const edgeIDSet = new Set(selectedRef.current.edges.map((e) => e.id));
     //     instance.setNodes((ns) => ns.filter((n) => !nodeIDSet.has(n.id)));
@@ -489,7 +489,7 @@ export default function VisualEditor(props: VisualEditorProps) {
         //   ci.getAsString((s) => console.log(`- ${ci.type} - ${ci.kind}: ${s}`)),
         // );
         let pastedNodesAndEdges = ev.clipboardData.getData(
-          "application/json+ocedeclare-flow",
+          "application/json+ocpq-flow",
         );
         if (pastedNodesAndEdges === "") {
           pastedNodesAndEdges = ev.clipboardData.getData("text/plain");
@@ -499,7 +499,7 @@ export default function VisualEditor(props: VisualEditorProps) {
           //     pastedNodesAndEdges,
           //     "text/html",
           //   );
-          //   const el = parsedDom.getElementById("ocedeclare-json");
+          //   const el = parsedDom.getElementById("ocpq-json");
           //   console.log({ el });
           //   if (el !== null) {
           //     pastedNodesAndEdges = el.getAttribute("data-json");

@@ -100,7 +100,7 @@ pub fn evaluate_box_tree(
                     situation_violated_count: 0,
                 })
                 .collect_vec();
-        
+
             for (index, binding, viol) in evaluation_results_flat {
                 let r = &mut evaluation_results[index];
                 r.situations.push((binding, viol));
@@ -110,7 +110,6 @@ pub fn evaluate_box_tree(
                 }
             }
 
-            
             eval_times.push(start.elapsed().as_secs_f64());
         }
         let mut durations_path = dirs_next::download_dir().unwrap_or_default();
@@ -134,7 +133,9 @@ pub fn evaluate_box_tree(
 
     for (index, binding, viol) in evaluation_results_flat {
         let r = &mut evaluation_results[index];
-        r.situations.push((binding, viol));
+        if r.situations.len() < 1000 {
+            r.situations.push((binding, viol));
+        }
         r.situation_count += 1;
         if viol.is_some() {
             r.situation_violated_count += 1;

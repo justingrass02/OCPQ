@@ -6,7 +6,7 @@ use axum::{
     Json, Router,
 };
 use itertools::Itertools;
-use tokio::net::TcpListener;
+use tokio::{net::TcpListener, task::JoinHandle};
 
 use std::{
     collections::{HashMap, HashSet},
@@ -15,7 +15,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use ocedeclare_shared::{
+use ocpq_shared::{
     binding_box::{
         evaluate_box_tree, filter_ocel_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult,
         EvaluationResultWithCount, ExportFormat, FilterExportWithBoxTreeRequest,
@@ -25,6 +25,10 @@ use ocedeclare_shared::{
         AutoDiscoverConstraintsResponse,
     },
     get_event_info, get_object_info,
+    hpc_backend::{
+        get_job_status, login_on_hpc, start_port_forwarding, submit_hpc_job, Client,
+        ConnectionConfig, JobStatus, OCPQJobOptions,
+    },
     ocel_graph::{get_ocel_graph, OCELGraph, OCELGraphOptions},
     ocel_qualifiers::qualifiers::{
         get_qualifiers_for_event_types, QualifierAndObjectType, QualifiersForEventType,
@@ -49,6 +53,8 @@ pub mod load_ocel;
 #[derive(Clone)]
 pub struct AppState {
     ocel: Arc<RwLock<Option<IndexLinkedOCEL>>>,
+    client: Arc<RwLock<Option<Client>>>,
+    jobs: Arc<RwLock<Vec<(String, u16, JoinHandle<()>)>>>,
 }
 
 #[tokio::main]
@@ -57,6 +63,8 @@ async fn main() {
     dbg!(args);
     let state = AppState {
         ocel: Arc::new(RwLock::new(None)),
+        client: Arc::new(RwLock::new(None)),
+        jobs: Arc::new(RwLock::new(Vec::default())),
     };
     let cors = CorsLayer::permissive();
     // .allow_methods([Method::GET, Method::POST])
@@ -108,6 +116,9 @@ async fn main() {
         .route("/ocel/object/:object_id", get(get_object_info_req))
         .route("/ocel/get-event", post(get_event_req))
         .route("/ocel/get-object", post(get_object_req))
+        .route("/hpc/login", post(login_to_hpc_web))
+        .route("/hpc/start", post(start_hpc_job_web))
+        .route("/hpc/job-status/:job_id", get(get_hpc_job_status_web))
         .with_state(state)
         .route("/", get(|| async { "Hello, Aaron!" }))
         .layer(cors);
@@ -118,7 +129,7 @@ async fn main() {
         .unwrap();
 }
 
-pub async fn get_loaded_ocel_info(
+async fn get_loaded_ocel_info(
     State(state): State<AppState>,
 ) -> (StatusCode, Json<Option<OCELInfo>>) {
     match with_ocel_from_state(&State(state), |ocel| (&ocel.ocel).into()) {
@@ -314,4 +325,59 @@ async fn get_object_req<'a>(
     let res = with_ocel_from_state(&state, |ocel| get_object_info(ocel, req)).flatten();
 
     Json(res)
+}
+
+async fn login_to_hpc_web<'a>(
+    State(state): State<AppState>,
+    Json(cfg): Json<ConnectionConfig>,
+) -> Result<Json<()>, (StatusCode, String)> {
+    let client = login_on_hpc(&cfg)
+        .await
+        .map_err(|er| (StatusCode::UNAUTHORIZED, er.to_string()))?;
+    let mut x = state.client.write().unwrap();
+    *x = Some(client);
+
+    Ok(Json(()))
+}
+
+async fn start_hpc_job_web(
+    State(state): State<AppState>,
+    Json(options): Json<OCPQJobOptions>,
+) -> Result<Json<String>, (StatusCode, String)> {
+    let x = state.client.write().unwrap().clone().unwrap();
+    let c = Arc::new(x);
+    let c2 = Arc::clone(&c);
+    let port: u16 = options
+        .port
+        .parse::<u16>()
+        .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+    let (folder_id, job_id) = submit_hpc_job(c, options)
+        .await
+        .map_err(|er| (StatusCode::BAD_REQUEST, er.to_string()))?;
+    let p = start_port_forwarding(
+        c2,
+        &format!("127.0.0.1:{}", port),
+        &format!("127.0.0.1:{}", port),
+    )
+    .await
+    .map_err(|er| (StatusCode::BAD_REQUEST, er.to_string()))?;
+
+    state.jobs.write().unwrap().push((job_id.clone(), port, p));
+    println!("Ceated job {} in folder {}", job_id, folder_id);
+    Ok(Json(job_id))
+}
+
+async fn get_hpc_job_status_web(
+    State(state): State<AppState>,
+    Path(job_id): Path<String>,
+) -> Result<Json<JobStatus>, (StatusCode, String)> {
+    let x = state.client.write().unwrap().clone().unwrap();
+    let c = Arc::new(x);
+    let status = get_job_status(c, job_id).await;
+    let status = status.map_err(|er| (StatusCode::BAD_REQUEST, er.to_string()))?;
+    Ok(Json(status))
+    // Err((
+    //     StatusCode::BAD_REQUEST,
+    //     String::from("No ssh client available."),
+    // ))
 }

@@ -1,9 +1,9 @@
 # OCPQ (Object-Centric Process Querying)
-[__Download__](https://github.com/aarkue/ocedeclare/releases/latest)
+[__Download__](https://github.com/aarkue/ocpq/releases/latest)
 
 
 ## Installation
-You can download the automatically cross-compiled installers for the latest release from [__github.com/aarkue/ocedeclare/releases/latest__](https://github.com/aarkue/ocedeclare/releases/latest).
+You can download the automatically cross-compiled installers for the latest release from [__github.com/aarkue/ocpq/releases/latest__](https://github.com/aarkue/ocpq/releases/latest).
 
 The following installer formats are available:
 - `[...].AppImage` for Linux (__Recommended for Linux__)
@@ -31,11 +31,11 @@ Alternatively, the docker files can of the frontend and backend can also be used
 #### Docker Files
 
 - __backend__:
-  1. First build using `sudo docker build ./backend -t ocedeclare-backend`
-  2. Then run with `docker run --init -p 3000:3000 ocedeclare-backend`
+  1. First build using `sudo docker build ./backend -t ocpq-backend`
+  2. Then run with `docker run --init -p 3000:3000 ocpq-backend`
 - __frontend__:
-  1. First build using `sudo docker build ./frontend -t ocedeclare-frontend`
-  2. Then run with `sudo docker run --init -p 4567:4567 ocedeclare-backend`
+  1. First build using `sudo docker build ./frontend -t ocpq-frontend`
+  2. Then run with `sudo docker run --init -p 4567:4567 ocpq-backend`
 
 
 ## Usage
