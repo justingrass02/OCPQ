@@ -72,7 +72,7 @@ impl IntoExcelData for CellContent<'_> {
                     format,
                 ),
                 s => IntoExcelData::write_with_format(
-                    format!("{:?}", s),
+                    format!("{}", s),
                     worksheet,
                     row,
                     col,
