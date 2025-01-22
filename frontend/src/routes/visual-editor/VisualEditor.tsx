@@ -24,12 +24,11 @@ import AlertHelper from "@/components/AlertHelper";
 import Spinner from "@/components/Spinner";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
-import { downloadURL } from "@/lib/download-url";
 import type { EventVariable } from "@/types/generated/EventVariable";
 import type { ObjectVariable } from "@/types/generated/ObjectVariable";
 import { ImageIcon } from "@radix-ui/react-icons";
 import clsx from "clsx";
-import { toPng, toSvg } from "html-to-image";
+import { toBlob, toPng, toSvg } from "html-to-image";
 import toast from "react-hot-toast";
 import {
   LuClipboardCopy,
@@ -746,18 +745,21 @@ export default function VisualEditor(props: VisualEditorProps) {
                 ".react-flow__viewport",
               ) as HTMLElement;
               const useSVG = ev.shiftKey;
-              void (useSVG ? toSvg : toPng)(viewPort, {
+              void (useSVG ? toSvg : toBlob)(viewPort, {
                 canvasHeight: viewPort.clientHeight * scaleFactor,
                 canvasWidth: viewPort.clientWidth * scaleFactor,
                 filter: (node) =>
                   node.classList === undefined ||
                   !node.classList.contains("hide-in-image"),
               })
-                .then((dataURL) => {
-                  downloadURL(
-                    dataURL,
-                    `${props.constraintInfo.name}.${useSVG ? "svg" : "png"}`,
-                  );
+                .then(async (dataURLOrBlob) => {
+                  let blob = dataURLOrBlob;
+                  if(typeof blob === 'string'){
+                    blob = await (await fetch(blob)).blob()
+                  }
+                  if(blob){
+                    backend["download-blob"](blob,`${props.constraintInfo.name}.${useSVG ? "svg" : "png"}`);
+                  }
                 })
                 .finally(() => {
                   button.disabled = false;
@@ -875,6 +877,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                 const measurePerformance = ev.shiftKey;
                 let objectIDs: string[] = [];
                 let eventIDs: string[] = [];
+                let nodeIdtoIndex: Record<string,number> = {};
                 if (measurePerformance) {
                   toast(
                     "Measuring performance by evaluating constraint 10+1 times. The first 10 execution times in seconds will be saved as a JSON file in your Downloads folder.",
@@ -920,6 +923,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                     });
                     tree.nodes.forEach((node, i) => {
                       evalNodes[nodesOrder[i].id] = node;
+                      nodeIdtoIndex[nodesOrder[i].id] = i;
                     });
                     objectIDs = res.objectIds;
                     eventIDs = res.eventIds;
@@ -930,6 +934,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                         objectIds: res.objectIds,
                         eventIds: res.eventIds,
                         evalNodes,
+                        nodeIdtoIndex
                       },
                     }));
                   }),
@@ -941,6 +946,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                       objectIds: objectIDs,
                       eventIds: eventIDs,
                       evalNodes,
+                      nodeIdtoIndex
                     },
                   });
                 });
@@ -1024,17 +1030,9 @@ export default function VisualEditor(props: VisualEditorProps) {
                         .then((res) => {
                           // Otherwise, it might be tauri export
                           if (res) {
-                            console.log(res);
-                            const url = URL.createObjectURL(res);
-                            downloadURL(
-                              url,
-                              `${
-                                props.constraintInfo.name
-                              }-export.${type.toLowerCase()}`,
-                            );
-                            // setTimeout(() => {
-                            URL.revokeObjectURL(url);
-                            // }, 1000);
+                            backend["download-blob"](res, `${
+                              props.constraintInfo.name
+                            }-export.${type.toLowerCase()}`);
                           }
                         });
                     }),

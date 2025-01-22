@@ -50,22 +50,19 @@ use crate::load_ocel::{
 };
 pub mod load_ocel;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct AppState {
     ocel: Arc<RwLock<Option<IndexLinkedOCEL>>>,
     client: Arc<RwLock<Option<Client>>>,
     jobs: Arc<RwLock<Vec<(String, u16, JoinHandle<()>)>>>,
+    eval_res: Arc<RwLock<Option<EvaluateBoxTreeResult>>>,
 }
 
 #[tokio::main]
 async fn main() {
     let args = env::args().collect_vec();
     dbg!(args);
-    let state = AppState {
-        ocel: Arc::new(RwLock::new(None)),
-        client: Arc::new(RwLock::new(None)),
-        jobs: Arc::new(RwLock::new(Vec::default())),
-    };
+    let state = AppState::default();
     let cors = CorsLayer::permissive();
     // .allow_methods([Method::GET, Method::POST])
     // .allow_headers([CONTENT_TYPE])
@@ -109,7 +106,7 @@ async fn main() {
             post(auto_discover_constraints_handler),
         )
         .route(
-            "/ocel/export-bindings-csv",
+            "/ocel/export-bindings",
             post(export_bindings_table).layer(DefaultBodyLimit::disable()),
         )
         .route("/ocel/event/:event_id", get(get_event_info_req))
@@ -230,17 +227,16 @@ pub async fn check_with_box_tree_req<'a>(
     state: State<AppState>,
     Json(req): Json<CheckWithBoxTreeRequest>,
 ) -> (StatusCode, Json<Option<EvaluateBoxTreeResult>>) {
-    with_ocel_from_state(&state, |ocel| {
-        (
-            StatusCode::OK,
-            Json(Some(evaluate_box_tree(
-                req.tree,
-                ocel,
-                req.measure_performance.unwrap_or(false),
-            ))),
-        )
-    })
-    .unwrap_or((StatusCode::INTERNAL_SERVER_ERROR, Json(None)))
+    let ocel_guard = state.ocel.read().unwrap();
+    let ocel = ocel_guard.as_ref();
+    if let Some(ocel) = ocel {
+        let res = evaluate_box_tree(req.tree, ocel, req.measure_performance.unwrap_or(false));
+        let res_to_ret = res.clone_first_few();
+        let mut new_eval_res_state = state.eval_res.write().unwrap();
+        *new_eval_res_state = Some(res);
+        return (StatusCode::OK, Json(Some(res_to_ret)));
+    }
+    (StatusCode::INTERNAL_SERVER_ERROR, Json(None))
 }
 
 pub async fn filter_export_with_box_tree_req<'a>(
@@ -281,17 +277,20 @@ pub async fn auto_discover_constraints_handler<'a>(
 
 pub async fn export_bindings_table(
     state: State<AppState>,
-    Json((eval_res, table_options)): Json<(EvaluationResultWithCount, TableExportOptions)>,
+    Json((node_index, table_options)): Json<(usize, TableExportOptions)>,
 ) -> (StatusCode, Bytes) {
-    with_ocel_from_state(&state, |ocel| {
-        let inner = Vec::new();
-        let mut w: Cursor<Vec<u8>> = Cursor::new(inner);
-        export_bindings_to_writer(ocel, &eval_res, &mut w, &table_options).unwrap();
-
-        let b = Bytes::from(w.into_inner());
-        (StatusCode::OK, b)
-    })
-    .unwrap_or((StatusCode::NOT_FOUND, Bytes::default()))
+    if let Some(ocel) = state.ocel.read().unwrap().as_ref() {
+        if let Some(eval_res) = state.eval_res.read().unwrap().as_ref() {
+            if let Some(node_eval_res) = eval_res.evaluation_results.get(node_index) {
+                let inner = Vec::new();
+                let mut w: Cursor<Vec<u8>> = Cursor::new(inner);
+                export_bindings_to_writer(ocel, &node_eval_res, &mut w, &table_options).unwrap();
+                let b = Bytes::from(w.into_inner());
+                return (StatusCode::OK, b);
+            }
+        }
+    }
+    return (StatusCode::NOT_FOUND, Bytes::default());
 }
 
 pub async fn get_event_info_req<'a>(
@@ -376,8 +375,4 @@ async fn get_hpc_job_status_web(
     let status = get_job_status(c, job_id).await;
     let status = status.map_err(|er| (StatusCode::BAD_REQUEST, er.to_string()))?;
     Ok(Json(status))
-    // Err((
-    //     StatusCode::BAD_REQUEST,
-    //     String::from("No ssh client available."),
-    // ))
 }

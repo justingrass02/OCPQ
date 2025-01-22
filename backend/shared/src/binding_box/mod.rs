@@ -28,6 +28,20 @@ pub struct EvaluateBoxTreeResult {
     pub event_ids: Vec<String>,
 }
 
+
+impl EvaluateBoxTreeResult {
+    pub fn clone_first_few(&self) -> Self {
+        Self {
+            evaluation_results: self.evaluation_results.iter().map(|res_with_count| EvaluationResultWithCount {
+                situations: res_with_count.situations.iter().take(100).map(|s| s.clone()).collect(),
+                situation_count: res_with_count.situation_count,
+                situation_violated_count: res_with_count.situation_violated_count,
+            }).collect(),
+            object_ids: self.object_ids.clone(),
+            event_ids: self.event_ids.clone(),
+        }
+    }
+}
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 
@@ -133,9 +147,9 @@ pub fn evaluate_box_tree(
 
     for (index, binding, viol) in evaluation_results_flat {
         let r = &mut evaluation_results[index];
-        if r.situations.len() < 1000 {
+        // if r.situations.len() < 1000 {
             r.situations.push((binding, viol));
-        }
+        // }
         r.situation_count += 1;
         if viol.is_some() {
             r.situation_violated_count += 1;

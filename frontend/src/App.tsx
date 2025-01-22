@@ -25,6 +25,7 @@ import { Label } from "./components/ui/label";
 import { Input } from "./components/ui/input";
 import { OCPQJobOptions } from "./types/generated/OCPQJobOptions";
 import clsx from "clsx";
+import { Combobox } from "./components/ui/combobox";
 const VALID_OCEL_MIME_TYPES = [
   "application/json",
   "text/json",
@@ -73,6 +74,7 @@ function App() {
         ["hpc/login"]: ownBackend["hpc/login"],
         ["hpc/start"]: ownBackend["hpc/start"],
         ["hpc/job-status"]: ownBackend["hpc/job-status"],
+        ["download-blob"]: ownBackend["download-blob"],
 
       } satisfies BackendProvider
     }
@@ -97,13 +99,22 @@ function App() {
             </AlertDialogHeader>
             <div className="text-sm text-gray-700 max-h-full overflow-auto px-2">
               <div>
+                {step === 0 &&
+                <div>
+                  {backendMode === "local" && <Input type="text" value={hpcOptions.port} onChange={(ev) => {
+                    setHpcOptions({...hpcOptions, port: ev.currentTarget.value});
+                  }}/>}
+                  <Button onClick={(e) => setBackendMode(m => m === "local" ? "hpc" : "local")}>Overwrite</Button>
+                  </div>
+                }
                 {backendMode === "local" &&
                   <>
                     {step === 0 &&
                       <p>Currently, all queries and constraints are executed on a locally provided backend (most likely the device you are reading this on).
                         <br />
                         <br />
-                        You can also run the backend on an HPC (High-performance computing) cluster, if you have the appropriate access credentials for such a cluster (i.e., student or employee at a larger university).</p>}
+                        You can also run the backend on an HPC (High-performance computing) cluster, if you have the appropriate access credentials for such a cluster (i.e., student or employee at a larger university).</p>
+                        }
                     {step === 1 && <>
                       <ConnectionConfigForm ref={connectionFormRef} onSubmit={(e) => {
                         console.log(e);

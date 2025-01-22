@@ -236,6 +236,9 @@ export default function VisualEditorOuter() {
       </div>
     );
   }
+  if(!ocelInfo){
+    return null;
+  }
 
   return (
     <div className="w-full h-full">

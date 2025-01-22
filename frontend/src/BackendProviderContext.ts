@@ -19,7 +19,7 @@ import { z } from "zod";
 import { ConnectionConfig, JobStatus } from "./types/hpc-backend";
 import { OCPQJobOptions } from "./types/generated/OCPQJobOptions";
 export type BackendProvider = {
-  "ocel/info": () => Promise<OCELInfo>;
+  "ocel/info": () => Promise<OCELInfo|undefined>;
   "ocel/upload"?: (file: File) => Promise<OCELInfo>;
   "ocel/available"?: () => Promise<string[]>;
   "ocel/load"?: (name: string) => Promise<OCELInfo>;
@@ -37,8 +37,8 @@ export type BackendProvider = {
   "ocel/discover-constraints": (
     autoDiscoveryOptions: DiscoverConstraintsRequest,
   ) => Promise<DiscoverConstraintsResponse>;
-  "ocel/export-bindings-csv": (
-    bindings: EvaluationResultWithCount,
+  "ocel/export-bindings": (
+    nodeIndex: number,
     options: TableExportOptions,
   ) => Promise<Blob | undefined>;
   "ocel/graph": (options: OCELGraphOptions) => Promise<{
@@ -54,6 +54,7 @@ export type BackendProvider = {
   "hpc/login": (connectionConfig: ConnectionConfig) => Promise<void>,
   "hpc/start": (jobOptions: OCPQJobOptions) => Promise<string>,
   "hpc/job-status": (jobID: string) => Promise<JobStatus>,
+  "download-blob": (blob: Blob, fileName: string) => unknown,
 };
 
 export async function warnForNoBackendProvider<T>(): Promise<T> {
@@ -70,13 +71,14 @@ export const ErrorBackendContext: BackendProvider = {
   "ocel/event-qualifiers": warnForNoBackendProvider,
   "ocel/object-qualifiers": warnForNoBackendProvider,
   "ocel/discover-constraints": warnForNoBackendProvider,
-  "ocel/export-bindings-csv": warnForNoBackendProvider,
+  "ocel/export-bindings": warnForNoBackendProvider,
   "ocel/graph": warnForNoBackendProvider,
   "ocel/get-event": warnForNoBackendProvider,
   "ocel/get-object": warnForNoBackendProvider,
   "hpc/login": warnForNoBackendProvider,
   "hpc/start": warnForNoBackendProvider,
   "hpc/job-status": warnForNoBackendProvider,
+  "download-blob": warnForNoBackendProvider,
 };
 
 export const BackendProviderContext = createContext<BackendProvider>(ErrorBackendContext);
@@ -157,11 +159,11 @@ export function getAPIServerBackendProvider(localBackendURL: string):  BackendPr
       })
     ).json();
   },
-  "ocel/export-bindings-csv": async (bindings, options) => {
-    const res = await fetch(localBackendURL + "/ocel/export-bindings-csv", {
+  "ocel/export-bindings": async (nodeId, options) => {
+    const res = await fetch(localBackendURL + "/ocel/export-bindings", {
       method: "post",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify([bindings, options]),
+      body: JSON.stringify([nodeId, options]),
     });
     if (res.ok) {
       return await res.blob();
@@ -250,5 +252,20 @@ export function getAPIServerBackendProvider(localBackendURL: string):  BackendPr
       }else{
         throw Error(await res.text())
       }
-  }}
+  },
+"download-blob": async (blob,fileName) => {
+    const dataURL = URL.createObjectURL(blob)
+    const a = document.createElement("a");
+    a.setAttribute("download", fileName);
+    // a.setAttribute("target", "_blank");
+    a.setAttribute("href", dataURL);
+    document.body.appendChild(a);
+    a.click();
+    // console.log(a);
+    document.body.removeChild(a);
+    setTimeout(() => {
+      URL.revokeObjectURL(dataURL);
+    },2000);
+
+}}
 };
