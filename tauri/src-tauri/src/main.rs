@@ -21,7 +21,7 @@ use ocedeclare_shared::{
     ocel_graph::{get_ocel_graph, OCELGraph, OCELGraphOptions},
     ocel_qualifiers::qualifiers::{get_qualifiers_for_event_types, QualifiersForEventType},
     preprocessing::linked_ocel::{link_ocel_info, IndexLinkedOCEL},
-    table_export::{export_bindings_to_csv_writer, TableExportFormat, TableExportOptions},
+    table_export::{export_bindings_to_writer, TableExportFormat, TableExportOptions},
     EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
 };
 use process_mining::{
@@ -152,7 +152,7 @@ fn export_bindings_csv(
     match state.lock().unwrap().as_ref() {
         Some(ocel) => {
             let mut writer = Cursor::new(Vec::new());
-            export_bindings_to_csv_writer(ocel, &bindings, &mut writer, &options).unwrap();
+            export_bindings_to_writer(ocel, &bindings, &mut writer, &options).unwrap();
             FileDialogBuilder::new()
                 .set_title("Save Filtered OCEL")
                 .add_filter("CSV Files", &["csv"])
