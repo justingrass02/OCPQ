@@ -38,7 +38,7 @@ impl<'b> IntoExcelData for CellContent<'b> {
                 OCELAttributeValue::Time(date_time) => {
                     IntoExcelData::write(&date_time.naive_utc(), worksheet, row, col)
                 }
-                s => IntoExcelData::write(format!("{:?}", s), worksheet, row, col),
+                s => IntoExcelData::write(format!("{}", s), worksheet, row, col),
             },
         }
     }
@@ -72,7 +72,7 @@ impl<'b> IntoExcelData for CellContent<'b> {
                     format,
                 ),
                 s => IntoExcelData::write_with_format(
-                    format!("{:?}", s),
+                    format!("{}", s),
                     worksheet,
                     row,
                     col,
