@@ -155,7 +155,11 @@ fn export_bindings_csv(
             export_bindings_to_writer(ocel, &bindings, &mut writer, &options).unwrap();
             FileDialogBuilder::new()
                 .set_title("Save Filtered OCEL")
-                .add_filter("CSV Files", &["csv"])
+                .add_filter("CSV/XLSX Files", &[
+                match options.format {
+                    TableExportFormat::CSV => "csv",
+                    TableExportFormat::XLSX => "xlsx",
+                }])
                 .set_file_name(&format!(
                     "situation-table.{}",
                     match options.format {
