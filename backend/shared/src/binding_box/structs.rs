@@ -332,9 +332,10 @@ impl BindingBoxTreeNode {
             Sat(Binding, EvaluationResults),
             Viol(Binding, ViolationReason, EvaluationResults),
         }
-        let re: Vec<_> = expanded
-            .into_par_iter()
-            // .with_min_len(100)
+        let expanded_len = expanded.len();
+        let it = rayon_cancel::CancelAdapter::new(expanded.into_par_iter());
+        let x = it.canceller();
+        let re: Vec<_> = it
             .map(|mut b| {
                 let _passed_size_filter = true;
                 // let mut all_res: EvaluationResults = Vec::new();
@@ -355,6 +356,16 @@ impl BindingBoxTreeNode {
                     child_res.insert(c_name, violations);
 
                     all_res.extend(c_res);
+                }
+                if all_res.len() * expanded_len > 10_000_000 {
+                    x.cancel();
+                    println!(
+                        "Too much too handle! {}*{}={}",
+                        expanded_len,
+                        all_res.len(),
+                        all_res.len() * expanded_len
+                    );
+                    // return BindingResult::FilteredOutBySizeFilter(b.clone(), Vec::default());
                 }
                 for label_fun in &bbox.labels {
                     add_cel_label(&mut b, Some(&child_res), ocel, label_fun);
@@ -467,7 +478,6 @@ impl BindingBoxTreeNode {
                 BindingResult::Sat(b, all_res)
             })
             .collect();
-
         re.into_par_iter()
             .fold(
                 || (EvaluationResults::new(), Vec::new()),

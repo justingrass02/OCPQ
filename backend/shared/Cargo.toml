@@ -26,3 +26,4 @@ ordered-float = {version = "4.4.0", features = ["default","serde"]}
 anyhow = "1.0.95"
 rust_slurm = { path = "/home/aarkue/doc/projects/rust-slurm/crates/rust_slurm/", features = ["ssh"]}
 tokio = { version = "1.43", features = ["full"] }
+rayon-cancel = "1.0.0"

@@ -3,7 +3,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use crate::preprocessing::linked_ocel::{EventOrObjectIndex, IndexLinkedOCEL};
 
 use super::structs::{Binding, BindingBox, BindingStep};
-
+const MAX_NUM_BINDINGS: usize = 2_000_000;
 /// This can slightly reduce memory usage by filtering out unfitting bindings before collecting into a vec
 /// However, the filters may be checked multiple times
 #[inline(always)]
@@ -93,7 +93,7 @@ impl BindingBox {
                                         None
                                     }
                                 })
-                        })
+                        }).take_any(MAX_NUM_BINDINGS)
                         .collect();
                 }
                 BindingStep::BindOb(ob_var) => {
@@ -112,7 +112,7 @@ impl BindingBox {
                                         ocel,
                                     )
                                 })
-                        })
+                        }).take_any(MAX_NUM_BINDINGS)
                         .collect();
                 }
                 BindingStep::BindObFromEv(ob_var, from_ev_var, qualifier) => {
@@ -140,7 +140,7 @@ impl BindingBox {
                                         ocel,
                                     )
                                 })
-                        })
+                        }).take_any(MAX_NUM_BINDINGS)
                         .collect();
                 }
                 BindingStep::BindObFromOb(ob_var_name, from_ob_var_name, qualifier, reversed) => {
@@ -178,7 +178,7 @@ impl BindingBox {
                                         None
                                     }
                                 })
-                        })
+                        }).take_any(MAX_NUM_BINDINGS)
                         .collect()
                 }
                 BindingStep::BindEvFromOb(ev_var_name, from_ob_var_name, qualifier) => {
@@ -215,7 +215,7 @@ impl BindingBox {
                                         None
                                     }
                                 })
-                        })
+                        }).take_any(MAX_NUM_BINDINGS)
                         .collect();
                 }
                 // _ => {}
@@ -226,12 +226,19 @@ impl BindingBox {
                         .collect()
                 }
             }
-            // sizes_per_step.push(ret.len())
+            // sizes_per_step.push(ret.len());
+            // 16_937_065
+            // let ret_size = ret.len() * ret.first().map(|b| b.event_map.len() + b.object_map.len() + 10 * b.label_map.len()).unwrap_or(1);
+            // println!("ret_size: {}",ret_size);
+            // if ret_size > 10_00_000 {
+            //     println!("Too large bindings! {} with {}",ret.len(),ret_size);
+            //     ret = ret.into_iter().take(100_000).collect();
+            // }
         }
-
+        
         // if !steps.is_empty() {
-        //     println!("Steps: {:?}", steps);
-        //     println!("Set sizes: {:?}", sizes_per_step);
+            //     println!("Steps: {:?}", steps);
+            // println!("Set sizes: {:?}", sizes_per_step);
         // }
         ret
     }

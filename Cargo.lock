@@ -2954,6 +2954,7 @@ dependencies = [
  "process_mining",
  "rand 0.8.5",
  "rayon",
+ "rayon-cancel",
  "rust_slurm",
  "rust_xlsxwriter",
  "serde",
@@ -3692,6 +3693,15 @@ checksum = "b418a60154510ca1a002a752ca9714984e21e4241e804d32555251faf8b78ffa"
 dependencies = [
  "either",
  "rayon-core",
+]
+
+[[package]]
+name = "rayon-cancel"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee4f327c66965c769eb84538cdb86b63ce33046f2ea0153d4d29606b241c5143"
+dependencies = [
+ "rayon",
 ]
 
 [[package]]
