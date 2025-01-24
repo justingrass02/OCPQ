@@ -28,15 +28,23 @@ pub struct EvaluateBoxTreeResult {
     pub event_ids: Vec<String>,
 }
 
-
 impl EvaluateBoxTreeResult {
     pub fn clone_first_few(&self) -> Self {
         Self {
-            evaluation_results: self.evaluation_results.iter().map(|res_with_count| EvaluationResultWithCount {
-                situations: res_with_count.situations.iter().take(100).map(|s| s.clone()).collect(),
-                situation_count: res_with_count.situation_count,
-                situation_violated_count: res_with_count.situation_violated_count,
-            }).collect(),
+            evaluation_results: self
+                .evaluation_results
+                .iter()
+                .map(|res_with_count| EvaluationResultWithCount {
+                    situations: res_with_count
+                        .situations
+                        .iter()
+                        .take(100)
+                        .map(|s| s.clone())
+                        .collect(),
+                    situation_count: res_with_count.situation_count,
+                    situation_violated_count: res_with_count.situation_violated_count,
+                })
+                .collect(),
             object_ids: self.object_ids.clone(),
             event_ids: self.event_ids.clone(),
         }
@@ -102,7 +110,10 @@ pub fn evaluate_box_tree(
         serde_json::to_writer_pretty(BufWriter::new(tree_json_file), &tree).unwrap();
         for _ in 0..n {
             let start = Instant::now();
-            let evaluation_results_flat = tree.evaluate(ocel);
+            let (evaluation_results_flat, bindings_skipped) = tree.evaluate(ocel);
+            if bindings_skipped {
+                eprintln!("Evaluation skipped bindings! Reported times are inaccurate!");
+            }
             // Also gather results in evaluation mode
             // if this should be included in the reported evaluation measurements of course depends...
             let mut evaluation_results = tree
@@ -133,8 +144,9 @@ pub fn evaluate_box_tree(
         println!("Evaluation time: {eval_times:?}");
     }
     let now = Instant::now();
-    let evaluation_results_flat = tree.evaluate(ocel);
+    let (evaluation_results_flat, bindings_skipped) = tree.evaluate(ocel);
     println!("Tree Evaluated in {:?}", now.elapsed());
+    println!("Skipped bindings? {bindings_skipped:?}");
     let mut evaluation_results = tree
         .nodes
         .iter()
@@ -148,7 +160,7 @@ pub fn evaluate_box_tree(
     for (index, binding, viol) in evaluation_results_flat {
         let r = &mut evaluation_results[index];
         // if r.situations.len() < 1000 {
-            r.situations.push((binding, viol));
+        r.situations.push((binding, viol));
         // }
         r.situation_count += 1;
         if viol.is_some() {
@@ -170,8 +182,11 @@ pub fn evaluate_box_tree(
 
 pub fn filter_ocel_box_tree(tree: BindingBoxTree, ocel: &IndexLinkedOCEL) -> Option<OCEL> {
     let now = Instant::now();
-    let evaluation_results_flat = tree.evaluate(ocel);
+    let (evaluation_results_flat, skipped_bindings) = tree.evaluate(ocel);
     println!("Tree Evaluated in {:?}", now.elapsed());
+    if skipped_bindings {
+        println!("Bindings were skipped!");
+    }
     // Filter/Export
     let filter_now = Instant::now();
     let mut ob_included_indices: HashSet<ObjectIndex> = HashSet::new();

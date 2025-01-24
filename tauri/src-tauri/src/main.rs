@@ -10,8 +10,7 @@ use std::{
 
 use ocpq_shared::{
     binding_box::{
-        evaluate_box_tree, filter_ocel_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult,
-        EvaluationResultWithCount, ExportFormat, FilterExportWithBoxTreeRequest,
+        evaluate_box_tree, filter_ocel_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult, ExportFormat, FilterExportWithBoxTreeRequest,
     },
     discovery::{
         auto_discover_constraints_with_options, AutoDiscoverConstraintsRequest,
@@ -26,7 +25,7 @@ use ocpq_shared::{
     ocel_qualifiers::qualifiers::{get_qualifiers_for_event_types, QualifiersForEventType},
     preprocessing::linked_ocel::{link_ocel_info, IndexLinkedOCEL},
     table_export::{
-        export_bindings_to_csv_writer, export_bindings_to_writer, TableExportFormat,
+        export_bindings_to_writer, TableExportFormat,
         TableExportOptions,
     },
     EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
