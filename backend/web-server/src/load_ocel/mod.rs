@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use process_mining::{
     event_log::ocel::ocel_struct::OCEL,
+    import_ocel_sqlite_from_path,
     ocel::xml_ocel_import::{import_ocel_xml_file_with, OCELImportOptions},
 };
 
@@ -34,7 +35,7 @@ pub async fn get_available_ocels() -> (StatusCode, Json<Option<Vec<String>>>) {
         for dir_entry in paths.flatten() {
             let path_buf = dir_entry.path();
             let path = path_buf.as_os_str().to_str().unwrap();
-            if path.ends_with(".json") || path.ends_with(".xml") {
+            if path.ends_with(".json") || path.ends_with(".xml") || path.ends_with(".sqlite") {
                 ocel_names.push(path.split('/').last().unwrap().to_string())
             }
         }
@@ -74,8 +75,12 @@ pub fn load_ocel_file(name: &str) -> Result<OCEL, std::io::Error> {
         let reader = BufReader::new(file);
         let ocel: OCEL = serde_json::from_reader(reader)?;
         Ok(ocel)
-    } else {
+    } else if name.ends_with(".xml") {
         let ocel = import_ocel_xml_file_with(&path, OCELImportOptions::default());
+        Ok(ocel)
+    } else {
+        let ocel = import_ocel_sqlite_from_path(&path)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::FileTooLarge, e))?;
         Ok(ocel)
     }
 }
