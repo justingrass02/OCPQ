@@ -44,10 +44,8 @@ export function columnsForBinding(
   node: BindingBoxTreeNode,
   addViolationStatus: boolean,
 ): ColumnDef<BindingInfo>[] {
+  // Use labels if they are present in (sample) binding
   let labels = Object.keys(binding.labelMap);
-  if ("Box" in node) {
-    labels = node.Box[0].labels?.map((l) => l.label) ?? labels;
-  }
 
   return [
     ...Object.entries(binding.objectMap).map(

@@ -24,10 +24,7 @@ use ocpq_shared::{
     ocel_graph::{get_ocel_graph, OCELGraph, OCELGraphOptions},
     ocel_qualifiers::qualifiers::{get_qualifiers_for_event_types, QualifiersForEventType},
     preprocessing::linked_ocel::{link_ocel_info, IndexLinkedOCEL},
-    table_export::{
-        export_bindings_to_writer, TableExportFormat,
-        TableExportOptions,
-    },
+    table_export::{export_bindings_to_writer, TableExportFormat, TableExportOptions},
     EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
 };
 use process_mining::{
@@ -178,7 +175,11 @@ async fn export_bindings_table(
             export_bindings_to_writer(ocel, &node_eval_res, &mut writer, &options).unwrap();
             FileDialogBuilder::new()
                 .set_title("Save Filtered OCEL")
-                .add_filter("CSV Files", &["csv"])
+                .add_filter("CSV/XLSX Files", &[
+                match options.format {
+                    TableExportFormat::CSV => "csv",
+                    TableExportFormat::XLSX => "xlsx",
+                }])
                 .set_file_name(&format!(
                     "situation-table.{}",
                     match options.format {

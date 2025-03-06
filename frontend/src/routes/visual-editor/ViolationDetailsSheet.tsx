@@ -45,10 +45,16 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
   const hasConstraints =
     "Box" in node ? node.Box[0].constraints.length > 0 : true;
 
-  const labels =
-    "Box" in node ? node.Box[0].labels?.map((l) => l.label) ?? [] : [];
-  const { showElementInfo, violationsPerNode } =
-    useContext(VisualEditorContext);
+    const { showElementInfo, violationsPerNode } =
+      useContext(VisualEditorContext);
+  const labels = useMemo(() => {
+    // If violation info is available (it should?!) determine labels based on the first binding
+    if(violationsPerNode?.evalRes[nodeID]?.situations &&  violationsPerNode?.evalRes[nodeID]?.situations.length > 0){
+      return Object.keys(violationsPerNode?.evalRes[nodeID]?.situations[0][0].labelMap)
+    }
+    return "Box" in node ? node.Box[0].labels?.map((l) => l.label) ?? [] : [];
+
+  },[nodeID,node,violationsPerNode])
   const [appliedCutoff, setAppliedCutoff] = useState<number | undefined>(
     DEFAULT_CUTOFF,
   );
