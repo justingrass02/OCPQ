@@ -357,7 +357,7 @@ impl BindingBoxTreeNode {
 
                     all_res.extend(c_res);
                 }
-                if all_res.len() * expanded_len > 10_000_000 {
+                if all_res.len() * expanded_len > 4_000_000 {
                     x.cancel();
                     // println!(
                     //     "Too much too handle! {}*{}={}",
