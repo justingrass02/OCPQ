@@ -229,6 +229,7 @@ dependencies = [
 [[package]]
 name = "async-ssh2-tokio"
 version = "0.8.12"
+source = "git+https://github.com/aarkue/rust-slurm#2ee4b3ffd0ee3dd183e4a92a492ab8fb2149bf7d"
 dependencies = [
  "async-trait",
  "russh",
@@ -2551,6 +2552,7 @@ dependencies = [
 [[package]]
 name = "rust_slurm"
 version = "0.1.0"
+source = "git+https://github.com/aarkue/rust-slurm#2ee4b3ffd0ee3dd183e4a92a492ab8fb2149bf7d"
 dependencies = [
  "anyhow",
  "async-ssh2-tokio",
