@@ -21,27 +21,32 @@ import { MouseEvent as ReactMouseEvent } from "react";
 
 import { BackendProviderContext } from "@/BackendProviderContext";
 import AlertHelper from "@/components/AlertHelper";
+import ElementInfoSheet from "@/components/ElementInfoSheet";
 import Spinner from "@/components/Spinner";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import "@/lib/editor-loader";
+import type { BindingBoxTreeNode } from "@/types/generated/BindingBoxTreeNode";
 import type { EventVariable } from "@/types/generated/EventVariable";
 import type { ObjectVariable } from "@/types/generated/ObjectVariable";
 import { ImageIcon } from "@radix-ui/react-icons";
 import clsx from "clsx";
-import { toBlob, toPng, toSvg } from "html-to-image";
+import { toBlob, toSvg } from "html-to-image";
 import toast from "react-hot-toast";
 import {
   LuClipboardCopy,
   LuClipboardPaste,
   LuFileSearch,
-  LuLayoutDashboard,
-  LuTrash,
+  LuLayoutDashboard
 } from "react-icons/lu";
-import { PiExport, PiExportBold, PiPlayFill } from "react-icons/pi";
+import { PiPlayFill } from "react-icons/pi";
 import { RxReset } from "react-icons/rx";
 import { TbFileExport, TbLogicAnd, TbPlus, TbSquare } from "react-icons/tb";
 import "reactflow/dist/style.css";
 import type { EventTypeQualifiers, OCELInfo, OCELType } from "../../types/ocel";
+import ViolationDetailsSheet from "./ViolationDetailsSheet";
 import { FlowContext } from "./helper/FlowContext";
 import { applyLayoutToNodes } from "./helper/LayoutFlow";
 import { VisualEditorContext } from "./helper/VisualEditorContext";
@@ -67,21 +72,6 @@ import {
   type EventTypeNodeData,
   type GateNodeData,
 } from "./helper/types";
-import type { BindingBoxTreeNode } from "@/types/generated/BindingBoxTreeNode";
-import ElementInfoSheet from "@/components/ElementInfoSheet";
-import ViolationDetailsSheet from "./ViolationDetailsSheet";
-import "@/lib/editor-loader";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuPortal,
-} from "@/components/ui/context-menu";
-import { BsFiletypeJson, BsFiletypeXml } from "react-icons/bs";
-import { Toggle } from "@/components/ui/toggle";
-import { Switch } from "@/components/ui/switch";
-import { CgExport } from "react-icons/cg";
-import { Label } from "@/components/ui/label";
 
 function isEditorElementTarget(el: HTMLElement | EventTarget | null) {
   return (
