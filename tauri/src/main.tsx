@@ -15,10 +15,14 @@ import type {
 } from "$/types/ocel";
 import type { DiscoverConstraintsResponse } from "$/routes/visual-editor/helper/types";
 import { BindingBoxTree } from "$/types/generated/BindingBoxTree";
+import { OCPQJobOptions } from "$/types/generated/OCPQJobOptions";
+import { ConnectionConfig, JobStatus } from "$/types/hpc-backend";
+import { save } from "@tauri-apps/api/dialog";
+import { writeBinaryFile } from "@tauri-apps/api/fs";
 
 const tauriBackend: BackendProvider = {
   "ocel/info": async () => {
-    const ocelInfo: OCELInfo = await invoke("get_current_ocel_info");
+    const ocelInfo: OCELInfo|undefined = await invoke("get_current_ocel_info");
     return ocelInfo;
   },
   "ocel/picker": async () => {
@@ -48,9 +52,9 @@ const tauriBackend: BackendProvider = {
       { options }
     );
   },
-  "ocel/export-bindings-csv": async (bindings, options) => {
-    const res: undefined = await invoke("export_bindings_csv",{bindings,options});
-     return undefined;
+  "ocel/export-bindings": async (nodeIndex, options) => {
+    const res: undefined = await invoke("export_bindings_table", { nodeIndex, options });
+    return undefined;
   },
   "ocel/graph": async (options) => {
     return await invoke("ocel_graph", { options });
@@ -62,11 +66,26 @@ const tauriBackend: BackendProvider = {
     return await invoke("get_object", { req });
   },
   "ocel/export-filter-box": async (tree: BindingBoxTree, format: "XML" | "JSON" | "SQLITE") => {
-   const res: undefined = await invoke("export_filter_box",{req: {tree, exportFormat: format}});
-  //  const blob = new Blob([res],{type: format === "JSON" ? 
-  //   "application/json" : (format === "XML" ? "text/xml" : "application/vnd.sqlite3")})
-  //  return blob;
+    const res: undefined = await invoke("export_filter_box", { req: { tree, exportFormat: format } });
+    //  const blob = new Blob([res],{type: format === "JSON" ? 
+    //   "application/json" : (format === "XML" ? "text/xml" : "application/vnd.sqlite3")})
+    //  return blob;
     return undefined;
+  },
+  "hpc/login": async (connectionConfig: ConnectionConfig): Promise<void> => {
+    return await invoke("login_to_hpc_tauri", { cfg: connectionConfig });
+  },
+  "hpc/start": async (jobOptions: OCPQJobOptions): Promise<string> => {
+    return await invoke("start_hpc_job_tauri", { options: jobOptions });
+  },
+  "hpc/job-status": async (jobID: string): Promise<JobStatus> => {
+    return await invoke("get_hpc_job_status_tauri", { jobId: jobID });
+  },
+  "download-blob": async (blob,fileName) => {
+    const filePath = await save({ defaultPath: fileName });
+    if(filePath){
+      await writeBinaryFile(filePath, await blob.arrayBuffer());
+    }
   }
 };
 

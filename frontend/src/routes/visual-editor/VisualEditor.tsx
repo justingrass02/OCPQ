@@ -21,28 +21,32 @@ import { MouseEvent as ReactMouseEvent } from "react";
 
 import { BackendProviderContext } from "@/BackendProviderContext";
 import AlertHelper from "@/components/AlertHelper";
+import ElementInfoSheet from "@/components/ElementInfoSheet";
 import Spinner from "@/components/Spinner";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
-import { downloadURL } from "@/lib/download-url";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import "@/lib/editor-loader";
+import type { BindingBoxTreeNode } from "@/types/generated/BindingBoxTreeNode";
 import type { EventVariable } from "@/types/generated/EventVariable";
 import type { ObjectVariable } from "@/types/generated/ObjectVariable";
 import { ImageIcon } from "@radix-ui/react-icons";
 import clsx from "clsx";
-import { toPng, toSvg } from "html-to-image";
+import { toBlob, toSvg } from "html-to-image";
 import toast from "react-hot-toast";
 import {
   LuClipboardCopy,
   LuClipboardPaste,
   LuFileSearch,
-  LuLayoutDashboard,
-  LuTrash,
+  LuLayoutDashboard
 } from "react-icons/lu";
-import { PiExport, PiExportBold, PiPlayFill } from "react-icons/pi";
+import { PiPlayFill } from "react-icons/pi";
 import { RxReset } from "react-icons/rx";
 import { TbFileExport, TbLogicAnd, TbPlus, TbSquare } from "react-icons/tb";
 import "reactflow/dist/style.css";
 import type { EventTypeQualifiers, OCELInfo, OCELType } from "../../types/ocel";
+import ViolationDetailsSheet from "./ViolationDetailsSheet";
 import { FlowContext } from "./helper/FlowContext";
 import { applyLayoutToNodes } from "./helper/LayoutFlow";
 import { VisualEditorContext } from "./helper/VisualEditorContext";
@@ -68,21 +72,6 @@ import {
   type EventTypeNodeData,
   type GateNodeData,
 } from "./helper/types";
-import type { BindingBoxTreeNode } from "@/types/generated/BindingBoxTreeNode";
-import ElementInfoSheet from "@/components/ElementInfoSheet";
-import ViolationDetailsSheet from "./ViolationDetailsSheet";
-import "@/lib/editor-loader";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuPortal,
-} from "@/components/ui/context-menu";
-import { BsFiletypeJson, BsFiletypeXml } from "react-icons/bs";
-import { Toggle } from "@/components/ui/toggle";
-import { Switch } from "@/components/ui/switch";
-import { CgExport } from "react-icons/cg";
-import { Label } from "@/components/ui/label";
 
 function isEditorElementTarget(el: HTMLElement | EventTarget | null) {
   return (
@@ -448,7 +437,7 @@ export default function VisualEditor(props: VisualEditorProps) {
       ev.preventDefault();
       if (ev.clipboardData !== null) {
         const data = JSON.stringify(selectedRef.current);
-        ev.clipboardData.setData("application/json+ocedeclare-flow", data);
+        ev.clipboardData.setData("application/json+ocpq-flow", data);
       }
       toast("Copied selection!", { icon: <LuClipboardCopy /> });
     }
@@ -462,7 +451,7 @@ export default function VisualEditor(props: VisualEditorProps) {
     //   ev.preventDefault();
     //   if (ev.clipboardData !== null) {
     //     const data = JSON.stringify(selectedRef.current);
-    //     ev.clipboardData.setData("application/json+ocedeclare-flow", data);
+    //     ev.clipboardData.setData("application/json+ocpq-flow", data);
     //     const nodeIDSet = new Set(selectedRef.current.nodes.map((n) => n.id));
     //     const edgeIDSet = new Set(selectedRef.current.edges.map((e) => e.id));
     //     instance.setNodes((ns) => ns.filter((n) => !nodeIDSet.has(n.id)));
@@ -489,7 +478,7 @@ export default function VisualEditor(props: VisualEditorProps) {
         //   ci.getAsString((s) => console.log(`- ${ci.type} - ${ci.kind}: ${s}`)),
         // );
         let pastedNodesAndEdges = ev.clipboardData.getData(
-          "application/json+ocedeclare-flow",
+          "application/json+ocpq-flow",
         );
         if (pastedNodesAndEdges === "") {
           pastedNodesAndEdges = ev.clipboardData.getData("text/plain");
@@ -499,7 +488,7 @@ export default function VisualEditor(props: VisualEditorProps) {
           //     pastedNodesAndEdges,
           //     "text/html",
           //   );
-          //   const el = parsedDom.getElementById("ocedeclare-json");
+          //   const el = parsedDom.getElementById("ocpq-json");
           //   console.log({ el });
           //   if (el !== null) {
           //     pastedNodesAndEdges = el.getAttribute("data-json");
@@ -746,18 +735,21 @@ export default function VisualEditor(props: VisualEditorProps) {
                 ".react-flow__viewport",
               ) as HTMLElement;
               const useSVG = ev.shiftKey;
-              void (useSVG ? toSvg : toPng)(viewPort, {
+              void (useSVG ? toSvg : toBlob)(viewPort, {
                 canvasHeight: viewPort.clientHeight * scaleFactor,
                 canvasWidth: viewPort.clientWidth * scaleFactor,
                 filter: (node) =>
                   node.classList === undefined ||
                   !node.classList.contains("hide-in-image"),
               })
-                .then((dataURL) => {
-                  downloadURL(
-                    dataURL,
-                    `${props.constraintInfo.name}.${useSVG ? "svg" : "png"}`,
-                  );
+                .then(async (dataURLOrBlob) => {
+                  let blob = dataURLOrBlob;
+                  if(typeof blob === 'string'){
+                    blob = await (await fetch(blob)).blob()
+                  }
+                  if(blob){
+                    backend["download-blob"](blob,`${props.constraintInfo.name}.${useSVG ? "svg" : "png"}`);
+                  }
                 })
                 .finally(() => {
                   button.disabled = false;
@@ -875,6 +867,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                 const measurePerformance = ev.shiftKey;
                 let objectIDs: string[] = [];
                 let eventIDs: string[] = [];
+                let nodeIdtoIndex: Record<string,number> = {};
                 if (measurePerformance) {
                   toast(
                     "Measuring performance by evaluating constraint 10+1 times. The first 10 execution times in seconds will be saved as a JSON file in your Downloads folder.",
@@ -920,6 +913,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                     });
                     tree.nodes.forEach((node, i) => {
                       evalNodes[nodesOrder[i].id] = node;
+                      nodeIdtoIndex[nodesOrder[i].id] = i;
                     });
                     objectIDs = res.objectIds;
                     eventIDs = res.eventIds;
@@ -930,6 +924,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                         objectIds: res.objectIds,
                         eventIds: res.eventIds,
                         evalNodes,
+                        nodeIdtoIndex
                       },
                     }));
                   }),
@@ -941,6 +936,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                       objectIds: objectIDs,
                       eventIds: eventIDs,
                       evalNodes,
+                      nodeIdtoIndex
                     },
                   });
                 });
@@ -1024,17 +1020,9 @@ export default function VisualEditor(props: VisualEditorProps) {
                         .then((res) => {
                           // Otherwise, it might be tauri export
                           if (res) {
-                            console.log(res);
-                            const url = URL.createObjectURL(res);
-                            downloadURL(
-                              url,
-                              `${
-                                props.constraintInfo.name
-                              }-export.${type.toLowerCase()}`,
-                            );
-                            // setTimeout(() => {
-                            URL.revokeObjectURL(url);
-                            // }, 1000);
+                            backend["download-blob"](res, `${
+                              props.constraintInfo.name
+                            }-export.${type.toLowerCase()}`);
                           }
                         });
                     }),

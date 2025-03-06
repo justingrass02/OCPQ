@@ -176,7 +176,7 @@ pub enum OCELNodeRef<'a> {
     Event(&'a OCELEvent),
     Object(&'a OCELObject),
 }
-impl<'a> OCELNodeRef<'a> {
+impl OCELNodeRef<'_> {
     pub fn cloned(self) -> OCELNode {
         match self {
             OCELNodeRef::Event(ev) => OCELNode::Event(ev.clone()),
@@ -415,8 +415,13 @@ pub fn link_ocel_info(ocel: OCEL) -> IndexLinkedOCEL {
         .into_iter()
         .map(|(t, count)| {
             let n = match &t {
-                EventOrObjectType::Event(et1) => events_of_type.get(et1).and_then(|e| Some(e.len())).unwrap_or_default(),
-                EventOrObjectType::Object(ot1) => objects_of_type.get(ot1).and_then(|o| Some(o.len())).unwrap_or_default(),
+                EventOrObjectType::Event(et1) => {
+                    events_of_type.get(et1).map(|e| e.len()).unwrap_or_default()
+                }
+                EventOrObjectType::Object(ot1) => objects_of_type
+                    .get(ot1)
+                    .map(|o| o.len())
+                    .unwrap_or_default(),
             };
 
             (t, count as f32 / n as f32)

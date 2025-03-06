@@ -13,7 +13,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
-import { downloadURL } from "@/lib/download-url";
 import type { BindingBoxTreeNode } from "@/types/generated/BindingBoxTreeNode";
 import { TableExportOptions } from "@/types/generated/TableExportOptions";
 import { Suspense, lazy, memo, useContext, useMemo, useState } from "react";
@@ -210,9 +209,11 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                     submitAction="Export"
                     onSubmit={async (data, ev) => {
                       try {
+                        const nodeIndex = violationsPerNode?.nodeIdtoIndex[nodeID];
+                        if(nodeIndex !== undefined){
                         const res = await toast.promise(
-                          backend["ocel/export-bindings-csv"](
-                            violationDetails,
+                          backend["ocel/export-bindings"](
+                            nodeIndex,
                             data,
                           ),
                           {
@@ -228,15 +229,17 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                           },
                         );
                         if (res !== undefined) {
-                          const url = URL.createObjectURL(res);
-                          downloadURL(url, `situation-table.${data.format === "CSV" ? "csv" : "xlsx"}`);
-                          URL.revokeObjectURL(url);
+                          backend["download-blob"](res, `situation-table.${data.format === "CSV" ? "csv" : "xlsx"}`);
+                        }else{
+                          console.log("CSV res was undefined", res);
                         }
+                      }
                       } catch (e) {
                         toast.error(String(e));
                         throw e;
                       }
                     }}
+                          
                   />
                 </div>
                 {numBindings > DEFAULT_CUTOFF && (

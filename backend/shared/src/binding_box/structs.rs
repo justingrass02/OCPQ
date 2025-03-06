@@ -199,13 +199,13 @@ pub struct BindingBoxTree {
 }
 
 impl BindingBoxTree {
-    pub fn evaluate(&self, ocel: &IndexLinkedOCEL) -> EvaluationResults {
+    pub fn evaluate(&self, ocel: &IndexLinkedOCEL) -> (EvaluationResults,bool) {
         if let Some(root) = self.nodes.first() {
-            let (ret, _violation) = root.evaluate(0, Binding::default(), self, ocel);
+            let ((ret, _violation),skipped) = root.evaluate(0, Binding::default(), self, ocel);
             // ret.push((0, Binding::default(), violation));
-            ret
+            (ret,skipped)
         } else {
-            vec![]
+            (vec![], false)
         }
     }
 
@@ -319,21 +319,23 @@ impl BindingBoxTreeNode {
         parent_binding: Binding,
         tree: &BindingBoxTree,
         ocel: &IndexLinkedOCEL,
-    ) -> (EvaluationResults, Vec<(Binding, Option<ViolationReason>)>) {
+    ) -> ((EvaluationResults, Vec<(Binding, Option<ViolationReason>)>),bool) {
         let (bbox, children) = match self.clone() {
             BindingBoxTreeNode::Box(b, cs) => (b, cs),
             x => x.to_box(),
         };
         // match self {
         //     BindingBoxTreeNode::Box(bbox, children) => {
-        let expanded: Vec<Binding> = bbox.expand(parent_binding.clone(), ocel);
+        let (expanded, expanding_skipped_bindings): (Vec<Binding>,bool) = bbox.expand(parent_binding.clone(), ocel);
         enum BindingResult {
             FilteredOutBySizeFilter(Binding, EvaluationResults),
             Sat(Binding, EvaluationResults),
             Viol(Binding, ViolationReason, EvaluationResults),
         }
-        let re: Vec<_> = expanded
-            .into_par_iter()
+        let expanded_len = expanded.len();
+        let it = rayon_cancel::CancelAdapter::new(expanded.into_par_iter());
+        let x = it.canceller();
+        let re: Vec<_> = it
             .map(|mut b| {
                 let _passed_size_filter = true;
                 // let mut all_res: EvaluationResults = Vec::new();
@@ -348,13 +350,22 @@ impl BindingBoxTreeNode {
                         .cloned()
                         .unwrap_or(format!("{UNNAMED}{c}"));
                     // c_name_map.insert(c_name.clone(), c);
-                    let (c_res, violations) =
+                    let ((c_res, violations), _c_skipped) =
                         // Evaluate Child
                             tree.nodes[*c].evaluate(*c, b.clone(), tree, ocel);
                     child_res.insert(c_name, violations);
 
-                    // This line determines if child results are always included
                     all_res.extend(c_res);
+                }
+                if all_res.len() * expanded_len > 4_000_000 {
+                    x.cancel();
+                    // println!(
+                    //     "Too much too handle! {}*{}={}",
+                    //     expanded_len,
+                    //     all_res.len(),
+                    //     all_res.len() * expanded_len
+                    // );
+                    // return BindingResult::FilteredOutBySizeFilter(b.clone(), Vec::default());
                 }
                 for label_fun in &bbox.labels {
                     add_cel_label(&mut b, Some(&child_res), ocel, label_fun);
@@ -467,8 +478,8 @@ impl BindingBoxTreeNode {
                 BindingResult::Sat(b, all_res)
             })
             .collect();
-
-        re.into_par_iter()
+        let recursive_calls_cancelled = x.is_cancelled();
+        (re.into_par_iter()
             .fold(
                 || (EvaluationResults::new(), Vec::new()),
                 |(mut a, mut b), x| match x {
@@ -495,7 +506,7 @@ impl BindingBoxTreeNode {
                     b.extend(y);
                     (a, b)
                 },
-            )
+            ),expanding_skipped_bindings || recursive_calls_cancelled)
 
         // let (passed_size_filter, sat, ret) = expanded
         //     .into_par_iter()

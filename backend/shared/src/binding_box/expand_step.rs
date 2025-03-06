@@ -3,7 +3,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use crate::preprocessing::linked_ocel::{EventOrObjectIndex, IndexLinkedOCEL};
 
 use super::structs::{Binding, BindingBox, BindingStep};
-
+const MAX_NUM_BINDINGS: usize = 2_000_000;
 /// This can slightly reduce memory usage by filtering out unfitting bindings before collecting into a vec
 /// However, the filters may be checked multiple times
 #[inline(always)]
@@ -28,7 +28,7 @@ fn check_next_filters(
 }
 
 impl BindingBox {
-    pub fn expand_empty(&self, ocel: &IndexLinkedOCEL) -> Vec<Binding> {
+    pub fn expand_empty(&self, ocel: &IndexLinkedOCEL) -> (Vec<Binding>,bool) {
         self.expand(Binding::default(), ocel)
     }
 
@@ -36,11 +36,11 @@ impl BindingBox {
         &self,
         ocel: &IndexLinkedOCEL,
         steps: &[BindingStep],
-    ) -> Vec<Binding> {
+    ) -> (Vec<Binding>, bool) {
         self.expand_with_steps(Binding::default(), ocel, steps)
     }
 
-    pub fn expand(&self, parent_binding: Binding, ocel: &IndexLinkedOCEL) -> Vec<Binding> {
+    pub fn expand(&self, parent_binding: Binding, ocel: &IndexLinkedOCEL) -> (Vec<Binding>, bool) {
         let order = BindingStep::get_binding_order(self, Some(&parent_binding), Some(ocel));
         self.expand_with_steps(parent_binding, ocel, &order)
     }
@@ -50,9 +50,10 @@ impl BindingBox {
         parent_binding: Binding,
         ocel: &IndexLinkedOCEL,
         steps: &[BindingStep],
-    ) -> Vec<Binding> {
+    ) -> (Vec<Binding>, bool) {
         let mut ret = vec![parent_binding];
-        let mut sizes_per_step: Vec<usize> = Vec::with_capacity(steps.len());
+        let mut bindings_skipped = false;
+        // let mut sizes_per_step: Vec<usize> = Vec::with_capacity(steps.len());
         for step_index in 0..steps.len() {
             let step = &steps[step_index];
             match &step {
@@ -94,6 +95,7 @@ impl BindingBox {
                                     }
                                 })
                         })
+                        .take_any(MAX_NUM_BINDINGS + 1)
                         .collect();
                 }
                 BindingStep::BindOb(ob_var) => {
@@ -113,6 +115,7 @@ impl BindingBox {
                                     )
                                 })
                         })
+                        .take_any(MAX_NUM_BINDINGS + 1)
                         .collect();
                 }
                 BindingStep::BindObFromEv(ob_var, from_ev_var, qualifier) => {
@@ -141,6 +144,7 @@ impl BindingBox {
                                     )
                                 })
                         })
+                        .take_any(MAX_NUM_BINDINGS + 1)
                         .collect();
                 }
                 BindingStep::BindObFromOb(ob_var_name, from_ob_var_name, qualifier, reversed) => {
@@ -179,6 +183,7 @@ impl BindingBox {
                                     }
                                 })
                         })
+                        .take_any(MAX_NUM_BINDINGS + 1)
                         .collect()
                 }
                 BindingStep::BindEvFromOb(ev_var_name, from_ob_var_name, qualifier) => {
@@ -216,6 +221,7 @@ impl BindingBox {
                                     }
                                 })
                         })
+                        .take_any(MAX_NUM_BINDINGS + 1)
                         .collect();
                 }
                 // _ => {}
@@ -226,13 +232,29 @@ impl BindingBox {
                         .collect()
                 }
             }
-            sizes_per_step.push(ret.len())
+            if ret.len() > MAX_NUM_BINDINGS {
+                bindings_skipped = true;
+                // Remove extra element (was just used to test if there are more)
+                ret.pop();
+            }
+            // sizes_per_step.push(ret.len());
+            // 16_937_065
+            // let ret_size = ret.len() * ret.first().map(|b| b.event_map.len() + b.object_map.len() + 10 * b.label_map.len()).unwrap_or(1);
+            // println!("ret_size: {}",ret_size);
+            // if ret_size > 10_00_000 {
+            //     println!("Too large bindings! {} with {}",ret.len(),ret_size);
+            //     ret = ret.into_iter().take(100_000).collect();
+            // }
         }
+
+        // if bindings_skipped {
+        //     println!("Skipped some elements!");
+        // }
 
         // if !steps.is_empty() {
         //     println!("Steps: {:?}", steps);
-        //     println!("Set sizes: {:?}", sizes_per_step);
+        // println!("Set sizes: {:?}", sizes_per_step);
         // }
-        ret
+        (ret, bindings_skipped)
     }
 }

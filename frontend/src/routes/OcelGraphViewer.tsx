@@ -5,7 +5,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { downloadURL } from "@/lib/download-url";
 import type { OCELGraphOptions } from "@/types/generated/OCELGraphOptions";
 import type { OCELEvent, OCELObject } from "@/types/ocel";
 import { ImageIcon } from "@radix-ui/react-icons";
@@ -45,6 +44,7 @@ export default function OcelGraphViewer({
     nodes: [],
     links: [],
   });
+  const backend = useContext(BackendProviderContext);
 
   const data = useMemo(() => {
     const gData = graphData;
@@ -177,8 +177,11 @@ export default function OcelGraphViewer({
             const canvas =
               ev.currentTarget.parentElement?.querySelector("canvas");
             if (canvas != null) {
-              const url = canvas.toDataURL();
-              downloadURL(url, "force-graph.png");
+              const url = canvas.toBlob((blob) => {
+                if(blob !== null){
+                  backend["download-blob"](blob,"force-graph.png")
+                }
+              },"image/png");
             }
           }}
         >
