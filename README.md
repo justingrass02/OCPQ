@@ -157,7 +157,7 @@ The discovered Constraints are automatically added to the list of constraints an
 We use `cargo` and `npm`, so please ensure they are available by installing them (i.e., Rust and Node).
 Then, install all dependencies (e.g., using `npm i` inside the `frontend` folder)
 
-For the full-stack web application navigate to the `backend` folder and run `cargo run --release` to start the backend and navigate to the `frontend` folder and execute `npm run dev` to start the frontend. 
+For the full-stack web application navigate to the `backend/web-server` folder and run `cargo run --release` to start the backend and navigate to the `frontend` folder and execute `npm run dev` to start the frontend. 
 By default, the backend server is available at `http://localhost:3000` while the frontend is available at `http://localhost:5173/`.
 
 
