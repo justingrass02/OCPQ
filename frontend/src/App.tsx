@@ -26,6 +26,7 @@ import { Input } from "./components/ui/input";
 import { OCPQJobOptions } from "./types/generated/OCPQJobOptions";
 import clsx from "clsx";
 import { Combobox } from "./components/ui/combobox";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./components/ui/accordion";
 const VALID_OCEL_MIME_TYPES = [
   "application/json",
   "text/json",
@@ -99,14 +100,6 @@ function App() {
             </AlertDialogHeader>
             <div className="text-sm text-gray-700 max-h-full overflow-auto px-2">
               <div>
-                {step === 0 &&
-                <div>
-                  {backendMode === "local" && <Input type="text" value={hpcOptions.port} onChange={(ev) => {
-                    setHpcOptions({...hpcOptions, port: ev.currentTarget.value});
-                  }}/>}
-                  <Button onClick={(e) => setBackendMode(m => m === "local" ? "hpc" : "local")}>Overwrite</Button>
-                  </div>
-                }
                 {backendMode === "local" &&
                   <>
                     {step === 0 &&
@@ -115,6 +108,22 @@ function App() {
                         <br />
                         You can also run the backend on an HPC (High-performance computing) cluster, if you have the appropriate access credentials for such a cluster (i.e., student or employee at a larger university).</p>
                         }
+
+                {step === 0 &&
+                <div><Accordion type="single" collapsible>
+                <AccordionItem value="item-1">
+                  <AccordionTrigger>Overwrite</AccordionTrigger>
+                  <AccordionContent>
+                    If you already have a backend running on another port, you can use this option to manually overwrite the used backend port.
+                  {backendMode === "local" && <Input type="text" value={hpcOptions.port} onChange={(ev) => {
+                    setHpcOptions({...hpcOptions, port: ev.currentTarget.value});
+                  }}/>}
+                  <Button onClick={(e) => setBackendMode(m => m === "local" ? "hpc" : "local")}>Overwrite</Button>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+                  </div>
+                }
                     {step === 1 && <>
                       <ConnectionConfigForm ref={connectionFormRef} onSubmit={(e) => {
                         console.log(e);

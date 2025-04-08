@@ -38,7 +38,7 @@ impl EvaluateBoxTreeResult {
                     situations: res_with_count
                         .situations
                         .iter()
-                        .take(100)
+                        .take(10_000)
                         .map(|s| s.clone())
                         .collect(),
                     situation_count: res_with_count.situation_count,

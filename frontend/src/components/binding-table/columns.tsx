@@ -69,7 +69,7 @@ export function columnsForBinding(
                 });
               }}
               rel="noreferrer"
-              className="max-w-[7.66rem] w-fit align-top whitespace-nowrap inline-block text-ellipsis overflow-hidden underline decoration decoration-blue-500/60 hover:decoration-blue-500"
+              className="max-w-[10rem] w-fit align-top whitespace-nowrap inline-block text-ellipsis overflow-hidden underline decoration decoration-blue-500/60 hover:decoration-blue-500"
             >
               {c.getValue<string>()}
             </Link>
@@ -141,12 +141,12 @@ export function columnsForBinding(
                 <div className="flex items-center gap-x-2 w-[7.66rem]">
                   {v === undefined && (
                     <div className="h-4 w-full flex items-center gap-x-2">
-                      <Checkbox disabled crossicon title="Satisfied" />
+                      <Checkbox disabled title="Satisfied" />
                     </div>
                   )}
                   {v !== undefined && (
                     <div className="h-4 w-full flex items-center gap-x-2 pr-1">
-                      <Checkbox disabled checked crossicon title="Violated" />
+                      <Checkbox disabled checked title="Violated" />
                       {(node as BindingBoxTreeNode & { Box: any })?.Box[0]
                         .constraints[v] != null && (
                         <FilterOrConstraintDisplay

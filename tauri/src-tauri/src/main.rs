@@ -99,7 +99,7 @@ async fn check_with_box_tree(
     match state.ocel.read().await.as_ref() {
         Some(ocel) => {
             let res = evaluate_box_tree(req.tree, ocel, req.measure_performance.unwrap_or(false));
-            let res_to_ret = res.clone_first_few();
+            // let res_to_ret = res.clone_first_few();
             *state.eval_res.write().await = Some(res);
             return Ok(res_to_ret);
         }
