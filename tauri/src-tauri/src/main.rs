@@ -10,7 +10,8 @@ use std::{
 
 use ocpq_shared::{
     binding_box::{
-        evaluate_box_tree, filter_ocel_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult, ExportFormat, FilterExportWithBoxTreeRequest,
+        evaluate_box_tree, filter_ocel_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult,
+        ExportFormat, FilterExportWithBoxTreeRequest,
     },
     discovery::{
         auto_discover_constraints_with_options, AutoDiscoverConstraintsRequest,
@@ -32,10 +33,9 @@ use process_mining::{
     import_ocel_json_from_path, import_ocel_sqlite_from_path, import_ocel_xml_file,
 };
 use tauri::{
-    api::dialog::FileDialogBuilder,
-    async_runtime::{JoinHandle, RwLock},
-    State,
+    async_runtime::{JoinHandle, RwLock}, AppHandle, State
 };
+use tauri_plugin_dialog::DialogExt;
 
 #[derive(Clone, Debug, Default)]
 pub struct AppState {
@@ -111,6 +111,7 @@ async fn check_with_box_tree(
 async fn export_filter_box(
     req: FilterExportWithBoxTreeRequest,
     state: State<'_, AppState>,
+    app: AppHandle
 ) -> Result<(), String> {
     let res = match state.ocel.read().await.as_ref() {
         Some(ocel) => {
@@ -121,7 +122,7 @@ async fn export_filter_box(
     }
     .unwrap();
 
-    FileDialogBuilder::new()
+    app.dialog().file()
         .set_title("Save Filtered OCEL")
         .add_filter(
             format!("OCEL {:?} Files", req.export_format),
@@ -130,18 +131,20 @@ async fn export_filter_box(
         .set_file_name(format!("filtered-export.{}", req.export_format.to_extension()).as_str())
         .save_file(move |f| {
             if let Some(path) = f {
-                if let Ok(_file) = File::open(&path) {
-                    let _ = std::fs::remove_file(&path);
-                }
-                match req.export_format {
-                    ExportFormat::XML => {
-                        export_ocel_xml_path(&res, path).unwrap();
+                if let Some(path) =  path.as_path() {
+                    if let Ok(_file) = File::open(path) {
+                        let _ = std::fs::remove_file(&path);
                     }
-                    ExportFormat::JSON => {
-                        export_ocel_json_path(&res, path).unwrap();
-                    }
-                    ExportFormat::SQLITE => {
-                        export_ocel_sqlite_to_path(&res, path).unwrap();
+                    match req.export_format {
+                        ExportFormat::XML => {
+                            export_ocel_xml_path(&res, path).unwrap();
+                        }
+                        ExportFormat::JSON => {
+                            export_ocel_json_path(&res, path).unwrap();
+                        }
+                        ExportFormat::SQLITE => {
+                            export_ocel_sqlite_to_path(&res, path).unwrap();
+                        }
                     }
                 }
             }
@@ -164,6 +167,7 @@ async fn export_bindings_table(
     node_index: usize,
     options: TableExportOptions,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<(), String> {
     if let Some(ocel) = state.ocel.read().await.as_ref() {
         let mut writer = Cursor::new(Vec::new());
@@ -173,13 +177,15 @@ async fn export_bindings_table(
             .and_then(|e_res| e_res.evaluation_results.get(node_index));
         if let Some(node_eval_res) = eval_res {
             export_bindings_to_writer(ocel, &node_eval_res, &mut writer, &options).unwrap();
-            FileDialogBuilder::new()
+            app.dialog().file()
                 .set_title("Save Filtered OCEL")
-                .add_filter("CSV/XLSX Files", &[
-                match options.format {
-                    TableExportFormat::CSV => "csv",
-                    TableExportFormat::XLSX => "xlsx",
-                }])
+                .add_filter(
+                    "CSV/XLSX Files",
+                    &[match options.format {
+                        TableExportFormat::CSV => "csv",
+                        TableExportFormat::XLSX => "xlsx",
+                    }],
+                )
                 .set_file_name(&format!(
                     "situation-table.{}",
                     match options.format {
@@ -189,11 +195,13 @@ async fn export_bindings_table(
                 ))
                 .save_file(move |f| {
                     if let Some(path) = f {
-                        if let Ok(_file) = File::open(&path) {
-                            let _ = std::fs::remove_file(&path);
+                        if let Some(path) = path.as_path() {
+                            if let Ok(_file) = File::open(&path) {
+                                let _ = std::fs::remove_file(&path);
+                            }
+                            let mut f = File::create(path).unwrap();
+                            f.write_all(&writer.into_inner()).unwrap();
                         }
-                        let mut f = File::create(path).unwrap();
-                        f.write_all(&writer.into_inner()).unwrap();
                     }
                 });
             return Ok(());
@@ -289,6 +297,8 @@ async fn get_hpc_job_status_tauri(
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
             import_ocel,

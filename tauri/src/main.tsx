@@ -7,7 +7,7 @@ import {
   type BackendProvider,
   BackendProviderContext,
 } from "$/BackendProviderContext";
-import { dialog, invoke } from "@tauri-apps/api";
+import {  invoke } from "@tauri-apps/api/core";
 import type {
   EventTypeQualifiers,
   OCELInfo,
@@ -17,8 +17,9 @@ import type { DiscoverConstraintsResponse } from "$/routes/visual-editor/helper/
 import { BindingBoxTree } from "$/types/generated/BindingBoxTree";
 import { OCPQJobOptions } from "$/types/generated/OCPQJobOptions";
 import { ConnectionConfig, JobStatus } from "$/types/hpc-backend";
-import { save } from "@tauri-apps/api/dialog";
-import { writeBinaryFile } from "@tauri-apps/api/fs";
+import { save } from "@tauri-apps/plugin-dialog";
+import { writeFile } from "@tauri-apps/plugin-fs";
+import * as dialog from "@tauri-apps/plugin-dialog"
 
 const tauriBackend: BackendProvider = {
   "ocel/info": async () => {
@@ -84,7 +85,7 @@ const tauriBackend: BackendProvider = {
   "download-blob": async (blob,fileName) => {
     const filePath = await save({ defaultPath: fileName });
     if(filePath){
-      await writeBinaryFile(filePath, await blob.arrayBuffer());
+      await writeFile(filePath, new Uint8Array(await blob.arrayBuffer()));
     }
   }
 };
