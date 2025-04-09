@@ -1,5 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
+  "productName": "OCPQ",
+  "mainBinaryName": "OCPQ",
+  "version": "0.7.1",
+  "identifier": "eu.aarkue.ocpq",
   "build": {
     "beforeBuildCommand": "cross-env NODE_OPTIONS=\"--max_old_space_size=4096\" npm run build",
     "beforeDevCommand": "npm run dev",
@@ -34,7 +38,7 @@
       "exceptionDomain": "",
       "frameworks": [],
       "providerShortName": null,
-      "signingIdentity": null
+      "signingIdentity": "-"
     },
     "resources": [],
     "shortDescription": "",
@@ -44,10 +48,6 @@
       }
     }
   },
-  "productName": "OCPQ",
-  "mainBinaryName": "OCPQ",
-  "version": "0.7.0",
-  "identifier": "eu.aarkue.ocpq",
   "plugins": {},
   "app": {
     "windows": [
