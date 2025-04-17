@@ -27,7 +27,7 @@ const DataTablePaginationLazy = lazy(
   async () => await import("@/components/binding-table/PaginatedBindingTable"),
 ) as typeof PaginatedBindingTable;
 
-const DEFAULT_CUTOFF = 20_000;
+const DEFAULT_CUTOFF = 10_000;
 const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
   violationResPerNodes,
   reset,
@@ -247,7 +247,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                     {appliedCutoff !== undefined
                       ? `For performance reasons, only the first ${DEFAULT_CUTOFF} output bindings are shown.`
                       : "All output bindings are shown."}
-                    <Button
+                    {/* <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => {
@@ -259,7 +259,7 @@ const ViolationDetailsSheet = memo(function ViolationDetailsSheet({
                       }}
                     >
                       {appliedCutoff !== undefined ? "Show All" : "Undo"}
-                    </Button>
+                    </Button> */}
                   </div>
                 )}
               </div>

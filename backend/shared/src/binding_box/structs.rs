@@ -341,7 +341,7 @@ impl BindingBoxTreeNode {
                 // let mut all_res: EvaluationResults = Vec::new();
                 // let mut child_res: HashMap<String, Vec<(Binding, Option<ViolationReason>)>> =
                 //     HashMap::new();
-                let mut all_res = Vec::with_capacity(children.len());
+                let mut all_res = Vec::new();
                 let mut child_res = HashMap::with_capacity(children.len());
                 for c in &children {
                     let c_name = tree
@@ -354,18 +354,18 @@ impl BindingBoxTreeNode {
                         // Evaluate Child
                             tree.nodes[*c].evaluate(*c, b.clone(), tree, ocel);
                     child_res.insert(c_name, violations);
+                    if children.len() * c_res.len() * expanded_len > 100_000_000 {
+                        x.cancel();
+                        println!(
+                            "Too much too handle! {}*{}*{}={}",
+                            child_res.len(),
+                            c_res.len(),
+                            expanded_len,
+                            children.len() * c_res.len() * expanded_len
+                        );
+                    }
 
                     all_res.extend(c_res);
-                }
-                if all_res.len() * expanded_len > 4_000_000 {
-                    x.cancel();
-                    // println!(
-                    //     "Too much too handle! {}*{}={}",
-                    //     expanded_len,
-                    //     all_res.len(),
-                    //     all_res.len() * expanded_len
-                    // );
-                    // return BindingResult::FilteredOutBySizeFilter(b.clone(), Vec::default());
                 }
                 for label_fun in &bbox.labels {
                     add_cel_label(&mut b, Some(&child_res), ocel, label_fun);

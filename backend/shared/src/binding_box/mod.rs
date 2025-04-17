@@ -26,6 +26,7 @@ pub struct EvaluateBoxTreeResult {
     pub evaluation_results: Vec<EvaluationResultWithCount>,
     pub object_ids: Vec<String>,
     pub event_ids: Vec<String>,
+    pub bindings_skipped: bool,
 }
 
 impl EvaluateBoxTreeResult {
@@ -47,6 +48,7 @@ impl EvaluateBoxTreeResult {
                 .collect(),
             object_ids: self.object_ids.clone(),
             event_ids: self.event_ids.clone(),
+            bindings_skipped: self.bindings_skipped,
         }
     }
 }
@@ -146,7 +148,9 @@ pub fn evaluate_box_tree(
     let now = Instant::now();
     let (evaluation_results_flat, bindings_skipped) = tree.evaluate(ocel);
     println!("Tree Evaluated in {:?}", now.elapsed());
-    println!("Skipped bindings? {bindings_skipped:?}");
+    if bindings_skipped {
+        println!("[!!!] Query yielded too many results. Some bindings were skipped. Reported counts are inaccurate!");
+    }
     let mut evaluation_results = tree
         .nodes
         .iter()
@@ -177,6 +181,7 @@ pub fn evaluate_box_tree(
         evaluation_results,
         object_ids: ocel.ocel.objects.iter().map(|o| o.id.clone()).collect(),
         event_ids: ocel.ocel.events.iter().map(|o| o.id.clone()).collect(),
+        bindings_skipped
     }
 }
 
