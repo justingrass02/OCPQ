@@ -5,6 +5,7 @@ import OcelInfoViewer from "./routes/ocel-info/OcelInfoViewer.tsx";
 import ErrorPage from "./ErrorPage.tsx";
 import OcelGraphViewer from "./routes/OcelGraphViewer.tsx";
 import OcelElementViewer from "./routes/OcelElementViewer.tsx";
+import { Toaster } from "react-hot-toast";
 
 const router = createBrowserRouter([
   {
@@ -20,4 +21,7 @@ const router = createBrowserRouter([
   },
 ]);
 
-export const MainRouterProvider = () => <RouterProvider router={router} />;
+export const MainRouterProvider = () => <>
+  <Toaster position="bottom-left" />
+  <RouterProvider router={router} />;
+</>

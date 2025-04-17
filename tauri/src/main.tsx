@@ -94,7 +94,6 @@ const tauriBackend: BackendProvider = {
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BackendProviderContext.Provider value={tauriBackend}>
-      <Toaster position="bottom-left" />
       <MainRouterProvider />
     </BackendProviderContext.Provider>
   </React.StrictMode>,
