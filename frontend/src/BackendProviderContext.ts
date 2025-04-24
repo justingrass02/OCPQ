@@ -55,6 +55,9 @@ export type BackendProvider = {
   "hpc/start": (jobOptions: OCPQJobOptions) => Promise<string>,
   "hpc/job-status": (jobID: string) => Promise<JobStatus>,
   "download-blob": (blob: Blob, fileName: string) => unknown,
+  "translate-to-sql": (
+    tree: BindingBoxTree)
+    => Promise<string>,
 };
 
 export async function warnForNoBackendProvider<T>(): Promise<T> {
@@ -79,6 +82,7 @@ export const ErrorBackendContext: BackendProvider = {
   "hpc/start": warnForNoBackendProvider,
   "hpc/job-status": warnForNoBackendProvider,
   "download-blob": warnForNoBackendProvider,
+  "translate-to-sql": warnForNoBackendProvider,
 };
 
 export const BackendProviderContext = createContext<BackendProvider>(ErrorBackendContext);
@@ -267,5 +271,18 @@ export function getAPIServerBackendProvider(localBackendURL: string):  BackendPr
       URL.revokeObjectURL(dataURL);
     },2000);
 
-}}
+},
+"translate-to-sql": async (tree) => {
+  const res = await fetch(localBackendURL + "translate-to-sql",{
+    method: "post",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({tree}),
+  });
+  if(res.ok){
+    return await res.json()
+  }else{
+    throw Error(await res.text())
+  }
+  }
+}
 };
