@@ -44,6 +44,7 @@ import {
 import { PiPlayFill } from "react-icons/pi";
 import { RxReset } from "react-icons/rx";
 import { TbFileExport, TbLogicAnd, TbPlus, TbSquare } from "react-icons/tb";
+import { TbFileTypeSql } from "react-icons/tb";
 import "reactflow/dist/style.css";
 import type { EventTypeQualifiers, OCELInfo, OCELType } from "../../types/ocel";
 import ViolationDetailsSheet from "./ViolationDetailsSheet";
@@ -839,6 +840,20 @@ export default function VisualEditor(props: VisualEditorProps) {
               className="absolute right-1.5 bottom-1.5"
             />
           </Button>
+          <Button
+                 variant="outline"
+                 title="Translate to SQL"
+                 className="bg-white relative"
+                 onClick={() => {
+                    // TODO: implement translation logic
+                  }}
+                >
+                <TbFileTypeSql
+              strokeWidth={"2px"}
+              size={20}
+              className="absolute right-1.5 bottom-1.5"
+                />
+              </Button>
           <div className="flex flex-col items-center gap-y-1 min-w-[3rem] min-h-[5rem]">
             <label className="flex flex-col text-sm">
               Filter
