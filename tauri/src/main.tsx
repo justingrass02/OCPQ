@@ -87,6 +87,9 @@ const tauriBackend: BackendProvider = {
     if(filePath){
       await writeFile(filePath, new Uint8Array(await blob.arrayBuffer()));
     }
+  },
+  "translate-to-sql": async (tree:BindingBoxTree): Promise<string> =>{
+    return await invoke("translate_to_sql_tauri",{tree});
   }
 };
 
