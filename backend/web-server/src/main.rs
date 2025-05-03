@@ -115,6 +115,7 @@ async fn main() {
         .route("/hpc/login", post(login_to_hpc_web))
         .route("/hpc/start", post(start_hpc_job_web))
         .route("/hpc/job-status/:job_id", get(get_hpc_job_status_web))
+        .route("translate-to-sql", post(translate_to_sql))
         .with_state(state)
         .route("/", get(|| async { "Hello, Aaron!" }))
         .layer(cors);
@@ -375,3 +376,8 @@ async fn get_hpc_job_status_web(
     let status = status.map_err(|er| (StatusCode::BAD_REQUEST, er.to_string()))?;
     Ok(Json(status))
 }
+
+async fn translate_to_sql(
+    State(state): State<AppState>
+    
+)-> Result<String, (StatusCode, String)>{}

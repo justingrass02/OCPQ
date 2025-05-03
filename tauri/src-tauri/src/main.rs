@@ -10,8 +10,7 @@ use std::{
 
 use ocpq_shared::{
     binding_box::{
-        evaluate_box_tree, filter_ocel_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult,
-        ExportFormat, FilterExportWithBoxTreeRequest,
+        evaluate_box_tree, filter_ocel_box_tree, BindingBoxTree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult, ExportFormat, FilterExportWithBoxTreeRequest
     },
     discovery::{
         auto_discover_constraints_with_options, AutoDiscoverConstraintsRequest,
@@ -295,6 +294,14 @@ async fn get_hpc_job_status_tauri(
     Ok(status)
 }
 
+#[tauri::command(async)]
+async  fn translate_to_sql_tauri(
+    tree: BindingBoxTree,
+    state: State<'_, AppState>,
+)-> Result<(),String>{
+
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
@@ -314,7 +321,8 @@ fn main() {
             get_object,
             login_to_hpc_tauri,
             start_hpc_job_tauri,
-            get_hpc_job_status_tauri
+            get_hpc_job_status_tauri,
+            translate_to_sql_tauri
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
