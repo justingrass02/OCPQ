@@ -1119,3 +1119,29 @@ impl Display for EventVariable {
         write!(f, "ev_{}", self.0)
     }
 }
+
+
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct InterMediateNode{
+    pub event_vars: NewEventVariables,
+    pub object_vars: NewObjectVariables,
+   // pub relations: Vec<Relation> TODO: Need to define Relation enum
+  //  pub inter_filter: Vec<InterFilter> TODO: Need to define InterFilter, also  decision which Filter to implement
+  // Children Attributes will be represented in InterMediateTree
+
+}
+
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
+#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InterMediateTree{
+    pub nodes: Vec<InterMediateNode>,
+    #[serde_as(as = "Vec<(_, _)>")]
+    #[ts(as = "Vec<((usize, usize), String)>")]
+    pub edge_names: HashMap<(usize, usize), String>,
+}
