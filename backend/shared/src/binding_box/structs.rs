@@ -1128,7 +1128,7 @@ impl Display for EventVariable {
 pub struct InterMediateNode{
     pub event_vars: NewEventVariables,
     pub object_vars: NewObjectVariables,
-   // pub relations: Vec<Relation> TODO: Need to define Relation enum
+    pub relations: Vec<Relation>
   //  pub inter_filter: Vec<InterFilter> TODO: Need to define InterFilter, also  decision which Filter to implement
   // Children Attributes will be represented in InterMediateTree
 
@@ -1144,4 +1144,21 @@ pub struct InterMediateTree{
     #[serde_as(as = "Vec<(_, _)>")]
     #[ts(as = "Vec<((usize, usize), String)>")]
     pub edge_names: HashMap<(usize, usize), String>,
+}
+
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum Relation{
+    E20{
+        event: EventVariable,
+        object: ObjectVariable,
+        qualifier: Qualifier
+    },
+    O2O{
+        object_1: ObjectVariable,
+        object_2: ObjectVariable,
+        qualifier: Qualifier
+    }
 }
