@@ -299,7 +299,7 @@ async  fn translate_to_sql_tauri(
     tree: BindingBoxTree,
     state: State<'_, AppState>,
 )-> Result<(),String>{
-
+    todo!();
 }
 
 fn main() {

@@ -17,7 +17,7 @@ use std::{
 
 use ocpq_shared::{
     binding_box::{
-        evaluate_box_tree, filter_ocel_box_tree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult, ExportFormat, FilterExportWithBoxTreeRequest,
+        evaluate_box_tree, filter_ocel_box_tree, structs::InterMediateNode, BindingBoxTree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult, ExportFormat, FilterExportWithBoxTreeRequest
     },
     discovery::{
         auto_discover_constraints_with_options, AutoDiscoverConstraintsRequest,
@@ -378,6 +378,11 @@ async fn get_hpc_job_status_web(
 }
 
 // TODO: function args and everything
-async fn translate_to_sql(){}
+async fn translate_to_sql(
+    State(state): State<AppState>,
+    Json(tree): Json<BindingBoxTree>
+)-> Result<Json<String>, (StatusCode, String)>{
+    todo!();
+}
 
 
