@@ -73,6 +73,7 @@ import {
   type EventTypeNodeData,
   type GateNodeData,
 } from "./helper/types";
+import { error } from "console";
 
 function isEditorElementTarget(el: HTMLElement | EventTarget | null) {
   return (
@@ -845,7 +846,13 @@ export default function VisualEditor(props: VisualEditorProps) {
                  title="Translate to SQL"
                  className="bg-white relative"
                  onClick={() => {
-                    // TODO: implement translation logic
+                  const subTrees = evaluateConstraints(
+                  instance.getNodes(),
+                  instance.getEdges(),
+                );  
+                  for (const tree of subTrees){
+                  backend["translate-to-sql"](tree.tree).then((x)=> {console.log(x)}).catch((x)=> {console.error(x)})
+                  }
                   }}
                 >
                 <TbFileTypeSql

@@ -26,6 +26,12 @@ use ocpq_shared::{
     preprocessing::linked_ocel::{link_ocel_info, IndexLinkedOCEL},
     table_export::{export_bindings_to_writer, TableExportFormat, TableExportOptions},
     EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
+
+
+    translation::{
+        translate_to_sqlShared
+    }
+
 };
 use process_mining::{
     export_ocel_json_path, export_ocel_sqlite_to_path, export_ocel_xml_path,
@@ -297,9 +303,9 @@ async fn get_hpc_job_status_tauri(
 #[tauri::command(async)]
 async  fn translate_to_sql_tauri(
     tree: BindingBoxTree,
-    state: State<'_, AppState>,
-)-> Result<(),String>{
-    todo!();
+)-> Result<String, String>{
+    let res = translate_to_sqlShared(tree);
+    Ok(res)
 }
 
 fn main() {

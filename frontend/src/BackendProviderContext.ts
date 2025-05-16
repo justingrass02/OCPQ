@@ -273,10 +273,10 @@ export function getAPIServerBackendProvider(localBackendURL: string):  BackendPr
 
 },
 "translate-to-sql": async (tree) => {
-  const res = await fetch(localBackendURL + "translate-to-sql",{
+  const res = await fetch(localBackendURL + "/translate-to-sql",{
     method: "post",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({tree}),
+    body: JSON.stringify(tree),
   });
   if(res.ok){
     return await res.json()

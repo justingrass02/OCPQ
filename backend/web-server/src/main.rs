@@ -35,6 +35,10 @@ use ocpq_shared::{
     preprocessing::{linked_ocel::IndexLinkedOCEL, preprocess::link_ocel_info},
     table_export::{export_bindings_to_writer, TableExportOptions},
     EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
+    
+    translation::{
+        translate_to_sqlShared
+    },
 };
 use process_mining::{
     event_log::ocel::ocel_struct::OCEL,
@@ -379,10 +383,11 @@ async fn get_hpc_job_status_web(
 
 // TODO: function args and everything
 async fn translate_to_sql(
-    State(state): State<AppState>,
     Json(tree): Json<BindingBoxTree>
 )-> Result<Json<String>, (StatusCode, String)>{
-    todo!();
+    let res = translate_to_sqlShared(tree);
+
+    Ok(Json(res))
 }
 
 
