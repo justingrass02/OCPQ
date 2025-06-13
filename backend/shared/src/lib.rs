@@ -12,6 +12,7 @@ pub mod binding_box;
 pub mod constraints_2;
 pub mod discovery;
 pub mod ocel_graph;
+pub mod translation;
 pub mod preprocessing {
     pub mod linked_ocel;
     pub mod preprocess;
@@ -21,8 +22,6 @@ pub mod cel;
 pub mod table_export;
 
 pub mod hpc_backend;
-
-pub mod translation;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OCELInfo {

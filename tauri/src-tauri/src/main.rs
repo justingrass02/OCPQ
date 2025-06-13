@@ -29,7 +29,7 @@ use ocpq_shared::{
 
 
     translation::{
-        translate_to_sqlShared
+        translate_to_sql_shared
     }
 
 };
@@ -304,7 +304,7 @@ async fn get_hpc_job_status_tauri(
 async  fn translate_to_sql_tauri(
     tree: BindingBoxTree,
 )-> Result<String, String>{
-    let res = translate_to_sqlShared(tree);
+    let res = translate_to_sql_shared(tree);
     Ok(res)
 }
 

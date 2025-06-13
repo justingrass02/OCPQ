@@ -1120,34 +1120,3 @@ impl Display for EventVariable {
     }
 }
 
-
-#[derive(TS)]
-#[ts(export, export_to = "../../../frontend/src/types/generated/")]
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct InterMediateNode{
-    pub event_vars: NewEventVariables,
-    pub object_vars: NewObjectVariables,
-    pub relations: Vec<Relation>,
-    pub children: Vec<(InterMediateNode, String)>
-  //  pub inter_filter: Vec<InterFilter> TODO: Need to define InterFilter, also  decision which Filter to implement
-  // Children Attributes will be represented in InterMediateTree
-
-}
-
-#[derive(TS)]
-#[ts(export, export_to = "../../../frontend/src/types/generated/")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type")]
-pub enum Relation{
-    E20{
-        event: EventVariable,
-        object: ObjectVariable,
-        qualifier: Qualifier
-    },
-    O2O{
-        object_1: ObjectVariable,
-        object_2: ObjectVariable,
-        qualifier: Qualifier
-    }
-}

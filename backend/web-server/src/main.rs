@@ -17,7 +17,7 @@ use std::{
 
 use ocpq_shared::{
     binding_box::{
-        evaluate_box_tree, filter_ocel_box_tree, structs::InterMediateNode, BindingBoxTree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult, ExportFormat, FilterExportWithBoxTreeRequest
+        evaluate_box_tree, filter_ocel_box_tree, BindingBoxTree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult, ExportFormat, FilterExportWithBoxTreeRequest
     },
     discovery::{
         auto_discover_constraints_with_options, AutoDiscoverConstraintsRequest,
@@ -37,7 +37,7 @@ use ocpq_shared::{
     EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
     
     translation::{
-        translate_to_sqlShared
+        translate_to_sql_shared
     },
 };
 use process_mining::{
@@ -385,7 +385,7 @@ async fn get_hpc_job_status_web(
 async fn translate_to_sql(
     Json(tree): Json<BindingBoxTree>
 )-> Result<Json<String>, (StatusCode, String)>{
-    let res = translate_to_sqlShared(tree);
+    let res = translate_to_sql_shared(tree);
 
     Ok(Json(res))
 }
