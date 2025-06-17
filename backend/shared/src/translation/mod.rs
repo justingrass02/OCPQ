@@ -80,7 +80,7 @@ pub fn bindingbox_to_intermediate(
     let event_vars = binding_box.new_event_vars.clone();
     let object_vars = binding_box.new_object_vars.clone();
 
-    // Extract the relations we HAVE to translate to query language (O2O, E2O, TBE)
+    // Extract the relations we HAVE to translate to query language (O2O, E2O, TBE) could as mentioned split O2O, E2O and TBE
     let relations = extract_basic_relations(binding_box.filters);
 
     
@@ -96,7 +96,7 @@ pub fn bindingbox_to_intermediate(
                 .edge_names
                 .get(&(index, child_index))
                 .cloned()
-                .unwrap_or_else(|| format!("unnamed_edge_{}_{}", index, child_index));
+                .unwrap_or_else(|| format!("unnamed_edge_{}_{}", index, child_index)); // Edge not there
 
             children.push((child_node, edge_name));
     }
@@ -112,8 +112,46 @@ pub fn bindingbox_to_intermediate(
 
 }
 
-pub fn extract_basic_relations(
-    filters: Vec<Filter>
-) -> Vec<Relation>{
-    todo!();
+// TODO next
+pub fn extract_basic_relations(filters: Vec<Filter>) -> Vec<Relation> {
+    let mut result = Vec::new();
+
+    // Iterate over all filters and extract the ones we want to take into Intermediate Representation
+    for filter in filters {
+        //Here Filters we extract
+        match filter {
+            Filter::O2E { event, object, qualifier, .. } => {
+                result.push(Relation::E20 {
+                    event,
+                    object,
+                    qualifier,
+                });
+            }
+            Filter::O2O { object, other_object, qualifier, .. } => {
+                result.push(Relation::O2O {
+                    object_1: object,
+                    object_2: other_object,
+                    qualifier,
+                });
+            }
+            Filter::TimeBetweenEvents {
+                from_event,
+                to_event,
+                min_seconds,
+                max_seconds,
+            } => {
+                result.push(Relation::TimeBetweenEvents {
+                    from_event,
+                    to_event,
+                    min_seconds,
+                    max_seconds,
+                });
+            }
+            _ => {
+                // Ignore the other filters
+            }
+        }
+    }
+
+    return result;
 }
