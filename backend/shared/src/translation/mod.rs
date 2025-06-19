@@ -22,11 +22,11 @@ pub fn translate_to_sql_shared(
 
     
     // Step 2: Translate the Intermediate Representation to SQL
-    let result = translate_to_sql_from_intermediate(inter);
+    let result = translate_to_sql_from_intermediate(&inter);
     
     
     
-    return "MoinMoin".to_string();
+    return result;
 }
 
 
@@ -88,7 +88,7 @@ pub fn bindingbox_to_intermediate(
     let relations = extract_basic_relations(binding_box.filters);
 
     
-    //Handle childs recursively with box to inter function
+    // Handle childs recursively with box to inter function
     let mut children = Vec::new();
 
     // Iterate over all BindingBoxes in tree
@@ -171,14 +171,57 @@ pub fn extract_constraints(
 }
 
 
+// Extract other meaningful filters (maybe these in relations are enough, but CEL could be considered)
+pub fn extract_filters(
+    filters: Vec<Filter>
+) -> Vec<Filter>{
+    let result = Vec::new();
 
-// TODO most likely recursive approach 
+    return result;
+}
+
+
+// Function which translates Intermediate to SQL
 pub fn translate_to_sql_from_intermediate(
-    inter: InterMediateNode
+    node: &InterMediateNode
 ) -> String{
-    return "translate_to_sql_from_intermediate".to_string();
+    
+    // Create structure for every type of SQL we expect
+    let mut select_fields: Vec<String> = Vec::new();
+    let mut from_clauses: Vec<String> = Vec::new();
+    let mut where_clauses: Vec<String> = Vec::new();
+
+
+    // Extract SELECT and FROM Clauses from Intermediate
+
+        // First object Variables  TODO: index is shifted 1 in Binding Box could just +1 
+    for (obj_var, types) in &node.object_vars{
+        for object_type in types{
+            select_fields.push(format!("O{}.ocel_id", obj_var.0));
+            from_clauses.push(format!("object_{} AS O{}", object_type, obj_var.0));
+        }
+    }
+    
+        // Now Event Variables
+
+    for (event_var, types) in &node.event_vars{
+        for event_type in types{
+            select_fields.push(format!("E{}.ocel_id", event_var.0));
+            from_clauses.push(format!("event_{} AS E{}", event_type, event_var.0));
+        }
+    }   
+    
+
+    let mut result = format!(
+        "SELECT {}\nFROM {}",
+        select_fields.join(", "),
+        from_clauses.join(", ")
+    );
+
+
+    return result;
 }
 
 // still todo IR : Event and Object Vars are numbers, covert them now to O1 for example or later
-// Filter and Constraints, maybe start with functions, which make these tasks which will be implemented later
+// Filter,Labels and Constraints, maybe start with functions, which make these tasks which will be implemented later
 // After we could start with basics in SQL
