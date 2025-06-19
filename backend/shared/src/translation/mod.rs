@@ -3,7 +3,7 @@ use std::{
     fmt::Display,
     hash::Hash,
 };
-use crate::binding_box::{structs::Filter, BindingBoxTree};
+use crate::binding_box::{structs::{Constraint, Filter}, BindingBoxTree};
 use crate::binding_box::structs::NewEventVariables;
 use crate::binding_box::structs::NewObjectVariables;
 use crate::binding_box::structs::ObjectVariable;
@@ -12,17 +12,21 @@ use crate::binding_box::structs::Qualifier;
 
 
 
-// Actual implementation of the translate to SQL function
+// Implementation of the General translate to SQL function
 pub fn translate_to_sql_shared(
     tree: BindingBoxTree
 )-> String{
     
-    //Step 1 Extract Intermediate Representation
+    //Step 1:  Extract Intermediate Representation
     let inter = convert_to_intermediate(tree);
+
+    
+    // Step 2: Translate the Intermediate Representation to SQL
+    let result = translate_to_sql_from_intermediate(inter);
     
     
     
-    return "MoinMoin".to_string()
+    return "MoinMoin".to_string();
 }
 
 
@@ -112,7 +116,7 @@ pub fn bindingbox_to_intermediate(
 
 }
 
-// TODO next
+// Function to extract BASIC operations (E20,O2O,TBE)
 pub fn extract_basic_relations(filters: Vec<Filter>) -> Vec<Relation> {
     let mut result = Vec::new();
 
@@ -155,3 +159,26 @@ pub fn extract_basic_relations(filters: Vec<Filter>) -> Vec<Relation> {
 
     return result;
 }
+
+
+// Extract Constraints we want to translate
+pub fn extract_constraints(
+    constraints :Vec<Constraint>
+) -> Vec<Constraint>{
+    let result = Vec::new();
+
+    return result;
+}
+
+
+
+// TODO most likely recursive approach 
+pub fn translate_to_sql_from_intermediate(
+    inter: InterMediateNode
+) -> String{
+    return "translate_to_sql_from_intermediate".to_string();
+}
+
+// still todo IR : Event and Object Vars are numbers, covert them now to O1 for example or later
+// Filter and Constraints, maybe start with functions, which make these tasks which will be implemented later
+// After we could start with basics in SQL
