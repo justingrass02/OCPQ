@@ -53,7 +53,7 @@ pub struct InterMediateNode{
 }
 
 pub enum Relation{
-    E20{
+    E2O{
         event: EventVariable,
         object: ObjectVariable,
         qualifier: Qualifier
@@ -125,7 +125,7 @@ pub fn extract_basic_relations(filters: Vec<Filter>) -> Vec<Relation> {
         //Here Filters we extract
         match filter {
             Filter::O2E { event, object, qualifier, .. } => {
-                result.push(Relation::E20 {
+                result.push(Relation::E2O {
                     event,
                     object,
                     qualifier,
@@ -191,8 +191,9 @@ pub fn translate_to_sql_from_intermediate(
     let mut from_clauses: Vec<String> = Vec::new();
     let mut where_clauses: Vec<String> = Vec::new();
 
+    let mut var = 0; // using this variable to distinc event object tables, problem value gets lost when handling children
 
-    // Extract SELECT and FROM Clauses from Intermediate
+    // Create SELECT and FROM Clauses from Intermediate
 
         // First object Variables  TODO: index is shifted 1 in Binding Box could just +1 
     for (obj_var, types) in &node.object_vars{
@@ -212,9 +213,47 @@ pub fn translate_to_sql_from_intermediate(
     }   
     
 
+    
+    // Produce JOINS from E2O and O2O and put in from clauses
+
+    for relation in &node.relations{
+
+        match relation{
+            Relation::E2O{event, object, qualifier, .. } => {
+                from_clauses.push(format!("INNER JOIN event_object AS E2O{} ON E2O{}.ocel_event_id = E{}.ocel_id", var, var, event.0 )); // join event object table with Event
+                from_clauses.push(format!("INNER JOIN E2O{}.ocel_object_id = O{}.ocel_id", var, object.0));
+                var = var + 1;
+            }
+            
+            Relation::O2O{object_1, object_2, qualifier, .. } => {
+                from_clauses.push(format!("INNER JOIN object_object AS O2O{} ON O2O{}.ocel_source_id = O{}.ocel_id", var, var, object_1.0));
+                from_clauses.push(format!("INNER JOIN O2O{}.target_id = O{}.ocel_id", var, object_2.0));
+                var = var + 1;
+
+            }
+            
+           _ => {
+                
+            } 
+        }
+    }
+
+
+
+    // Idea: Create a Vec that containts string output for the root childs
+    let mut child_strings = Vec::new();
+
+    // Creates SQL for children (should maybe use different function, since new Vars do not need be there, but experimental first here )
+    for (inter_node, _node_label) in &node.children{
+        let child_sql = translate_to_sql_from_intermediate(inter_node);
+        child_strings.push(child_sql);
+    }
+
+    // Have to insert the Constraints and so on here i guess
     let mut result = format!(
-        "SELECT {}\nFROM {}",
+        "SELECT {}({}) \nFROM {}",
         select_fields.join(", "),
+        child_strings.join(","),
         from_clauses.join(", ")
     );
 
@@ -222,6 +261,8 @@ pub fn translate_to_sql_from_intermediate(
     return result;
 }
 
-// still todo IR : Event and Object Vars are numbers, covert them now to O1 for example or later
+// TODO:
 // Filter,Labels and Constraints, maybe start with functions, which make these tasks which will be implemented later
-// After we could start with basics in SQL
+// How to handle multiple children and constraints to connect them
+// Timestamps basics
+// Could put more into helper functions to abstract more
