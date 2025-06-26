@@ -231,6 +231,26 @@ pub fn translate_to_sql_from_intermediate(
                 var = var + 1;
 
             }
+            Relation::TimeBetweenEvents { from_event , to_event, min_seconds, max_seconds } =>{
+                match (min_seconds, max_seconds) {
+                (None, None) => {
+                    where_clauses.push(format!("E{}.ocel_time <= E{}.ocel_time", from_event.0, to_event.0));
+                }
+                (Some(min), None) => {
+                    where_clauses.push(format!("E{}.ocel_time <= E{}.ocel_time", from_event.0, to_event.0));
+                    where_clauses.push(format!("E{}.ocel_time - E{}.ocel_time >= {}", to_event.0, from_event.0, min));
+                }
+                (None, Some(max)) => {
+                    where_clauses.push(format!("E{}.ocel_time <= E{}.ocel_time", from_event.0, to_event.0));
+                    where_clauses.push(format!("E{}.ocel_time - E{}.ocel_time <= {:?}", to_event.0, from_event.0, max));
+                }
+                (Some(min), Some(max)) => {
+                    where_clauses.push(format!("E{}.ocel_time <= E{}.ocel_time", from_event.0, to_event.0));
+                    where_clauses.push(format!("E{}.ocel_time - E{}.ocel_time >= {}", to_event.0, from_event.0, min));
+                    where_clauses.push(format!("E{}.ocel_time - E{}.ocel_time <= {}", to_event.0, from_event.0, max));
+                }
+    }
+            }
             
            _ => {
                 
@@ -251,10 +271,11 @@ pub fn translate_to_sql_from_intermediate(
 
     // Have to insert the Constraints and so on here i guess
     let mut result = format!(
-        "SELECT {}({}) \nFROM {}",
+        "SELECT {}({}) \nFROM {} \nWHERE {}",
         select_fields.join(", "),
-        child_strings.join(","),
-        from_clauses.join(", ")
+        child_strings.join(", "),
+        from_clauses.join(", "),
+        where_clauses.join("AND ")
     );
 
 
@@ -264,5 +285,6 @@ pub fn translate_to_sql_from_intermediate(
 // TODO:
 // Filter,Labels and Constraints, maybe start with functions, which make these tasks which will be implemented later
 // How to handle multiple children and constraints to connect them
-// Timestamps basics
+// If where is empty should not output it
+// Child Select Klammern weg falls empty
 // Could put more into helper functions to abstract more
