@@ -47,9 +47,9 @@ pub struct InterMediateNode{
     pub event_vars: NewEventVariables,
     pub object_vars: NewObjectVariables,
     pub relations: Vec<Relation>, // O2O, E2O, TBE Basics have to be included
+    pub constraints: Vec<Constraint>,
     pub children: Vec<(InterMediateNode, String)>
   //  pub inter_filter: Vec<InterFilter>, TODO: Need to define InterFilter, also  decision which Filter to implement
-  // pub inter_constraints: Vec<InterConstraint>
 }
 
 pub enum Relation{
@@ -87,6 +87,8 @@ pub fn bindingbox_to_intermediate(
     // Extract the relations we HAVE to translate to query language (O2O, E2O, TBE) could as mentioned split O2O, E2O and TBE
     let relations = extract_basic_relations(binding_box.filters);
 
+    let constraints = extract_constraints(binding_box.constraints);
+
     
     // Handle childs recursively with box to inter function
     let mut children = Vec::new();
@@ -109,6 +111,7 @@ pub fn bindingbox_to_intermediate(
             event_vars,
             object_vars,
             relations,
+            constraints,
             children,
         };
 
@@ -165,7 +168,19 @@ pub fn extract_basic_relations(filters: Vec<Filter>) -> Vec<Relation> {
 pub fn extract_constraints(
     constraints :Vec<Constraint>
 ) -> Vec<Constraint>{
-    let result = Vec::new();
+    let mut result = Vec::new();
+
+    for constraint in &constraints{
+        match constraint{
+            Constraint::OR { child_names } =>{
+                result.push(constraint.clone());
+            }
+           
+            _ => {
+                // Ignore the other constraints
+            }
+        }
+    }
 
     return result;
 }
@@ -181,6 +196,15 @@ pub fn extract_filters(
 }
 
 
+// End of Intermediate
+
+
+
+// Start of SQL Translation
+
+
+
+
 // Function which translates Intermediate to SQL
 pub fn translate_to_sql_from_intermediate(
     node: &InterMediateNode
@@ -191,11 +215,63 @@ pub fn translate_to_sql_from_intermediate(
     let mut from_clauses: Vec<String> = Vec::new();
     let mut where_clauses: Vec<String> = Vec::new();
 
-    let mut var = 0; // using this variable to distinc event object tables, problem value gets lost when handling children
+    //let mut var = 0; // using this variable to distinc event object tables, problem value gets lost when handling children
 
     // Create SELECT and FROM Clauses from Intermediate
+    (select_fields, from_clauses) = construct_select_and_where(node, select_fields, from_clauses);
 
-        // First object Variables  TODO: index is shifted 1 in Binding Box could just +1 
+    
+    // Produce JOINS from E2O and O2O and put in from clauses
+    (from_clauses, where_clauses) = construct_basic_operations(node, from_clauses, where_clauses);
+
+
+
+    // Idea: Create a Vec that containts string output for the root childs
+    let mut child_strings = Vec::new();
+
+    // Creates SQL for children (should maybe use different function, since new Vars do not need be there, but experimental first here )
+    child_strings = construct_childstrings(node, child_strings);
+
+    
+    // Create final SQL output
+    let result = construct_result( node,select_fields, from_clauses, where_clauses, child_strings);
+
+    return result;
+}
+
+// TODO:
+// Filter,Labels and Constraints, maybe start with functions, which make these tasks which will be implemented later
+// How to handle multiple children and constraints to connect them
+// If where is empty should not output it
+// Child Select Klammern weg falls empty
+// Could put more into helper functions to abstract more
+
+// Construct the resulting SQL query with tools given
+
+pub fn construct_result(
+    node: &InterMediateNode,
+    select_fields: Vec<String>,
+    from_clauses: Vec<String>,
+    where_clauses: Vec<String>,
+    child_strings: Vec<String>
+) -> String {
+    let mut result = format!(
+        "SELECT {}({}) \nFROM {} \nWHERE {}",
+        select_fields.join(", "),
+        child_strings.join(", "),
+        from_clauses.join(", "),
+        where_clauses.join("AND ")
+    );
+
+    return result;
+}
+
+
+pub fn construct_select_and_where(
+    node: &InterMediateNode,
+    mut select_fields: Vec<String>,
+    mut from_clauses: Vec<String>
+) -> (Vec<String>, Vec<String>) {
     for (obj_var, types) in &node.object_vars{
         for object_type in types{
             select_fields.push(format!("O{}.ocel_id", obj_var.0));
@@ -210,25 +286,29 @@ pub fn translate_to_sql_from_intermediate(
             select_fields.push(format!("E{}.ocel_id", event_var.0));
             from_clauses.push(format!("event_{} AS E{}", event_type, event_var.0));
         }
-    }   
-    
+    }
 
-    
-    // Produce JOINS from E2O and O2O and put in from clauses
+    return (select_fields, from_clauses) ; 
+}
 
+
+pub fn construct_basic_operations(
+    node: &InterMediateNode,
+    mut from_clauses: Vec<String>,
+    mut where_clauses: Vec<String>
+) -> (Vec<String>, Vec<String>){
     for relation in &node.relations{
 
         match relation{
+            // Still need to look how to implement qualifier
             Relation::E2O{event, object, qualifier, .. } => {
-                from_clauses.push(format!("INNER JOIN event_object AS E2O{} ON E2O{}.ocel_event_id = E{}.ocel_id", var, var, event.0 )); // join event object table with Event
-                from_clauses.push(format!("INNER JOIN E2O{}.ocel_object_id = O{}.ocel_id", var, object.0));
-                var = var + 1;
+                from_clauses.push(format!("INNER JOIN event_object AS E2O ON E2O.ocel_event_id = E{}.ocel_id", event.0 )); // join event object table with Event
+                from_clauses.push(format!("INNER JOIN E2O.ocel_object_id = O{}.ocel_id", object.0));
             }
             
             Relation::O2O{object_1, object_2, qualifier, .. } => {
-                from_clauses.push(format!("INNER JOIN object_object AS O2O{} ON O2O{}.ocel_source_id = O{}.ocel_id", var, var, object_1.0));
-                from_clauses.push(format!("INNER JOIN O2O{}.target_id = O{}.ocel_id", var, object_2.0));
-                var = var + 1;
+                from_clauses.push(format!("INNER JOIN object_object AS O2O ON O2O.ocel_source_id = O{}.ocel_id", object_1.0));
+                from_clauses.push(format!("INNER JOIN O2O.target_id = O{}.ocel_id" , object_2.0));
 
             }
             Relation::TimeBetweenEvents { from_event , to_event, min_seconds, max_seconds } =>{
@@ -242,7 +322,7 @@ pub fn translate_to_sql_from_intermediate(
                 }
                 (None, Some(max)) => {
                     where_clauses.push(format!("E{}.ocel_time <= E{}.ocel_time", from_event.0, to_event.0));
-                    where_clauses.push(format!("E{}.ocel_time - E{}.ocel_time <= {:?}", to_event.0, from_event.0, max));
+                    where_clauses.push(format!("E{}.ocel_time - E{}.ocel_time <= {}", to_event.0, from_event.0, max));
                 }
                 (Some(min), Some(max)) => {
                     where_clauses.push(format!("E{}.ocel_time <= E{}.ocel_time", from_event.0, to_event.0));
@@ -258,33 +338,19 @@ pub fn translate_to_sql_from_intermediate(
         }
     }
 
+    return (from_clauses, where_clauses);
+
+}
 
 
-    // Idea: Create a Vec that containts string output for the root childs
-    let mut child_strings = Vec::new();
-
-    // Creates SQL for children (should maybe use different function, since new Vars do not need be there, but experimental first here )
+pub fn construct_childstrings(
+    node: &InterMediateNode,
+    mut child_strings: Vec<String>
+) -> Vec<String>{
     for (inter_node, _node_label) in &node.children{
         let child_sql = translate_to_sql_from_intermediate(inter_node);
         child_strings.push(child_sql);
     }
 
-    // Have to insert the Constraints and so on here i guess
-    let mut result = format!(
-        "SELECT {}({}) \nFROM {} \nWHERE {}",
-        select_fields.join(", "),
-        child_strings.join(", "),
-        from_clauses.join(", "),
-        where_clauses.join("AND ")
-    );
-
-
-    return result;
+    return child_strings;
 }
-
-// TODO:
-// Filter,Labels and Constraints, maybe start with functions, which make these tasks which will be implemented later
-// How to handle multiple children and constraints to connect them
-// If where is empty should not output it
-// Child Select Klammern weg falls empty
-// Could put more into helper functions to abstract more
