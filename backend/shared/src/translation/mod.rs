@@ -200,6 +200,11 @@ pub fn extract_filters(
 
 
 
+
+
+
+
+
 // Start of SQL Translation
 
 
@@ -208,139 +213,203 @@ pub fn extract_filters(
 // Function which translates Intermediate to SQL
 pub fn translate_to_sql_from_intermediate(
     node: &InterMediateNode
-) -> String{
-    
-    // Create structure for every type of SQL we expect
-    let mut select_fields: Vec<String> = Vec::new();
-    let mut from_clauses: Vec<String> = Vec::new();
-    let mut where_clauses: Vec<String> = Vec::new();
-
-    //let mut var = 0; // using this variable to distinc event object tables, problem value gets lost when handling children
-
-    // Create SELECT and FROM Clauses from Intermediate
-    (select_fields, from_clauses) = construct_select_and_where(node, select_fields, from_clauses);
-
-    
-    // Produce JOINS from E2O and O2O and put in from clauses
-    (from_clauses, where_clauses) = construct_basic_operations(node, from_clauses, where_clauses);
-
-
-
-    // Idea: Create a Vec that containts string output for the root childs
-    let mut child_strings = Vec::new();
-
-    // Creates SQL for children (should maybe use different function, since new Vars do not need be there, but experimental first here )
-    child_strings = construct_childstrings(node, child_strings);
-
-    
-    // Create final SQL output
-    let result = construct_result( node,select_fields, from_clauses, where_clauses, child_strings);
-
-    return result;
-}
-
-// TODO:
-// Filter,Labels and Constraints, maybe start with functions, which make these tasks which will be implemented later
-// How to handle multiple children and constraints to connect them
-// If where is empty should not output it
-// Child Select Klammern weg falls empty
-// Could put more into helper functions to abstract more
-
-// Construct the resulting SQL query with tools given
-
-pub fn construct_result(
-    node: &InterMediateNode,
-    select_fields: Vec<String>,
-    from_clauses: Vec<String>,
-    where_clauses: Vec<String>,
-    child_strings: Vec<String>
 ) -> String {
-    let mut result = format!(
-        "SELECT {}({}) \nFROM {} \nWHERE {}",
-        select_fields.join(", "),
-        child_strings.join(", "),
-        from_clauses.join(", "),
-        where_clauses.join("AND ")
+    let select_fields = construct_select_fields(node);
+    let base_from = construct_from_clauses(node);
+    let (join_clauses, where_clauses) = construct_basic_operations(node);
+    let child_strings = construct_childstrings(node, Vec::new());
+
+    let result = construct_result(
+        node,
+        select_fields,
+        base_from,
+        join_clauses,
+        where_clauses,
+        child_strings,
     );
 
     return result;
 }
 
 
-pub fn construct_select_and_where(
+// TODO:
+// Filter,Labels and Constraints, maybe start with functions, which make these tasks which will be implemented later
+// How to handle multiple children and constraints to connect them
+// Child Select Klammern weg falls empty
+// Could put more into helper functions to abstract more
+
+
+
+// Construct the resulting SQL query with tools given
+
+pub fn construct_result(
     node: &InterMediateNode,
-    mut select_fields: Vec<String>,
-    mut from_clauses: Vec<String>
-) -> (Vec<String>, Vec<String>) {
-    for (obj_var, types) in &node.object_vars{
-        for object_type in types{
-            select_fields.push(format!("O{}.ocel_id", obj_var.0));
-            from_clauses.push(format!("object_{} AS O{}", object_type, obj_var.0));
-        }
-    }
-    
-        // Now Event Variables
+    select_fields: Vec<String>,
+    base_from: Vec<String>,
+    join_clauses: Vec<String>,
+    where_clauses: Vec<String>,
+    child_strings: Vec<String>
+) -> String {
+    let mut result = String::new();
 
-    for (event_var, types) in &node.event_vars{
-        for event_type in types{
-            select_fields.push(format!("E{}.ocel_id", event_var.0));
-            from_clauses.push(format!("event_{} AS E{}", event_type, event_var.0));
-        }
+    let mut from_section = String::new();
+
+    // FROM beginnt mit Einstiegstabelle
+    for clause in &base_from {
+    from_section.push_str(&format!("\n{}", clause));
     }
 
-    return (select_fields, from_clauses) ; 
+
+    for clause in &join_clauses {
+    from_section.push_str(&format!("\n{}", clause));
+    }
+
+    result.push_str(&format!(
+        "SELECT {}\n",
+        select_fields.join(", "),
+    ));
+
+
+
+    if !child_strings.is_empty(){
+        
+        for child_string in &child_strings{
+        
+        result.push_str(&format!("(\n{})\n",child_string));
+        }
+    }
+
+
+    result.push_str(&format!("FROM {}\n", from_section));
+
+    if !where_clauses.is_empty() {
+        result.push_str(&format!(
+            "WHERE {}\n",
+            where_clauses.join("\nAND ")
+        ));
+    }
+
+    return result;
 }
+
+
+
+pub fn construct_select_fields(
+    node: &InterMediateNode
+) -> Vec<String> {
+    let mut select_fields = Vec::new();
+
+    for (obj_var, _) in &node.object_vars {
+        select_fields.push(format!("O{}.ocel_id", obj_var.0));
+    }
+
+    for (event_var, _) in &node.event_vars {
+        select_fields.push(format!("E{}.ocel_id", event_var.0));
+    }
+
+    return select_fields;
+}
+
+
+// Could make used_keys function argument and return type for children! Could also put E2O and O2O in there to make sure no double tables defined
+pub fn construct_from_clauses(
+    node: &InterMediateNode
+) -> Vec<String> {
+    let mut from_clauses = Vec::new();
+    let mut used_keys = HashSet::new();
+
+    // First will appear without JOIN infront and others with JOIN infront
+    if let Some((event_var, types)) = node.event_vars.iter().next() {
+        if let Some(event_type) = types.iter().next() {
+            from_clauses.push(format!("event_{} AS E{}", event_type.replace(" ", "_"), event_var.0));
+            used_keys.insert(format!("E{}", event_var.0));
+        }
+    } else if let Some((obj_var, types)) = node.object_vars.iter().next() {
+        if let Some(object_type) = types.iter().next() {
+            from_clauses.push(format!("object_{} AS O{}", object_type.replace(" ", "_"), obj_var.0));
+            used_keys.insert(format!("O{}", obj_var.0));
+        }
+    }
+
+    // with JOIN infront of declaration
+    for (obj_var, types) in &node.object_vars {
+        for object_type in types {
+            let key = format!("O{}", obj_var.0);
+            if used_keys.insert(key.clone()) {
+                from_clauses.push(format!("JOIN object_{} AS {}", object_type.replace(" ", "_"), key));
+            }
+        }
+    }
+
+    //
+    for (event_var, types) in &node.event_vars {
+        for event_type in types {
+            let key = format!("E{}", event_var.0);
+            if used_keys.insert(key.clone()) {
+                from_clauses.push(format!("JOIN event_{} AS {}", event_type.replace(" ", "_"), key));
+            }
+        }
+    }
+
+    return from_clauses;
+}
+
+
 
 
 pub fn construct_basic_operations(
-    node: &InterMediateNode,
-    mut from_clauses: Vec<String>,
-    mut where_clauses: Vec<String>
-) -> (Vec<String>, Vec<String>){
-    for relation in &node.relations{
+    node: &InterMediateNode
+) -> (Vec<String>, Vec<String>) {
+    let mut join_clauses = Vec::new();
+    let mut where_clauses = Vec::new();
 
-        match relation{
-            // Still need to look how to implement qualifier
-            Relation::E2O{event, object, qualifier, .. } => {
-                from_clauses.push(format!("INNER JOIN event_object AS E2O ON E2O.ocel_event_id = E{}.ocel_id", event.0 )); // join event object table with Event
-                from_clauses.push(format!("INNER JOIN E2O.ocel_object_id = O{}.ocel_id", object.0));
+    for relation in &node.relations {
+        match relation {
+            Relation::E2O { event, object, .. } => {
+                let eo_alias = format!("E2O{}{}", event.0, object.0);
+                join_clauses.push(format!(
+                    "INNER JOIN event_object AS {} ON {}.ocel_event_id = E{}.ocel_id",
+                    eo_alias, eo_alias, event.0
+                ));
+                where_clauses.push(format!(
+                    "{}.ocel_object_id = O{}.ocel_id",
+                    eo_alias, object.0
+                ));
             }
-            
-            Relation::O2O{object_1, object_2, qualifier, .. } => {
-                from_clauses.push(format!("INNER JOIN object_object AS O2O ON O2O.ocel_source_id = O{}.ocel_id", object_1.0));
-                from_clauses.push(format!("INNER JOIN O2O.target_id = O{}.ocel_id" , object_2.0));
 
+            Relation::O2O { object_1, object_2, .. } => {
+                let o2o_alias = format!("O2O{}{}", object_1.0, object_2.0);
+                join_clauses.push(format!(
+                    "INNER JOIN object_object AS {} ON {}.ocel_source_id = O{}.ocel_id",
+                    o2o_alias, o2o_alias, object_1.0
+                ));
+                where_clauses.push(format!(
+                    "{}.ocel_target_id = O{}.ocel_id",
+                    o2o_alias, object_2.0
+                ));
             }
-            Relation::TimeBetweenEvents { from_event , to_event, min_seconds, max_seconds } =>{
-                match (min_seconds, max_seconds) {
-                (None, None) => {
-                    where_clauses.push(format!("E{}.ocel_time <= E{}.ocel_time", from_event.0, to_event.0));
-                }
-                (Some(min), None) => {
-                    where_clauses.push(format!("E{}.ocel_time <= E{}.ocel_time", from_event.0, to_event.0));
+
+            Relation::TimeBetweenEvents {
+                from_event,
+                to_event,
+                min_seconds,
+                max_seconds,
+            } => {
+                where_clauses.push(format!("E{}.ocel_time <= E{}.ocel_time", from_event.0, to_event.0));
+                if let Some(min) = min_seconds {
                     where_clauses.push(format!("E{}.ocel_time - E{}.ocel_time >= {}", to_event.0, from_event.0, min));
                 }
-                (None, Some(max)) => {
-                    where_clauses.push(format!("E{}.ocel_time <= E{}.ocel_time", from_event.0, to_event.0));
+                if let Some(max) = max_seconds {
                     where_clauses.push(format!("E{}.ocel_time - E{}.ocel_time <= {}", to_event.0, from_event.0, max));
                 }
-                (Some(min), Some(max)) => {
-                    where_clauses.push(format!("E{}.ocel_time <= E{}.ocel_time", from_event.0, to_event.0));
-                    where_clauses.push(format!("E{}.ocel_time - E{}.ocel_time >= {}", to_event.0, from_event.0, min));
-                    where_clauses.push(format!("E{}.ocel_time - E{}.ocel_time <= {}", to_event.0, from_event.0, max));
-                }
-    }
             }
-            
-           _ => {
-                
-            } 
         }
     }
 
-    return (from_clauses, where_clauses);
-
+    return (join_clauses, where_clauses);
 }
+
+
 
 
 pub fn construct_childstrings(
