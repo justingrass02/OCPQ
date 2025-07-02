@@ -214,10 +214,25 @@ pub fn extract_filters(
 pub fn translate_to_sql_from_intermediate(
     node: &InterMediateNode
 ) -> String {
+
+    let mut used_keys = HashSet::new(); // Save all the Tables already created
+    let mut  base_from = Vec::new();
+
     let select_fields = construct_select_fields(node);
-    let base_from = construct_from_clauses(node);
+    (base_from, used_keys) = construct_from_clauses(node, used_keys);
     let (join_clauses, where_clauses) = construct_basic_operations(node);
-    let child_strings = construct_childstrings(node, Vec::new());
+    
+    
+    
+    let childs = construct_childstrings(node);
+    
+    let child_strings: Vec<String> = childs
+        .iter()
+        .map(|(sql, _)| sql.clone())
+        .collect();
+
+
+
 
     let result = construct_result(
         node,
@@ -226,17 +241,11 @@ pub fn translate_to_sql_from_intermediate(
         join_clauses,
         where_clauses,
         child_strings,
+        childs
     );
 
     return result;
 }
-
-
-// TODO:
-// Filter,Labels and Constraints, maybe start with functions, which make these tasks which will be implemented later
-// How to handle multiple children and constraints to connect them
-// Child Select Klammern weg falls empty
-// Could put more into helper functions to abstract more
 
 
 
@@ -248,7 +257,9 @@ pub fn construct_result(
     base_from: Vec<String>,
     join_clauses: Vec<String>,
     where_clauses: Vec<String>,
-    child_strings: Vec<String>
+    child_strings: Vec<String>,
+    childs: Vec<(String,String)>
+
 ) -> String {
     let mut result = String::new();
 
@@ -270,14 +281,13 @@ pub fn construct_result(
     ));
 
 
-
+    // Handle Constraints and Childs here
+    
     if !child_strings.is_empty(){
-        
-        for child_string in &child_strings{
-        
-        result.push_str(&format!("(\n{})\n",child_string));
-        }
+        let child_constraint_string = construct_child_constraints(&node,childs);
+        result.push_str(&format!(",\n({})\n", child_constraint_string));
     }
+
 
 
     result.push_str(&format!("FROM {}\n", from_section));
@@ -313,10 +323,10 @@ pub fn construct_select_fields(
 
 // Could make used_keys function argument and return type for children! Could also put E2O and O2O in there to make sure no double tables defined
 pub fn construct_from_clauses(
-    node: &InterMediateNode
-) -> Vec<String> {
+    node: &InterMediateNode,
+    mut  used_keys:HashSet<String>
+) -> (Vec<String>, HashSet<String>) {
     let mut from_clauses = Vec::new();
-    let mut used_keys = HashSet::new();
 
     // First will appear without JOIN infront and others with JOIN infront
     if let Some((event_var, types)) = node.event_vars.iter().next() {
@@ -336,7 +346,7 @@ pub fn construct_from_clauses(
         for object_type in types {
             let key = format!("O{}", obj_var.0);
             if used_keys.insert(key.clone()) {
-                from_clauses.push(format!("JOIN object_{} AS {}", object_type.replace(" ", "_"), key));
+                from_clauses.push(format!("CROSSJOIN object_{} AS {}", object_type.replace(" ", "_"), key));
             }
         }
     }
@@ -346,12 +356,12 @@ pub fn construct_from_clauses(
         for event_type in types {
             let key = format!("E{}", event_var.0);
             if used_keys.insert(key.clone()) {
-                from_clauses.push(format!("JOIN event_{} AS {}", event_type.replace(" ", "_"), key));
+                from_clauses.push(format!("CROSSJOIN event_{} AS {}", event_type.replace(" ", "_"), key));
             }
         }
     }
 
-    return from_clauses;
+    return (from_clauses,used_keys);
 }
 
 
@@ -414,12 +424,61 @@ pub fn construct_basic_operations(
 
 pub fn construct_childstrings(
     node: &InterMediateNode,
-    mut child_strings: Vec<String>
-) -> Vec<String>{
-    for (inter_node, _node_label) in &node.children{
+) -> Vec<(String, String)> {
+    let mut result = Vec::new();
+
+    for (inter_node, node_label) in &node.children {
         let child_sql = translate_to_sql_from_intermediate(inter_node);
-        child_strings.push(child_sql);
+        result.push((child_sql, node_label.clone()));
     }
 
-    return child_strings;
+    return result;
 }
+
+
+
+// Construct the Constraints connected with the Children SQL (idea put resulting string for constraints together at end maybe return Vec String)
+pub fn construct_child_constraints(
+    node: &InterMediateNode,
+    childs: Vec<(String, String)>
+) -> String {
+    let mut result_string = Vec::new();
+
+    // Iterate over all Constraints
+    for constraint in &node.constraints {
+        match constraint {
+            Constraint::OR { child_names: _ } => {
+                let mut childs_in_constraints = Vec::new();
+
+                for (child_sql, child_label) in &childs {
+                    for (_child_node, edge_name) in &node.children {
+                        if child_label == edge_name {
+                            childs_in_constraints.push(format!("({}) >= 1 \n", child_sql));
+                        }
+                    }
+                }
+
+                // Combine with OR
+                let mut or_constraint = childs_in_constraints.join(" OR \n");
+                or_constraint = format!("({})", or_constraint);
+                result_string.push(or_constraint);
+            }
+
+            _ => {
+                // Ignore rest 
+            }
+        }
+    }
+
+    return result_string.join(" AND ");
+}
+
+
+
+// TODO:
+// Filter,Labels and Constraints, maybe start with functions, which make these tasks which will be implemented later
+// How to handle multiple children and constraints to connect them
+// Child Select Klammern weg falls empty
+// Need to take Decision on which JOIN to take (not sure)
+// Other Constraints
+// Need to make extra SELECT for children to select count(*)
