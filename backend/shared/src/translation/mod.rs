@@ -452,14 +452,14 @@ pub fn construct_child_constraints(
         match constraint {
             
             
-            
+
             // Constraint ANYSAT implementation
-            Constraint::ANY { child_names: _ } => {
+            Constraint::ANY { child_names} => {
                 let mut childs_in_constraints = Vec::new();
 
                 for (child_sql, child_label) in &childs {
-                    for (_child_node, edge_name) in &node.children {
-                        if child_label == edge_name {
+                    for child_edge_constraint in child_names {
+                        if child_label == child_edge_constraint {
                             childs_in_constraints.push(format!("({}) >= 1 \n", child_sql));
                         }
                     }
@@ -474,12 +474,12 @@ pub fn construct_child_constraints(
 
 
             // Constraint AND implementation (is wrong same problem as with ORALl)
-            Constraint::AND { child_names: _ } => {
+            Constraint::AND { child_names } => {
                 let mut childs_in_constraints = Vec::new();
 
                 for (child_sql, child_label) in &childs {
-                    for (_child_node, edge_name) in &node.children {
-                        if child_label == edge_name {
+                    for child_edge_constraint in child_names {
+                        if child_label == child_edge_constraint {
                             childs_in_constraints.push(format!("({}) >= 1 \n", child_sql));
                         }
                     }
@@ -494,12 +494,12 @@ pub fn construct_child_constraints(
 
 
             // Constraint NOT
-            Constraint::NOT { child_names: _ } =>{
+            Constraint::NOT { child_names } =>{
                 let mut childs_in_constraints = Vec::new();
 
                 for (child_sql, child_label) in &childs {
-                    for (_child_node, edge_name) in &node.children {
-                        if child_label == edge_name {
+                    for child_edge_constraint in child_names {
+                        if child_label == child_edge_constraint {
                             childs_in_constraints.push(format!("({}) = 0 \n", child_sql));
                         }
                     }
