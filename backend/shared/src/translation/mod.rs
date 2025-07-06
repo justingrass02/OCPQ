@@ -48,8 +48,8 @@ pub struct InterMediateNode{
     pub object_vars: NewObjectVariables,
     pub relations: Vec<Relation>, // O2O, E2O, TBE Basics have to be included
     pub constraints: Vec<Constraint>,
-    pub children: Vec<(InterMediateNode, String)>
-  //  pub inter_filter: Vec<InterFilter>, TODO: Need to define InterFilter, also  decision which Filter to implement
+    pub children: Vec<(InterMediateNode, String)>,
+    pub filter: Vec<Filter>
 }
 
 pub enum Relation{
@@ -80,18 +80,21 @@ pub fn bindingbox_to_intermediate(
 
     let (binding_box, child_indices) = node.clone().to_box();
 
+
     // Copy event and object variables of the given binding box
     let event_vars = binding_box.new_event_vars.clone();
     let object_vars = binding_box.new_object_vars.clone();
 
     // Extract the relations we HAVE to translate to query language (O2O, E2O, TBE) could as mentioned split O2O, E2O and TBE
-    let relations = extract_basic_relations(binding_box.filters);
+    let relations = extract_basic_relations(binding_box.filters.clone());
 
     let constraints = extract_constraints(binding_box.constraints);
 
     
     // Handle childs recursively with box to inter function
     let mut children = Vec::new();
+
+    let filter = extract_filters(binding_box.filters.clone());
 
     // Iterate over all BindingBoxes in tree
     for child_index in child_indices{
@@ -111,6 +114,7 @@ pub fn bindingbox_to_intermediate(
             event_vars,
             object_vars,
             relations,
+            filter,
             constraints,
             children,
         };
@@ -172,7 +176,15 @@ pub fn extract_constraints(
 
     for constraint in &constraints{
         match constraint{
-            Constraint::OR { child_names } =>{
+            Constraint::ANY { child_names } =>{
+                result.push(constraint.clone());
+            }
+
+            Constraint::AND { child_names } =>{
+                result.push(constraint.clone());
+            }
+
+            Constraint::NOT { child_names } => {
                 result.push(constraint.clone());
             }
            
@@ -265,20 +277,14 @@ pub fn construct_result(
 
     let mut from_section = String::new();
 
-    // FROM beginnt mit Einstiegstabelle
-    for clause in &base_from {
-    from_section.push_str(&format!("\n{}", clause));
-    }
+    
 
 
-    for clause in &join_clauses {
-    from_section.push_str(&format!("\n{}", clause));
-    }
-
+    // SELECT result
     result.push_str(&format!(
         "SELECT {}\n",
         select_fields.join(", "),
-    ));
+    )); 
 
 
     // Handle Constraints and Childs here
@@ -290,7 +296,17 @@ pub fn construct_result(
 
 
 
-    result.push_str(&format!("FROM {}\n", from_section));
+
+    // FROM result
+    result.push_str(&format!("FROM {}\n", base_from.join(",\n")));
+    
+    for join in &join_clauses{
+    result.push_str(&format!("{}\n",join));
+    }
+
+
+
+    // WHERE result
 
     if !where_clauses.is_empty() {
         result.push_str(&format!(
@@ -328,35 +344,22 @@ pub fn construct_from_clauses(
 ) -> (Vec<String>, HashSet<String>) {
     let mut from_clauses = Vec::new();
 
-    // First will appear without JOIN infront and others with JOIN infront
-    if let Some((event_var, types)) = node.event_vars.iter().next() {
-        if let Some(event_type) = types.iter().next() {
-            from_clauses.push(format!("event_{} AS E{}", event_type.replace(" ", "_"), event_var.0));
-            used_keys.insert(format!("E{}", event_var.0));
-        }
-    } else if let Some((obj_var, types)) = node.object_vars.iter().next() {
-        if let Some(object_type) = types.iter().next() {
-            from_clauses.push(format!("object_{} AS O{}", object_type.replace(" ", "_"), obj_var.0));
-            used_keys.insert(format!("O{}", obj_var.0));
-        }
-    }
 
-    // with JOIN infront of declaration
     for (obj_var, types) in &node.object_vars {
         for object_type in types {
             let key = format!("O{}", obj_var.0);
             if used_keys.insert(key.clone()) {
-                from_clauses.push(format!("CROSSJOIN object_{} AS {}", object_type.replace(" ", "_"), key));
+                from_clauses.push(format!("object_{} AS {}", object_type.replace(" ", "_"), key));
             }
         }
     }
 
-    //
+
     for (event_var, types) in &node.event_vars {
         for event_type in types {
             let key = format!("E{}", event_var.0);
             if used_keys.insert(key.clone()) {
-                from_clauses.push(format!("CROSSJOIN event_{} AS {}", event_type.replace(" ", "_"), key));
+                from_clauses.push(format!("event_{} AS {}", event_type.replace(" ", "_"), key));
             }
         }
     }
@@ -428,7 +431,7 @@ pub fn construct_childstrings(
     let mut result = Vec::new();
 
     for (inter_node, node_label) in &node.children {
-        let child_sql = translate_to_sql_from_intermediate(inter_node);
+        let child_sql = translate_to_sql_from_child(inter_node);
         result.push((child_sql, node_label.clone()));
     }
 
@@ -447,7 +450,11 @@ pub fn construct_child_constraints(
     // Iterate over all Constraints
     for constraint in &node.constraints {
         match constraint {
-            Constraint::OR { child_names: _ } => {
+            
+            
+            
+            // Constraint ANYSAT implementation
+            Constraint::ANY { child_names: _ } => {
                 let mut childs_in_constraints = Vec::new();
 
                 for (child_sql, child_label) in &childs {
@@ -464,6 +471,52 @@ pub fn construct_child_constraints(
                 result_string.push(or_constraint);
             }
 
+
+
+            // Constraint AND implementation (is wrong same problem as with ORALl)
+            Constraint::AND { child_names: _ } => {
+                let mut childs_in_constraints = Vec::new();
+
+                for (child_sql, child_label) in &childs {
+                    for (_child_node, edge_name) in &node.children {
+                        if child_label == edge_name {
+                            childs_in_constraints.push(format!("({}) >= 1 \n", child_sql));
+                        }
+                    }
+                }
+
+                // Combine with AND
+                let mut and_constraint = childs_in_constraints.join(" AND \n");
+                and_constraint = format!("({})", and_constraint);
+                result_string.push(and_constraint);
+            }
+
+
+
+            // Constraint NOT
+            Constraint::NOT { child_names: _ } =>{
+                let mut childs_in_constraints = Vec::new();
+
+                for (child_sql, child_label) in &childs {
+                    for (_child_node, edge_name) in &node.children {
+                        if child_label == edge_name {
+                            childs_in_constraints.push(format!("({}) = 0 \n", child_sql));
+                        }
+                    }
+                }
+
+                // Combine with AND
+                let mut or_constraint = childs_in_constraints.join(" AND \n");
+                or_constraint = format!("({})", or_constraint);
+                result_string.push(or_constraint);
+            }
+
+
+
+
+
+
+
             _ => {
                 // Ignore rest 
             }
@@ -475,10 +528,44 @@ pub fn construct_child_constraints(
 
 
 
+pub fn translate_to_sql_from_child(
+    node: &InterMediateNode
+) -> String{
+    let mut used_keys = HashSet::new(); // Save all the Tables already created
+    let mut  base_from = Vec::new();
+
+    let mut select_fields = Vec::new();
+    select_fields.push("COUNT(*)".to_string());
+    (base_from, used_keys) = construct_from_clauses(node, used_keys);
+    let (join_clauses, where_clauses) = construct_basic_operations(node);
+    
+    
+    
+    let childs = construct_childstrings(node);
+    
+    let child_strings: Vec<String> = childs
+        .iter()
+        .map(|(sql, _)| sql.clone())
+        .collect();
+
+
+
+
+    let result = construct_result(
+        node,
+        select_fields,
+        base_from,
+        join_clauses,
+        where_clauses,
+        child_strings,
+        childs
+    );
+
+    return result;
+}
+
+
 // TODO:
-// Filter,Labels and Constraints, maybe start with functions, which make these tasks which will be implemented later
-// How to handle multiple children and constraints to connect them
-// Child Select Klammern weg falls empty
-// Need to take Decision on which JOIN to take (not sure)
-// Other Constraints
-// Need to make extra SELECT for children to select count(*)
+// How to exactly implement every Constraint
+// Filter implementation by repeating Subquery in WHERE section?
+
