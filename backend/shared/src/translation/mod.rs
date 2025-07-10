@@ -3,7 +3,7 @@ use std::{
     fmt::Display,
     hash::Hash,
 };
-use crate::binding_box::{structs::{Constraint, Filter}, BindingBoxTree};
+use crate::binding_box::{structs::{Constraint, Filter, SizeFilter}, BindingBoxTree};
 use crate::binding_box::structs::NewEventVariables;
 use crate::binding_box::structs::NewObjectVariables;
 use crate::binding_box::structs::ObjectVariable;
@@ -196,6 +196,20 @@ pub fn extract_constraints(
             Constraint::NOT { child_names } => {
                 result.push(constraint.clone());
             }
+
+            Constraint::SizeFilter { filter } =>{
+                match filter {
+                    SizeFilter::NumChilds { child_name, min, max } =>{
+                        result.push(constraint.clone());
+                    }
+
+                    _ => {
+                // Ignore the other constraints
+                }
+
+                }
+            }
+
            
             _ => {
                 // Ignore the other constraints
@@ -574,12 +588,54 @@ pub fn construct_child_constraints(
 
 
 
+            // Constraint SizeFilter
+            Constraint::SizeFilter { filter } => {
+                    match filter {
+                        SizeFilter::NumChilds { child_name, min, max } => {
+                            let mut childs_in_constraints = Vec::new();
+
+                            for (child_sql, child_label) in &childs {
+                                if child_label == child_name {
+                                    match (min, max) {
+                                        (None, Some(max)) => {
+                                            childs_in_constraints.push(format!("({}) <= {}", child_sql, max));
+                                        },
+                                        (Some(min), None) => {
+                                            childs_in_constraints.push(format!("({}) >= {}", child_sql, min));
+                                        },
+                                        (Some(min), Some(max)) => {
+                                            childs_in_constraints.push(format!("({}) BETWEEN {} AND {}", child_sql, min, max)
+                                            );
+                                        },
+                                        (None, None) => {
+                                            
+                                        }
+                                    }
+                                }
+                            }
+
+                            result_string.push(format!( "({})" ,childs_in_constraints.join("")));
+                        }
+
+                        _ => {
+                            // Ignore other SizeFilter 
+                        }
+                    }
+                }
+
+
+
 
 
 
             _ => {
                 // Ignore rest 
             }
+        
+        
+        
+        
+        
         }
     }
 
