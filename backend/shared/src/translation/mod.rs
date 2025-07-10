@@ -17,12 +17,21 @@ pub fn translate_to_sql_shared(
     tree: BindingBoxTree
 )-> String{
     
+
+    // Erstelle Mapping der Tabellen Hashmaps event object String zu String
+    
+    let event_tables = map_to_event_tables(); // args can be done later, for now hardcoded for Management
+
+    let object_tables = map_to_object_tables();
+
+
+    
     //Step 1:  Extract Intermediate Representation
     let inter = convert_to_intermediate(tree);
 
     
     // Step 2: Translate the Intermediate Representation to SQL
-    let result = translate_to_sql_from_intermediate(&inter);
+    let result = translate_to_sql_from_intermediate(&inter, &event_tables, &object_tables);
     
     
     
@@ -208,6 +217,51 @@ pub fn extract_filters(
 }
 
 
+
+pub fn map_to_event_tables(
+) -> HashMap<String, String>{
+
+    let mut event_tables: HashMap<String, String> = HashMap::new();
+
+    event_tables.insert("confirm order".to_string(), "ConfirmOrder".to_string());
+    event_tables.insert("create package".to_string(), "CreatePackage".to_string());
+    event_tables.insert("failed delivery".to_string(), "FailedDelivery".to_string());
+    event_tables.insert("item out of stock".to_string(), "ItemOutOfStock".to_string());
+    event_tables.insert("package delivered".to_string(), "PackageDelivered".to_string());
+    event_tables.insert("pay order".to_string(), "PayOrder".to_string());
+    event_tables.insert("payment reminder".to_string(), "PaymentReminder".to_string());
+    event_tables.insert("pick item".to_string(), "PickItem".to_string());
+    event_tables.insert("place order".to_string(), "PlaceOrder".to_string());
+    event_tables.insert("reorder item".to_string(), "ReorderItem".to_string());
+    event_tables.insert("send package".to_string(), "SendPackage".to_string());
+
+    return event_tables;
+
+}
+
+
+
+pub fn map_to_object_tables(
+
+) -> HashMap<String, String>{
+
+    let mut object_tables: HashMap<String, String> = HashMap::new();
+
+    object_tables.insert("customers".to_string(), "Customers".to_string());
+    object_tables.insert("employees".to_string(), "Employees".to_string());
+    object_tables.insert("items".to_string(), "Items".to_string());
+    object_tables.insert("orders".to_string(), "Orders".to_string());
+    object_tables.insert("packages".to_string(), "Packages".to_string());
+    object_tables.insert("products".to_string(), "Products".to_string());
+
+
+    return object_tables;
+
+}
+
+
+
+
 // End of Intermediate
 
 
@@ -224,19 +278,22 @@ pub fn extract_filters(
 
 // Function which translates Intermediate to SQL
 pub fn translate_to_sql_from_intermediate(
-    node: &InterMediateNode
+    node: &InterMediateNode,
+    event_tables: &HashMap<String, String>,
+    object_tables: &HashMap<String,String>
+
 ) -> String {
 
     let mut used_keys = HashSet::new(); // Save all the Tables already created
     let mut  base_from = Vec::new();
 
     let select_fields = construct_select_fields(node);
-    (base_from, used_keys) = construct_from_clauses(node, used_keys);
+    (base_from, used_keys) = construct_from_clauses(node, used_keys, &event_tables, &object_tables);
     let (join_clauses, where_clauses) = construct_basic_operations(node);
     
     
     
-    let childs = construct_childstrings(node);
+    let childs = construct_childstrings(node, event_tables, object_tables);
     
     let child_strings: Vec<String> = childs
         .iter()
@@ -253,7 +310,9 @@ pub fn translate_to_sql_from_intermediate(
         join_clauses,
         where_clauses,
         child_strings,
-        childs
+        childs,
+        &event_tables,
+        &object_tables
     );
 
     return result;
@@ -270,7 +329,9 @@ pub fn construct_result(
     join_clauses: Vec<String>,
     where_clauses: Vec<String>,
     child_strings: Vec<String>,
-    childs: Vec<(String,String)>
+    childs: Vec<(String,String)>,
+    event_tables: &HashMap<String, String>,
+    object_tables: &HashMap<String,String>
 
 ) -> String {
     let mut result = String::new();
@@ -282,7 +343,7 @@ pub fn construct_result(
 
     // SELECT result
     result.push_str(&format!(
-        "SELECT {}\n",
+        "SELECT DISTINCT {}\n",         // Need to check whether DISTINCT can just always be used but should be
         select_fields.join(", "),
     )); 
 
@@ -290,8 +351,8 @@ pub fn construct_result(
     // Handle Constraints and Childs here
     
     if !child_strings.is_empty(){
-        let child_constraint_string = construct_child_constraints(&node,childs);
-        result.push_str(&format!(",\n({})\n", child_constraint_string));
+        let child_constraint_string = construct_child_constraints(&node,childs, event_tables, object_tables);
+        result.push_str(&format!(",\n({}) AS satisfied \n", child_constraint_string));
     }
 
 
@@ -325,6 +386,7 @@ pub fn construct_select_fields(
 ) -> Vec<String> {
     let mut select_fields = Vec::new();
 
+
     for (obj_var, _) in &node.object_vars {
         select_fields.push(format!("O{}.ocel_id", obj_var.0));
     }
@@ -340,7 +402,9 @@ pub fn construct_select_fields(
 // Could make used_keys function argument and return type for children! Could also put E2O and O2O in there to make sure no double tables defined
 pub fn construct_from_clauses(
     node: &InterMediateNode,
-    mut  used_keys:HashSet<String>
+    mut  used_keys:HashSet<String>,
+    event_tables: &HashMap<String, String>,
+    object_tables: &HashMap<String,String>
 ) -> (Vec<String>, HashSet<String>) {
     let mut from_clauses = Vec::new();
 
@@ -349,7 +413,7 @@ pub fn construct_from_clauses(
         for object_type in types {
             let key = format!("O{}", obj_var.0);
             if used_keys.insert(key.clone()) {
-                from_clauses.push(format!("object_{} AS {}", object_type.replace(" ", "_"), key));
+                from_clauses.push(format!("object_{} AS {}", object_tables[object_type], key));
             }
         }
     }
@@ -359,7 +423,7 @@ pub fn construct_from_clauses(
         for event_type in types {
             let key = format!("E{}", event_var.0);
             if used_keys.insert(key.clone()) {
-                from_clauses.push(format!("event_{} AS {}", event_type.replace(" ", "_"), key));
+                from_clauses.push(format!("event_{} AS {}", event_tables[event_type] , key));
             }
         }
     }
@@ -381,24 +445,16 @@ pub fn construct_basic_operations(
             Relation::E2O { event, object, .. } => {
                 let eo_alias = format!("E2O{}{}", event.0, object.0);
                 join_clauses.push(format!(
-                    "INNER JOIN event_object AS {} ON {}.ocel_event_id = E{}.ocel_id",
-                    eo_alias, eo_alias, event.0
-                ));
-                where_clauses.push(format!(
-                    "{}.ocel_object_id = O{}.ocel_id",
-                    eo_alias, object.0
+                    "INNER JOIN event_object AS {} ON {}.ocel_event_id = E{}.ocel_id AND {}.ocel_object_id = O{}.ocel_id",
+                    eo_alias, eo_alias, event.0, eo_alias, object.0
                 ));
             }
 
             Relation::O2O { object_1, object_2, .. } => {
                 let o2o_alias = format!("O2O{}{}", object_1.0, object_2.0);
                 join_clauses.push(format!(
-                    "INNER JOIN object_object AS {} ON {}.ocel_source_id = O{}.ocel_id",
-                    o2o_alias, o2o_alias, object_1.0
-                ));
-                where_clauses.push(format!(
-                    "{}.ocel_target_id = O{}.ocel_id",
-                    o2o_alias, object_2.0
+                    "INNER JOIN object_object AS {} ON {}.ocel_source_id = O{}.ocel_id AND {}.ocel_target_id = O{}.ocel_id",
+                    o2o_alias, o2o_alias, object_1.0, o2o_alias,object_2.0
                 ));
             }
 
@@ -427,11 +483,13 @@ pub fn construct_basic_operations(
 
 pub fn construct_childstrings(
     node: &InterMediateNode,
+    event_tables: &HashMap<String, String>,
+    object_tables: &HashMap<String,String>
 ) -> Vec<(String, String)> {
     let mut result = Vec::new();
 
     for (inter_node, node_label) in &node.children {
-        let child_sql = translate_to_sql_from_child(inter_node);
+        let child_sql = translate_to_sql_from_child(inter_node, event_tables, object_tables);
         result.push((child_sql, node_label.clone()));
     }
 
@@ -443,7 +501,9 @@ pub fn construct_childstrings(
 // Construct the Constraints connected with the Children SQL (idea put resulting string for constraints together at end maybe return Vec String)
 pub fn construct_child_constraints(
     node: &InterMediateNode,
-    childs: Vec<(String, String)>
+    childs: Vec<(String, String)>,
+    event_tables: &HashMap<String, String>,
+    object_tables: &HashMap<String,String>
 ) -> String {
     let mut result_string = Vec::new();
 
@@ -529,19 +589,21 @@ pub fn construct_child_constraints(
 
 
 pub fn translate_to_sql_from_child(
-    node: &InterMediateNode
+    node: &InterMediateNode,
+    event_tables: &HashMap<String, String>,
+    object_tables: &HashMap<String,String>
 ) -> String{
     let mut used_keys = HashSet::new(); // Save all the Tables already created
     let mut  base_from = Vec::new();
 
     let mut select_fields = Vec::new();
     select_fields.push("COUNT(*)".to_string());
-    (base_from, used_keys) = construct_from_clauses(node, used_keys);
+    (base_from, used_keys) = construct_from_clauses(node, used_keys, event_tables, object_tables);
     let (join_clauses, where_clauses) = construct_basic_operations(node);
     
     
     
-    let childs = construct_childstrings(node);
+    let childs = construct_childstrings(node, &event_tables, &object_tables);
     
     let child_strings: Vec<String> = childs
         .iter()
@@ -558,7 +620,9 @@ pub fn translate_to_sql_from_child(
         join_clauses,
         where_clauses,
         child_strings,
-        childs
+        childs,
+        event_tables,
+        object_tables
     );
 
     return result;
