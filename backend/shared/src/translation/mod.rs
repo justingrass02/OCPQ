@@ -210,6 +210,13 @@ pub fn extract_constraints(
                 }
             }
 
+
+            Constraint::Filter { filter } =>{
+                result.push(constraint.clone());
+            }
+
+
+
            
             _ => {
                 // Ignore the other constraints
@@ -301,11 +308,11 @@ pub fn translate_to_sql_from_intermediate(
     let mut used_keys = HashSet::new(); // Save all the Tables already created
     let mut  base_from = Vec::new();
 
-    let select_fields = construct_select_fields(node);
+    let mut select_fields = construct_select_fields(node);
     (base_from, used_keys) = construct_from_clauses(node, used_keys, &event_tables, &object_tables);
-    let (join_clauses, where_clauses) = construct_basic_operations(node);
-    
-    
+    let ( join_clauses, mut  where_clauses) = construct_basic_operations(node);
+
+
     
     let childs = construct_childstrings(node, event_tables, object_tables);
     
@@ -315,9 +322,9 @@ pub fn translate_to_sql_from_intermediate(
         .collect();
 
 
+    select_fields.insert(0, "DISTINCT ".to_string());
 
-
-    let result = construct_result(
+        let result = construct_result(
         node,
         select_fields,
         base_from,
@@ -338,7 +345,7 @@ pub fn translate_to_sql_from_intermediate(
 
 pub fn construct_result(
     node: &InterMediateNode,
-    select_fields: Vec<String>,
+    mut select_fields: Vec<String>,
     base_from: Vec<String>,
     join_clauses: Vec<String>,
     where_clauses: Vec<String>,
@@ -356,15 +363,23 @@ pub fn construct_result(
 
 
     // SELECT result
-    result.push_str(&format!(
-        "SELECT DISTINCT {}\n",         // Need to check whether DISTINCT can just always be used but should be
-        select_fields.join(", "),
-    )); 
+    result.push_str("SELECT ");
 
+    let mut fields = select_fields.iter();
+    if let Some(first) = fields.next() {
+        result.push_str(first);
+        select_fields.remove(0);
+        }
+
+
+
+    result.push_str(&select_fields.join(","));   
+
+    result.push_str("\n");
 
     // Handle Constraints and Childs here
     
-    if !child_strings.is_empty(){
+    if !child_strings.is_empty() || !node.constraints.is_empty(){
         let child_constraint_string = construct_child_constraints(&node,childs, event_tables, object_tables);
         result.push_str(&format!(",\n({}) AS satisfied \n", child_constraint_string));
     }
@@ -625,8 +640,29 @@ pub fn construct_child_constraints(
 
 
 
+                // Constraint Filter 
+                Constraint::Filter { filter } =>{
+                    match filter{
+                        Filter::O2E { object, event, qualifier, filter_label } =>{
+                            result_string.push(format!("(EXIST(SELECT 1 \n FROM event_object AS E2O{}{}\n WHERE E2{}{}.ocel_event_id = E{}.ocel_id AND E20{}{}.ocel_object_id = O{}.ocel_id ))", event.0, object.0, event.0, object.0, event.0,event.0, object.0, object.0));
+                        }
+
+                        Filter::O2O { object, other_object, qualifier, filter_label } => {
+                             result_string.push(format!("(EXIST(SELECT 1 \n FROM event_object AS E2O{}{}\n WHERE E20{}{}.ocel_event_id = E{}.ocel_id AND E20{}{}.ocel_object_id = O{}.ocel_id ))", object.0, other_object.0,object.0, other_object.0, object.0,object.0, other_object.0, other_object.0));
+                        }
+
+                        _ => {
+                            // Ignore other Filter 
+                        }
+
+                    }
+                }
 
 
+
+
+
+                
 
             _ => {
                 // Ignore rest 
