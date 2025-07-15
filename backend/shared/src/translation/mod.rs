@@ -679,6 +679,7 @@ pub fn construct_child_constraints(
 }
 
 
+// Handling of Childs
 
 pub fn translate_to_sql_from_child(
     node: &InterMediateNode,
@@ -705,7 +706,7 @@ pub fn translate_to_sql_from_child(
 
 
 
-    let result = construct_result(
+    let result = construct_result_child(
         node,
         select_fields,
         base_from,
@@ -716,6 +717,76 @@ pub fn translate_to_sql_from_child(
         event_tables,
         object_tables
     );
+
+    return result;
+}
+
+
+pub fn construct_result_child(
+    node: &InterMediateNode,
+    mut select_fields: Vec<String>,
+    base_from: Vec<String>,
+    join_clauses: Vec<String>,
+    where_clauses: Vec<String>,
+    child_strings: Vec<String>,
+    childs: Vec<(String,String)>,
+    event_tables: &HashMap<String, String>,
+    object_tables: &HashMap<String,String>
+
+) -> String {
+    let mut result = String::new();
+
+    let mut from_section = String::new();
+
+    
+
+
+    // SELECT result
+    result.push_str("SELECT ");
+
+    let mut fields = select_fields.iter();
+    if let Some(first) = fields.next() {
+        result.push_str(first);
+        select_fields.remove(0);
+        }
+
+
+
+    result.push_str(&select_fields.join(","));   
+
+    result.push_str("\n");
+
+
+    // FROM result
+    result.push_str(&format!("FROM {}\n", base_from.join(",\n")));
+    
+    for join in &join_clauses{
+    result.push_str(&format!("{}\n",join));
+    }
+
+
+
+    // WHERE result
+
+    if !where_clauses.is_empty() && child_strings.is_empty() && node.constraints.is_empty()   {
+        result.push_str(&format!(
+            "WHERE {}\n",
+            where_clauses.join("\nAND ")
+        ));
+    }else if (where_clauses.is_empty() && (!child_strings.is_empty() || !node.constraints.is_empty())){
+        let child_constraint_string = construct_child_constraints(&node,childs, event_tables, object_tables);
+        result.push_str(&format!(
+            "WHERE ({})\n",
+            child_constraint_string
+        ));
+    }else if(!where_clauses.is_empty() && (!child_strings.is_empty() || !node.constraints.is_empty())) {
+        let child_constraint_string = construct_child_constraints(&node,childs, event_tables, object_tables);
+        result.push_str(&format!(
+            "WHERE ({}) AND {}\n",
+            child_constraint_string,
+            where_clauses.join("\nAND ")
+        ));
+    }
 
     return result;
 }
