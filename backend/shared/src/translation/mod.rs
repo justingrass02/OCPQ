@@ -565,7 +565,7 @@ pub fn construct_child_constraints(
                     if child_names.contains(child_label) {
                         parts.push(format!(
                             "EXISTS (SELECT 1 FROM ({}) AS subq_{}_{}_{} WHERE subq_{}_{}_{}.satisfied = 1 AND subq_{}_{}_{}.count > 0 )",
-                            child_sql, i, j,child_label, i, j,child_label, i, j,child_label
+                            child_sql, i, j,child_label, i, j,child_label, i, j,child_label.trim()
                         ));
                     }
                 }
@@ -581,7 +581,7 @@ pub fn construct_child_constraints(
                     if child_names.contains(child_label) {
                         parts.push(format!(
                             "NOT EXISTS (SELECT 1 FROM ({}) AS subq_{}_{}_{} WHERE subq_{}_{}_{}.satisfied = 0)",
-                            child_sql, i, j,child_label, i, j,child_label
+                            child_sql, i, j,child_label, i, j,child_label.trim()
                         ));
                     }
                 }
@@ -595,7 +595,7 @@ pub fn construct_child_constraints(
                     if child_names.contains(child_label) {
                         parts.push(format!(
                             "NOT EXISTS (SELECT 1 FROM ({}) AS subq_{}_{}_{} WHERE subq_{}_{}_{}.satisfied = 1)",
-                            child_sql, i, j,child_label, i, j,child_label
+                            child_sql, i, j,child_label, i, j,child_label.trim()
                         ));
                     }
                 }
@@ -609,7 +609,7 @@ pub fn construct_child_constraints(
                     if child_names.contains(child_label) {
                         result_string.push(format!(
                             "NOT EXISTS (SELECT 1 FROM ({}) AS subq_{}_{}_{} WHERE subq_{}_{}_{}.satisfied = 0)",
-                            child_sql, i, j,child_label, i, j,child_label
+                            child_sql, i, j,child_label, i, j,child_label.trim()
                         ));
                     }
                 }
@@ -623,7 +623,7 @@ pub fn construct_child_constraints(
                     if child_names.contains(child_label) {
                         parts.push(format!(
                             "NOT EXISTS (SELECT 1 FROM ({}) AS subq_{}_{}_{} WHERE subq_{}_{}_{}.satisfied = 0)",
-                            child_sql, i, j,child_label, i, j,child_label
+                            child_sql, i, j,child_label, i, j,child_label.trim()
                         ));
                     }
                 }
@@ -639,11 +639,11 @@ pub fn construct_child_constraints(
                         if child_label == child_name {
                             let clause = match (min, max) {
                                 (Some(min), Some(max)) =>
-                                    format!("(SELECT subq_{}_{}_{}.count FROM ({}) AS subq_{}_{}_{}) BETWEEN {} AND {}", i, j,child_label, child_sql, i, j,child_label, min, max),
+                                    format!("(SELECT subq_{}_{}_{}.count FROM ({}) AS subq_{}_{}_{}) BETWEEN {} AND {}", i, j,child_label.trim(), child_sql, i, j,child_label.trim(), min, max),
                                 (Some(min), None) =>
-                                    format!("(SELECT subq_{}_{}_{}.count FROM ({}) AS subq_{}_{}_{}) >= {}", i, j, child_label, child_sql, i, j, child_label, min),
+                                    format!("(SELECT subq_{}_{}_{}.count FROM ({}) AS subq_{}_{}_{}) >= {}", i, j, child_label, child_sql, i, j, child_label.trim(), min),
                                 (None, Some(max)) =>
-                                    format!("(SELECT subq_{}_{}_{}.count FROM ({}) AS subq_{}_{}_{}) <= {}", i, j, child_label, child_sql, i, j,child_label, max),
+                                    format!("(SELECT subq_{}_{}_{}.count FROM ({}) AS subq_{}_{}_{}) <= {}", i, j, child_label, child_sql, i, j,child_label.trim(), max),
                                 (None, None) => continue,
                             };
                             result_string.push(clause);
