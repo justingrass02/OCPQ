@@ -11,6 +11,19 @@ use crate::binding_box::structs::EventVariable;
 use crate::binding_box::structs::Qualifier;
 
 
+#[derive(Clone)]
+pub struct SQL_Parts{
+    node: InterMediateNode,
+    select_fields: Vec<String>,
+    from_clauses: Vec<String>,
+    where_clauses: Vec<String>,
+    child_sql: Vec<(String,String)>,
+    event_tables: HashMap<String,String>,
+    object_tables: HashMap<String,String>,
+    used_keys: HashSet<String>
+}
+
+
 
 // Implementation of the General translate to SQL function
 pub fn translate_to_sql_shared(
@@ -29,9 +42,22 @@ pub fn translate_to_sql_shared(
     //Step 1:  Extract Intermediate Representation
     let inter = convert_to_intermediate(tree);
 
+    // Create SQL Struct
+
+    let sql_parts = SQL_Parts{
+        node: inter,
+        select_fields: vec![],
+        from_clauses: vec![],
+        where_clauses: vec![],
+        child_sql: vec![],
+        event_tables: event_tables,
+        object_tables: object_tables,
+        used_keys: HashSet::new()
+    };
+
     
     // Step 2: Translate the Intermediate Representation to SQL
-    let result = translate_to_sql_from_intermediate(&inter, &event_tables, &object_tables);
+    let result = translate_to_sql_from_intermediate(sql_parts);
     
     
     
@@ -51,7 +77,7 @@ pub fn convert_to_intermediate(
 }
 
 
-
+#[derive(Clone)]
 pub struct InterMediateNode{
     pub event_vars: NewEventVariables,
     pub object_vars: NewObjectVariables,
@@ -61,6 +87,8 @@ pub struct InterMediateNode{
     pub filter: Vec<Filter>
 }
 
+
+#[derive(Clone)]
 pub enum Relation{
     E2O{
         event: EventVariable,
@@ -301,41 +329,38 @@ pub fn map_to_object_tables(
 
 // Function which translates Intermediate to SQL
 pub fn translate_to_sql_from_intermediate(
-    node: &InterMediateNode,
-    event_tables: &HashMap<String, String>,
-    object_tables: &HashMap<String,String>
-
+    mut sql_parts: SQL_Parts
 ) -> String {
+
 
     let mut used_keys = HashSet::new(); // Save all the Tables already created
     let mut  base_from = Vec::new();
 
-    let mut select_fields = construct_select_fields(node);
-    (base_from, used_keys) = construct_from_clauses(node, used_keys, &event_tables, &object_tables);
-    let ( join_clauses, mut  where_clauses) = construct_basic_operations(node);
+    sql_parts.select_fields = construct_select_fields(&sql_parts);
+    (base_from, used_keys) = construct_from_clauses(&sql_parts, used_keys);
+    sql_parts.used_keys = used_keys;
+    
+    let (join_clauses, where_clauses) = construct_basic_operations(&sql_parts);
+    sql_parts.where_clauses = where_clauses;
+
 
 
     
-    let childs = construct_childstrings(node, event_tables, object_tables);
+    let childs = construct_childstrings(&sql_parts);
+    sql_parts.child_sql = childs;
     
-    let child_strings: Vec<String> = childs
+    let child_strings: Vec<String> = sql_parts.child_sql
         .iter()
         .map(|(sql, _)| sql.clone())
         .collect();
 
 
-    select_fields.insert(0, "DISTINCT ".to_string());
 
         let result = construct_result(
-        node,
-        select_fields,
+        &sql_parts,
         base_from,
         join_clauses,
-        where_clauses,
         child_strings,
-        childs,
-        &event_tables,
-        &object_tables
     );
 
     return result;
@@ -346,15 +371,10 @@ pub fn translate_to_sql_from_intermediate(
 // Construct the resulting SQL query with tools given
 
 pub fn construct_result(
-    node: &InterMediateNode,
-    mut select_fields: Vec<String>,
+    sql_parts: &SQL_Parts,
     base_from: Vec<String>,
     join_clauses: Vec<String>,
-    where_clauses: Vec<String>,
     child_strings: Vec<String>,
-    childs: Vec<(String,String)>,
-    event_tables: &HashMap<String, String>,
-    object_tables: &HashMap<String,String>
 
 ) -> String {
     let mut result = String::new();
@@ -367,22 +387,16 @@ pub fn construct_result(
     // SELECT result
     result.push_str("SELECT ");
 
-    let mut fields = select_fields.iter();
-    if let Some(first) = fields.next() {
-        result.push_str(first);
-        select_fields.remove(0);
-        }
 
 
-
-    result.push_str(&select_fields.join(","));   
+    result.push_str(&sql_parts.select_fields.join(","));   
 
     result.push_str("\n");
 
     // Handle Constraints and Childs here
     
-    if !child_strings.is_empty() || !node.constraints.is_empty(){
-        let child_constraint_string = construct_child_constraints(&node,childs, event_tables, object_tables);
+    if !child_strings.is_empty() || !sql_parts.node.constraints.is_empty(){
+        let child_constraint_string = construct_child_constraints(&sql_parts);
         result.push_str(&format!(",\n({}) AS satisfied \n", child_constraint_string));
     }
 
@@ -400,10 +414,10 @@ pub fn construct_result(
 
     // WHERE result
 
-    if !where_clauses.is_empty() {
+    if !sql_parts.where_clauses.is_empty() {
         result.push_str(&format!(
             "WHERE {}\n",
-            where_clauses.join("\nAND ")
+            sql_parts.where_clauses.join("\nAND ")
         ));
     }
 
@@ -413,16 +427,16 @@ pub fn construct_result(
 
 
 pub fn construct_select_fields(
-    node: &InterMediateNode
+     sql_parts: &SQL_Parts
 ) -> Vec<String> {
     let mut select_fields = Vec::new();
 
 
-    for (obj_var, _) in &node.object_vars {
+    for (obj_var, _) in &sql_parts.node.object_vars {
         select_fields.push(format!("O{}.ocel_id", obj_var.0));
     }
 
-    for (event_var, _) in &node.event_vars {
+    for (event_var, _) in &sql_parts.node.event_vars {
         select_fields.push(format!("E{}.ocel_id", event_var.0));
     }
 
@@ -432,29 +446,27 @@ pub fn construct_select_fields(
 
 // Could make used_keys function argument and return type for children! Could also put E2O and O2O in there to make sure no double tables defined
 pub fn construct_from_clauses(
-    node: &InterMediateNode,
-    mut  used_keys:HashSet<String>,
-    event_tables: &HashMap<String, String>,
-    object_tables: &HashMap<String,String>
+    mut sql_parts: &SQL_Parts,
+    mut used_keys: HashSet<String>
 ) -> (Vec<String>, HashSet<String>) {
     let mut from_clauses = Vec::new();
 
 
-    for (obj_var, types) in &node.object_vars {
+    for (obj_var, types) in &sql_parts.node.object_vars {
         for object_type in types {
             let key = format!("O{}", obj_var.0);
-            if used_keys.insert(key.clone()) {
-                from_clauses.push(format!("object_{} AS {}", object_tables[object_type], key));
+            if  used_keys.insert(key.clone()) {
+                from_clauses.push(format!("object_{} AS {}", sql_parts.object_tables[object_type], key));
             }
         }
     }
 
 
-    for (event_var, types) in &node.event_vars {
+    for (event_var, types) in &sql_parts.node.event_vars {
         for event_type in types {
             let key = format!("E{}", event_var.0);
-            if used_keys.insert(key.clone()) {
-                from_clauses.push(format!("event_{} AS {}", event_tables[event_type] , key));
+            if  used_keys.insert(key.clone()) {
+                from_clauses.push(format!("event_{} AS {}", sql_parts.event_tables[event_type] , key));
             }
         }
     }
@@ -466,12 +478,12 @@ pub fn construct_from_clauses(
 
 
 pub fn construct_basic_operations(
-    node: &InterMediateNode
+    sql_parts: &SQL_Parts
 ) -> (Vec<String>, Vec<String>) {
     let mut join_clauses = Vec::new();
     let mut where_clauses = Vec::new();
 
-    for relation in &node.relations {
+    for relation in &sql_parts.node.relations {
         match relation {
             Relation::E2O { event, object, .. } => {
                 let eo_alias = format!("E2O{}{}", event.0, object.0);
@@ -512,15 +524,22 @@ pub fn construct_basic_operations(
 
 
 
-pub fn construct_childstrings(
-    node: &InterMediateNode,
-    event_tables: &HashMap<String, String>,
-    object_tables: &HashMap<String,String>
-) -> Vec<(String, String)> {
+pub fn construct_childstrings(sql_parts: &SQL_Parts) -> Vec<(String, String)> {
     let mut result = Vec::new();
 
-    for (inter_node, node_label) in &node.children {
-        let child_sql = translate_to_sql_from_child(inter_node, event_tables, object_tables);
+    for (inter_node, node_label) in &sql_parts.node.children {
+        let mut child_sql_parts = SQL_Parts {
+            node: inter_node.clone(),
+            select_fields: vec![],
+            from_clauses: vec![],
+            where_clauses: vec![],
+            child_sql: vec![],
+            event_tables: sql_parts.event_tables.clone(),
+            object_tables: sql_parts.object_tables.clone(),
+            used_keys: sql_parts.used_keys.clone()
+        };
+
+        let child_sql = translate_to_sql_from_child(&mut child_sql_parts);
         result.push((child_sql, node_label.clone()));
     }
 
@@ -531,21 +550,18 @@ pub fn construct_childstrings(
 
 //TODO in this function: Names of subq more different
 pub fn construct_child_constraints(
-    node: &InterMediateNode,
-    childs: Vec<(String, String)>,
-    event_tables: &HashMap<String, String>,
-    object_tables: &HashMap<String,String>
+    sql_parts: &SQL_Parts
 ) -> String { 
     let mut result_string = Vec::new();
 
-    for (i, constraint) in node.constraints.iter().enumerate() {
+    for (i, constraint) in sql_parts.node.constraints.iter().enumerate() {
         
         match constraint {
             
             
             Constraint::ANY { child_names } => {
                 let mut parts = Vec::new();
-                for (j, (child_sql, child_label)) in childs.iter().enumerate() {
+                for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
                     if child_names.contains(child_label) {
                         parts.push(format!(
                             "EXISTS (SELECT 1 FROM ({}) AS subq_{}_{}_{} WHERE subq_{}_{}_{}.satisfied = 1 AND subq_{}_{}_{}.count > 0 )",
@@ -561,7 +577,7 @@ pub fn construct_child_constraints(
             // Constraint AND ALL
             Constraint::AND { child_names } => {
                 let mut parts = Vec::new();
-                for (j, (child_sql, child_label)) in childs.iter().enumerate() {
+                for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
                     if child_names.contains(child_label) {
                         parts.push(format!(
                             "NOT EXISTS (SELECT 1 FROM ({}) AS subq_{}_{}_{} WHERE subq_{}_{}_{}.satisfied = 0)",
@@ -575,7 +591,7 @@ pub fn construct_child_constraints(
             }
             Constraint::NOT { child_names } => {
                 let mut parts = Vec::new();
-                for (j, (child_sql, child_label)) in childs.iter().enumerate() {
+                for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
                     if child_names.contains(child_label) {
                         parts.push(format!(
                             "NOT EXISTS (SELECT 1 FROM ({}) AS subq_{}_{}_{} WHERE subq_{}_{}_{}.satisfied = 1)",
@@ -589,7 +605,7 @@ pub fn construct_child_constraints(
             }
             
             Constraint::SAT { child_names } => {
-                for (j, (child_sql, child_label)) in childs.iter().enumerate() {
+                for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
                     if child_names.contains(child_label) {
                         result_string.push(format!(
                             "NOT EXISTS (SELECT 1 FROM ({}) AS subq_{}_{}_{} WHERE subq_{}_{}_{}.satisfied = 0)",
@@ -603,7 +619,7 @@ pub fn construct_child_constraints(
             // Analog to AND ALl but now connect with OR 
             Constraint::OR { child_names } =>{
                 let mut parts = Vec::new();
-                for (j, (child_sql, child_label)) in childs.iter().enumerate() {
+                for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
                     if child_names.contains(child_label) {
                         parts.push(format!(
                             "NOT EXISTS (SELECT 1 FROM ({}) AS subq_{}_{}_{} WHERE subq_{}_{}_{}.satisfied = 0)",
@@ -619,7 +635,7 @@ pub fn construct_child_constraints(
 
             Constraint::SizeFilter { filter } => {
                 if let SizeFilter::NumChilds { child_name, min, max } = filter {
-                    for (j, (child_sql, child_label)) in childs.iter().enumerate() {
+                    for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
                         if child_label == child_name {
                             let clause = match (min, max) {
                                 (Some(min), Some(max)) =>
@@ -672,21 +688,21 @@ pub fn construct_child_constraints(
 
 
 pub fn translate_to_sql_from_child(
-    node: &InterMediateNode,
-    event_tables: &HashMap<String, String>,
-    object_tables: &HashMap<String,String>
+    sql_parts: &mut SQL_Parts
 ) -> String {
     let mut used_keys = HashSet::new();
     let mut base_from = Vec::new();
 
-    (base_from, used_keys) = construct_from_clauses(node, used_keys, event_tables, object_tables);
-    let (join_clauses, where_clauses) = construct_basic_operations(node);
-    let childs = construct_childstrings(node, event_tables, object_tables);
+    (base_from, sql_parts.used_keys) = construct_from_clauses(&sql_parts, used_keys);
+    let (join_clauses, where_clauses) = construct_basic_operations(&sql_parts);
+    sql_parts.where_clauses = where_clauses;
+    let childs = construct_childstrings(&sql_parts);
+    sql_parts.child_sql = childs;
 
-    let constraint_expr = construct_child_constraints( node,childs.clone(),event_tables,object_tables);
+    let constraint_expr = construct_child_constraints( &sql_parts);
 
     let sub_condition = if constraint_expr.trim().is_empty() {
-        "1 = 1".to_string()
+        "True".to_string()
     } else {
         constraint_expr
     };
@@ -697,29 +713,30 @@ pub fn translate_to_sql_from_child(
     ];
 
 
+
+    // hier noch updaten
+    sql_parts.select_fields = select_fields;
+
     return  construct_result_child(
-        node,
-        select_fields,
+        &sql_parts,
         base_from,
         join_clauses,
-        where_clauses,
     );
 }
 
 
 
 pub fn construct_result_child(
-    _node: &InterMediateNode,
-    select_fields: Vec<String>,
+    
+    sql_parts: &SQL_Parts,
     base_from: Vec<String>,
     join_clauses: Vec<String>,
-    where_clauses: Vec<String>,
 
 ) -> String {
     let mut result = String::new();
 
     result.push_str("SELECT ");
-    result.push_str(&select_fields.join(",\n"));
+    result.push_str(&sql_parts.select_fields.join(",\n"));
     result.push_str("\n");
 
     result.push_str(&format!("FROM {}\n", base_from.join(",\n")));
@@ -727,8 +744,8 @@ pub fn construct_result_child(
         result.push_str(&format!("{}\n", join));
     }
 
-    if !where_clauses.is_empty() {
-        result.push_str(&format!("WHERE {}\n", where_clauses.join("\nAND ")));
+    if !sql_parts.where_clauses.is_empty() {
+        result.push_str(&format!("WHERE {}\n", sql_parts.where_clauses.join("\nAND ")));
     }
 
     return result;
