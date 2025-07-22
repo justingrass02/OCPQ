@@ -349,7 +349,7 @@ pub fn map_to_object_tables(
 
 // Function which translates Intermediate to SQL
 pub fn translate_to_sql_from_intermediate(
-    mut sql_parts: SQL_Parts
+     mut sql_parts: SQL_Parts
 ) -> String {
 
 
@@ -362,7 +362,7 @@ pub fn translate_to_sql_from_intermediate(
     (base_from, used_keys) = construct_from_clauses(&sql_parts, used_keys);
     sql_parts.used_keys = used_keys;
     
-    let (join_clauses, where_clauses) = construct_basic_operations(&sql_parts);
+    let (join_clauses, where_clauses) = construct_basic_operations(&mut sql_parts);
     sql_parts.where_clauses = where_clauses;
 
     
@@ -379,7 +379,7 @@ pub fn translate_to_sql_from_intermediate(
     sql_parts.where_clauses.extend(filter_clauses);    
 
         let result = construct_result(
-        &sql_parts,
+        &mut sql_parts,
         base_from,
         join_clauses,
         child_strings,
@@ -393,7 +393,7 @@ pub fn translate_to_sql_from_intermediate(
 // Construct the resulting SQL query with tools given
 
 pub fn construct_result(
-    sql_parts: &SQL_Parts,
+    sql_parts: &mut SQL_Parts,
     base_from: Vec<String>,
     join_clauses: Vec<String>,
     child_strings: Vec<String>,
@@ -418,7 +418,7 @@ pub fn construct_result(
     // Handle Constraints and Childs here
     
     if  (!sql_parts.node.constraints.is_empty()){
-        let child_constraint_string = construct_child_constraints(&sql_parts);
+        let child_constraint_string = construct_child_constraints(sql_parts);
         result.push_str(&format!(",\n({}) AS satisfied \n", child_constraint_string));
     }
 
@@ -500,7 +500,7 @@ pub fn construct_from_clauses(
 
 
 pub fn construct_basic_operations(
-    sql_parts: &SQL_Parts
+    sql_parts: &mut SQL_Parts
 ) -> (Vec<String>, Vec<String>) {
     let mut join_clauses = Vec::new();
     let mut where_clauses = Vec::new();
@@ -508,20 +508,41 @@ pub fn construct_basic_operations(
     for relation in &sql_parts.node.relations {
         match relation {
             Relation::E2O { event, object, .. } => {
-                let eo_alias = format!("E2O{}{}", event.0, object.0);
+                let base_alias = format!("E2O{}{}", event.0, object.0);
+                let mut alias = base_alias.clone();
+                let mut counter = 1;
+
+                while sql_parts.used_keys.contains(&alias) {
+                    alias = format!("{}_{}", base_alias, counter);
+                    counter += 1;
+                }
+
+                sql_parts.used_keys.insert(alias.clone());
+
                 join_clauses.push(format!(
                     "INNER JOIN event_object AS {} ON {}.ocel_event_id = E{}.ocel_id AND {}.ocel_object_id = O{}.ocel_id",
-                    eo_alias, eo_alias, event.0, eo_alias, object.0
+                    alias, alias, event.0, alias, object.0
                 ));
             }
 
             Relation::O2O { object_1, object_2, .. } => {
-                let o2o_alias = format!("O2O{}{}", object_1.0, object_2.0);
+                let base_alias = format!("O2O{}{}", object_1.0, object_2.0);
+                let mut alias = base_alias.clone();
+                let mut counter = 1;
+
+                while sql_parts.used_keys.contains(&alias) {
+                    alias = format!("{}_{}", base_alias, counter);
+                    counter += 1;
+                }
+
+                sql_parts.used_keys.insert(alias.clone());
+
                 join_clauses.push(format!(
                     "INNER JOIN object_object AS {} ON {}.ocel_source_id = O{}.ocel_id AND {}.ocel_target_id = O{}.ocel_id",
-                    o2o_alias, o2o_alias, object_1.0, o2o_alias,object_2.0
+                    alias, alias, object_1.0, alias, object_2.0
                 ));
             }
+
 
             Relation::TimeBetweenEvents {
                 from_event,
@@ -572,7 +593,7 @@ pub fn construct_childstrings(sql_parts: &SQL_Parts) -> Vec<(String, String)> {
 
 //TODO in this function: Names of subq more different
 pub fn construct_child_constraints(
-    sql_parts: &SQL_Parts
+    sql_parts: &mut SQL_Parts
 ) -> String { 
     let mut result_string = Vec::new();
 
@@ -676,23 +697,40 @@ pub fn construct_child_constraints(
             Constraint::Filter { filter } => {
                 match filter {
                     Filter::O2E { object, event, .. } => {
+                        let base_alias = format!("E2O{}{}", event.0, object.0);
+                        let mut alias = base_alias.clone();
+                        let mut counter = 1;
+
+                        while sql_parts.used_keys.contains(&alias) {
+                            alias = format!("{}_{}", base_alias, counter);
+                            counter += 1;
+                        }
+
+                        sql_parts.used_keys.insert(alias.clone());
                         result_string.push(format!(
-                            "EXISTS (SELECT 1 FROM event_object AS E2O{}{} WHERE E2O{}{}.ocel_event_id = E{}.ocel_id AND E2O{}{}.ocel_object_id = O{}.ocel_id)",
-                            event.0, object.0,
-                            event.0, object.0,
-                            event.0,
-                            event.0, object.0, object.0
+                            "EXISTS (SELECT 1 FROM event_object AS {} WHERE {}.ocel_event_id = E{}.ocel_id AND {}.ocel_object_id = O{}.ocel_id)",
+                            alias, alias, event.0, alias, object.0
                         ));
                     }
+
                     Filter::O2O { object, other_object, .. } => {
+                        let base_alias = format!("O2O{}{}", object.0, other_object.0);
+                        let mut alias = base_alias.clone();
+                        let mut counter = 1;
+
+                        while sql_parts.used_keys.contains(&alias) {
+                            alias = format!("{}_{}", base_alias, counter);
+                            counter += 1;
+                        }
+
+                        sql_parts.used_keys.insert(alias.clone());
+
                         result_string.push(format!(
-                            "EXISTS (SELECT 1 FROM object_object AS O2O{}{} WHERE O2O{}{}.ocel_source_id = O{}.ocel_id AND O2O{}{}.ocel_target_id = O{}.ocel_id)",
-                            object.0, other_object.0,
-                            object.0, other_object.0,
-                            object.0,
-                            object.0, other_object.0, other_object.0
+                            "EXISTS (SELECT 1 FROM object_object AS {} WHERE {}.ocel_source_id = O{}.ocel_id AND {}.ocel_target_id = O{}.ocel_id)",
+                            alias, alias, object.0, alias, other_object.0
                         ));
                     }
+
                     _ => {}
                 }
             }
@@ -716,12 +754,12 @@ pub fn translate_to_sql_from_child(
     let mut base_from = Vec::new();
 
     (base_from, sql_parts.used_keys) = construct_from_clauses(&sql_parts, used_keys);
-    let (join_clauses, where_clauses) = construct_basic_operations(&sql_parts);
+    let (join_clauses, where_clauses) = construct_basic_operations(sql_parts);
     sql_parts.where_clauses = where_clauses;
     let childs = construct_childstrings(&sql_parts);
     sql_parts.child_sql = childs;
 
-    let constraint_expr = construct_child_constraints( &sql_parts);
+    let constraint_expr = construct_child_constraints( sql_parts);
 
     let sub_condition = if constraint_expr.trim().is_empty() {
         "True".to_string()
