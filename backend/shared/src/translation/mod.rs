@@ -29,7 +29,6 @@ pub struct SQL_Parts{
 pub fn translate_to_sql_shared(
     tree: BindingBoxTree
 )-> String{
-    
 
     // Erstelle Mapping der Tabellen Hashmaps event object String zu String
     
@@ -84,7 +83,8 @@ pub struct InterMediateNode{
     pub relations: Vec<Relation>, // O2O, E2O, TBE Basics have to be included
     pub constraints: Vec<Constraint>,
     pub children: Vec<(InterMediateNode, String)>,
-    pub filter: Vec<Filter>
+    pub filter: Vec<Filter>,
+    pub sizefilter: Vec<SizeFilter>
 }
 
 
@@ -131,7 +131,7 @@ pub fn bindingbox_to_intermediate(
     // Handle childs recursively with box to inter function
     let mut children = Vec::new();
 
-    let filter = extract_filters(binding_box.filters.clone());
+    let (filter, sizefilter) = extract_filters(binding_box.filters.clone(), binding_box.size_filters.clone());
 
     // Iterate over all BindingBoxes in tree
     for child_index in child_indices{
@@ -152,6 +152,7 @@ pub fn bindingbox_to_intermediate(
             object_vars,
             relations,
             filter,
+            sizefilter,
             constraints,
             children,
         };
@@ -260,11 +261,30 @@ pub fn extract_constraints(
 
 // Extract other meaningful filters (maybe these in relations are enough, but CEL could be considered)
 pub fn extract_filters(
-    filters: Vec<Filter>
-) -> Vec<Filter>{
+    filters: Vec<Filter>,
+    size_filters: Vec<SizeFilter>
+) -> (Vec<Filter>, Vec<SizeFilter>){
     let result = Vec::new();
 
-    return result;
+    let mut resultSize = Vec::new();
+
+
+    for size_filter in &size_filters{
+        match size_filter{
+
+            SizeFilter::NumChilds { child_name, min, max } =>{
+                resultSize.push(size_filter.clone());
+            }
+
+
+            _ =>{
+                resultSize.push(size_filter.clone()); // Take all for now
+            }
+
+        }
+    }
+
+    return (result, resultSize);
 }
 
 
@@ -337,13 +357,13 @@ pub fn translate_to_sql_from_intermediate(
     let mut  base_from = Vec::new();
 
     sql_parts.select_fields = construct_select_fields(&sql_parts);
+    
+    
     (base_from, used_keys) = construct_from_clauses(&sql_parts, used_keys);
     sql_parts.used_keys = used_keys;
     
     let (join_clauses, where_clauses) = construct_basic_operations(&sql_parts);
     sql_parts.where_clauses = where_clauses;
-
-
 
     
     let childs = construct_childstrings(&sql_parts);
@@ -355,6 +375,8 @@ pub fn translate_to_sql_from_intermediate(
         .collect();
 
 
+    let filter_clauses = construct_filter_non_basic(&mut sql_parts);
+    sql_parts.where_clauses.extend(filter_clauses);    
 
         let result = construct_result(
         &sql_parts,
@@ -395,7 +417,7 @@ pub fn construct_result(
 
     // Handle Constraints and Childs here
     
-    if !child_strings.is_empty() || !sql_parts.node.constraints.is_empty(){
+    if  (!sql_parts.node.constraints.is_empty()){
         let child_constraint_string = construct_child_constraints(&sql_parts);
         result.push_str(&format!(",\n({}) AS satisfied \n", child_constraint_string));
     }
@@ -507,12 +529,12 @@ pub fn construct_basic_operations(
                 min_seconds,
                 max_seconds,
             } => {
-                where_clauses.push(format!("E{}.ocel_time <= E{}.ocel_time", from_event.0, to_event.0));
+                where_clauses.push(format!("strftime('%s', E{}.ocel_time) <= strftime('%s', E{}.ocel_time)", from_event.0, to_event.0));
                 if let Some(min) = min_seconds {
-                    where_clauses.push(format!("E{}.ocel_time - E{}.ocel_time >= {}", to_event.0, from_event.0, min));
+                    where_clauses.push(format!("strftime('%s', E{}.ocel_time) - strftime('%s', E{}.ocel_time) >= {}", to_event.0, from_event.0, min));
                 }
                 if let Some(max) = max_seconds {
-                    where_clauses.push(format!("E{}.ocel_time - E{}.ocel_time <= {}", to_event.0, from_event.0, max));
+                    where_clauses.push(format!("strftime('%s', E{}.ocel_time) - strftime('%s', E{}.ocel_time) <= {}", to_event.0, from_event.0, max));
                 }
             }
         }
@@ -564,7 +586,7 @@ pub fn construct_child_constraints(
                 for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
                     if child_names.contains(child_label) {
                         parts.push(format!(
-                            "EXISTS (SELECT 1 FROM ({}) AS subq_{}_{}_{} WHERE subq_{}_{}_{}.satisfied = 1 AND subq_{}_{}_{}.count > 0 )",
+                            "EXISTS (SELECT 1 FROM ({}) AS subqC_{}_{}_{} WHERE subqC_{}_{}_{}.satisfied = 1 AND subqC_{}_{}_{}.count > 0 )",
                             child_sql, i, j,child_label, i, j,child_label, i, j,child_label.trim()
                         ));
                     }
@@ -580,7 +602,7 @@ pub fn construct_child_constraints(
                 for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
                     if child_names.contains(child_label) {
                         parts.push(format!(
-                            "NOT EXISTS (SELECT 1 FROM ({}) AS subq_{}_{}_{} WHERE subq_{}_{}_{}.satisfied = 0)",
+                            "NOT EXISTS (SELECT 1 FROM ({}) AS subqC_{}_{}_{} WHERE subqC_{}_{}_{}.satisfied = 0)",
                             child_sql, i, j,child_label, i, j,child_label.trim()
                         ));
                     }
@@ -594,7 +616,7 @@ pub fn construct_child_constraints(
                 for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
                     if child_names.contains(child_label) {
                         parts.push(format!(
-                            "NOT EXISTS (SELECT 1 FROM ({}) AS subq_{}_{}_{} WHERE subq_{}_{}_{}.satisfied = 1)",
+                            "NOT EXISTS (SELECT 1 FROM ({}) AS subqC_{}_{}_{} WHERE subqC_{}_{}_{}.satisfied = 1)",
                             child_sql, i, j,child_label, i, j,child_label.trim()
                         ));
                     }
@@ -608,7 +630,7 @@ pub fn construct_child_constraints(
                 for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
                     if child_names.contains(child_label) {
                         result_string.push(format!(
-                            "NOT EXISTS (SELECT 1 FROM ({}) AS subq_{}_{}_{} WHERE subq_{}_{}_{}.satisfied = 0)",
+                            "NOT EXISTS (SELECT 1 FROM ({}) AS subqC_{}_{}_{} WHERE subqC_{}_{}_{}.satisfied = 0)",
                             child_sql, i, j,child_label, i, j,child_label.trim()
                         ));
                     }
@@ -622,7 +644,7 @@ pub fn construct_child_constraints(
                 for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
                     if child_names.contains(child_label) {
                         parts.push(format!(
-                            "NOT EXISTS (SELECT 1 FROM ({}) AS subq_{}_{}_{} WHERE subq_{}_{}_{}.satisfied = 0)",
+                            "NOT EXISTS (SELECT 1 FROM ({}) AS subqC_{}_{}_{} WHERE subqC_{}_{}_{}.satisfied = 0)",
                             child_sql, i, j,child_label, i, j,child_label.trim()
                         ));
                     }
@@ -639,11 +661,11 @@ pub fn construct_child_constraints(
                         if child_label == child_name {
                             let clause = match (min, max) {
                                 (Some(min), Some(max)) =>
-                                    format!("(SELECT subq_{}_{}_{}.count FROM ({}) AS subq_{}_{}_{}) BETWEEN {} AND {}", i, j,child_label.trim(), child_sql, i, j,child_label.trim(), min, max),
+                                    format!("(SELECT subqC_{}_{}_{}.count FROM ({}) AS subqC_{}_{}_{}) BETWEEN {} AND {}", i, j,child_label.trim(), child_sql, i, j,child_label.trim(), min, max),
                                 (Some(min), None) =>
-                                    format!("(SELECT subq_{}_{}_{}.count FROM ({}) AS subq_{}_{}_{}) >= {}", i, j, child_label, child_sql, i, j, child_label.trim(), min),
+                                    format!("(SELECT subqC_{}_{}_{}.count FROM ({}) AS subqC_{}_{}_{}) >= {}", i, j, child_label, child_sql, i, j, child_label.trim(), min),
                                 (None, Some(max)) =>
-                                    format!("(SELECT subq_{}_{}_{}.count FROM ({}) AS subq_{}_{}_{}) <= {}", i, j, child_label, child_sql, i, j,child_label.trim(), max),
+                                    format!("(SELECT subqC_{}_{}_{}.count FROM ({}) AS subqC_{}_{}_{}) <= {}", i, j, child_label, child_sql, i, j,child_label.trim(), max),
                                 (None, None) => continue,
                             };
                             result_string.push(clause);
@@ -753,7 +775,51 @@ pub fn construct_result_child(
 
 
 
-// TODO:
-// How to exactly implement every Constraint
-// Filter implementation by repeating Subquery in WHERE section?
+pub fn construct_filter_non_basic(
+    sql_parts: &mut SQL_Parts
+) -> Vec<String> {
 
+    let mut result = Vec::new();
+
+    for (i, sizefilter) in sql_parts.node.sizefilter.iter().enumerate(){
+
+        match sizefilter{
+
+            SizeFilter::NumChilds { child_name, min, max } =>{
+
+                for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
+                        if child_label == child_name {
+                            let clause = match (min, max) {
+                                (Some(min), Some(max)) =>
+                                    format!("(SELECT subqF_{}_{}_{}.count FROM ({}) AS subqF_{}_{}_{}) BETWEEN {} AND {}", i, j,child_label.trim(), child_sql, i, j,child_label.trim(), min, max),
+                                (Some(min), None) =>
+                                    format!("(SELECT subqF_{}_{}_{}.count FROM ({}) AS subqF_{}_{}_{}) >= {}", i, j, child_label, child_sql, i, j, child_label.trim(), min),
+                                (None, Some(max)) =>
+                                    format!("(SELECT subqF_{}_{}_{}.count FROM ({}) AS subqF_{}_{}_{}) <= {}", i, j, child_label, child_sql, i, j,child_label.trim(), max),
+                                (None, None) => continue,
+                            };
+                            result.push(clause);
+                        }
+                    }
+
+            }
+
+
+            _ =>{
+
+            }
+
+        }
+
+
+    }    
+
+   return result; 
+}
+
+
+// TODO
+// 1. Do not use Table names more than once to avoid difficulties (check if e.g E1 can be used in two different Child Queries)
+// 2. Event and Object Attributes
+// 3. check where ocel_changed_field check is needed (may complicate with object attributes)
+// 4. Do Union (optional)
