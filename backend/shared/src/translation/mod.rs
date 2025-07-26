@@ -21,7 +21,8 @@ pub struct SQL_Parts{
     child_sql: Vec<(String,String)>,
     event_tables: HashMap<String,String>,
     object_tables: HashMap<String,String>,
-    used_keys: HashSet<String>
+    used_keys: HashSet<String>,
+    usedDatabase: i32  // 0: SQLLite  1: DuckDB
 }
 
 
@@ -52,10 +53,10 @@ pub fn translate_to_sql_shared(
         child_sql: vec![],
         event_tables: event_tables,
         object_tables: object_tables,
-        used_keys: HashSet::new()
+        used_keys: HashSet::new(),
+        usedDatabase:0,
     };
 
-    
     // Step 2: Translate the Intermediate Representation to SQL
     let result = translate_to_sql_from_intermediate(sql_parts);
     
@@ -330,6 +331,8 @@ pub fn map_to_event_tables(
     event_tables.insert("reorder item".to_string(), "ReorderItem".to_string());
     event_tables.insert("send package".to_string(), "SendPackage".to_string());
 
+    event_tables.insert("object".to_string(),"object".to_string() );
+
     return event_tables;
 
 }
@@ -348,6 +351,8 @@ pub fn map_to_object_tables(
     object_tables.insert("orders".to_string(), "Orders".to_string());
     object_tables.insert("packages".to_string(), "Packages".to_string());
     object_tables.insert("products".to_string(), "Products".to_string());
+
+    object_tables.insert("object".to_string(),"object".to_string());
 
 
     return object_tables;
@@ -501,7 +506,7 @@ pub fn construct_from_clauses(
     for (obj_var, types) in &sql_parts.node.object_vars {
         for object_type in types {
             let key = format!("O{}", obj_var.0);
-            from_clauses.push(format!("object_{} AS {}", sql_parts.object_tables[object_type], key));
+            from_clauses.push(format!("{} AS {}", map_objecttables(sql_parts, object_type), key));
             
         }
     }
@@ -510,7 +515,7 @@ pub fn construct_from_clauses(
     for (event_var, types) in &sql_parts.node.event_vars {
         for event_type in types {
             let key = format!("E{}", event_var.0);
-            from_clauses.push(format!("event_{} AS {}", sql_parts.event_tables[event_type] , key));
+            from_clauses.push(format!("{} AS {}", map_eventttables(sql_parts, event_type) , key));
             
         }
     }
@@ -542,8 +547,12 @@ pub fn construct_basic_operations(
                 sql_parts.used_keys.insert(alias.clone());
 
                 join_clauses.push(format!(
-                    "INNER JOIN event_object AS {} ON {}.ocel_event_id = E{}.ocel_id AND {}.ocel_object_id = O{}.ocel_id",
-                    alias, alias, event.0, alias, object.0
+                    "INNER JOIN event_object AS {temp} ON {temp}.ocel_event_id = E{temp2}.ocel_id AND {temp}.ocel_object_id = O{temp3}.ocel_id",
+                    
+                    //eve_obj = map_eventttables(sql_parts, "object"), // check wheter this works as intended
+                    temp = alias,
+                    temp2 = event.0,
+                    temp3 = object.0
                 ));
             }
 
@@ -560,8 +569,9 @@ pub fn construct_basic_operations(
                 sql_parts.used_keys.insert(alias.clone());
 
                 join_clauses.push(format!(
-                    "INNER JOIN object_object AS {} ON {}.ocel_source_id = O{}.ocel_id AND {}.ocel_target_id = O{}.ocel_id",
-                    alias, alias, object_1.0, alias, object_2.0
+                    "INNER JOIN {} AS {} ON {}.ocel_source_id = O{}.ocel_id AND {}.ocel_target_id = O{}.ocel_id",
+                    map_objecttables(sql_parts, "object")
+                    ,alias, alias, object_1.0, alias, object_2.0
                 ));
             }
 
@@ -601,8 +611,12 @@ pub fn construct_childstrings(sql_parts: &SQL_Parts) -> Vec<(String, String)> {
             child_sql: vec![],
             event_tables: sql_parts.event_tables.clone(),
             object_tables: sql_parts.object_tables.clone(),
-            used_keys: sql_parts.used_keys.clone()
+            used_keys: sql_parts.used_keys.clone(),
+            usedDatabase: sql_parts.usedDatabase,
         };
+
+
+
 
         let child_sql = translate_to_sql_from_child(&mut child_sql_parts);
         result.push((child_sql, node_label.clone()));
@@ -730,8 +744,9 @@ pub fn construct_child_constraints(
 
                         sql_parts.used_keys.insert(alias.clone());
                         result_string.push(format!(
-                            "EXISTS (SELECT 1 FROM event_object AS {} WHERE {}.ocel_event_id = E{}.ocel_id AND {}.ocel_object_id = O{}.ocel_id)",
-                            alias, alias, event.0, alias, object.0
+                            "EXISTS (SELECT 1 FROM {} AS {} WHERE {}.ocel_event_id = E{}.ocel_id AND {}.ocel_object_id = O{}.ocel_id)",
+                            map_eventttables(sql_parts, "object")
+                            ,alias, alias, event.0, alias, object.0
                         ));
                     }
 
@@ -748,8 +763,9 @@ pub fn construct_child_constraints(
                         sql_parts.used_keys.insert(alias.clone());
 
                         result_string.push(format!(
-                            "EXISTS (SELECT 1 FROM object_object AS {} WHERE {}.ocel_source_id = O{}.ocel_id AND {}.ocel_target_id = O{}.ocel_id)",
-                            alias, alias, object.0, alias, other_object.0
+                            "EXISTS (SELECT 1 FROM {} AS {} WHERE {}.ocel_source_id = O{}.ocel_id AND {}.ocel_target_id = O{}.ocel_id)",
+                            map_objecttables(sql_parts, "object")
+                            ,alias, alias, object.0, alias, other_object.0
                         ));
                     }
 
@@ -1006,8 +1022,8 @@ pub fn construct_filter_non_basic(
                     ObjectValueFilterTimepoint::Sometime => {
                         let condition = value_sql;
                         format!(
-                            "(EXISTS  SELECT 1\n FROM object_{otype} AS OA\n WHERE OA.ocel_id = {oid} AND {cond})",
-                            otype = sql_parts.object_tables[object_type],
+                            "(EXISTS  SELECT 1\n FROM {otype} AS OA\n WHERE OA.ocel_id = {oid} AND {cond})",
+                            otype = map_objecttables(sql_parts, object_type),
                             oid = format!("{}.ocel_id", object_alias),
                             cond = condition
                         )
@@ -1017,10 +1033,10 @@ pub fn construct_filter_non_basic(
                     ObjectValueFilterTimepoint::Always => {
                         let condition = value_sql;
                         format!(
-                            "NOT EXISTS (SELECT 1\n FROM object_{otype} AS OA{iterator}\n WHERE OA{iterator}.ocel_id = {oid} AND NOT ({cond})
+                            "NOT EXISTS (SELECT 1\n FROM {otype} AS OA{iterator}\n WHERE OA{iterator}.ocel_id = {oid} AND NOT ({cond})
                             )",
                             iterator = i,
-                            otype = sql_parts.object_tables[object_type],
+                            otype = map_objecttables(sql_parts, object_type),
                             oid = format!("{}.ocel_id", object_alias),
                             cond = condition
                         )
@@ -1031,10 +1047,12 @@ pub fn construct_filter_non_basic(
                         let event_time = format!("E{}.ocel_time", event.0);
                         let condition = value_sql;
                         format!(
-                            "EXISTS (SELECT 1\n FROM object_{otype} AS OA{iterator}\n WHERE OA{iterator}.ocel_id = {oid} AND OA{iterator}.ocel_time = (SELECT MAX(OA2{iterator2}.ocel_time)\n FROM object_{otype} AS OA2{iterator2}\n WHERE OA2{iterator2}.ocel_id = {oid} AND strftime('%s',OA2{iterator2}.ocel_time)  <= strftime('%s',{etime})   ) AND {cond})",
+                            "EXISTS (SELECT 1\n FROM {otype} AS OA{iterator}\n 
+                            WHERE OA{iterator}.ocel_id = {oid} AND OA{iterator}.ocel_time = (SELECT MAX(OA2{iterator2}.ocel_time)\n 
+                            FROM object_{otype} AS OA2{iterator2}\n WHERE OA2{iterator2}.ocel_id = {oid} AND strftime('%s',OA2{iterator2}.ocel_time)  <= strftime('%s',{etime})   ) AND {cond})",
                             iterator = i,
                             iterator2 = i*3,
-                            otype = sql_parts.object_tables[object_type],
+                            otype = map_objecttables(sql_parts, object_type),
                             oid = format!("{}.ocel_id", object_alias),
                             etime = event_time,
                             cond = condition
@@ -1069,7 +1087,70 @@ pub fn construct_filter_non_basic(
 }
 
 
+
+pub fn map_objecttables(
+    sql_parts: &SQL_Parts,
+    object_type: &str
+
+) -> String {
+
+    match sql_parts.usedDatabase{
+
+        // Case SQLLite
+        0 =>{
+            return format!("object_{}", sql_parts.object_tables[object_type]);
+        }
+
+
+        //Case DuckDB
+        1 =>{
+            return format!("\"object_{}\"", sql_parts.object_tables[object_type]);
+        }
+
+        _ =>{
+            return "Should not be here".to_string();
+        }
+
+    }
+
+
+
+}
+
+pub fn map_eventttables(
+    sql_parts: &SQL_Parts,
+    event_type: &str
+
+) -> String {
+
+    match sql_parts.usedDatabase{
+
+        // Case SQLLite
+        0 =>{
+            return format!("event_{}", sql_parts.event_tables[event_type]);
+        }
+
+
+        //Case DuckDB
+        1 =>{
+            return format!("\"event_{}\"", sql_parts.event_tables[event_type]);
+        }
+
+        _ =>{
+            return "Should not be here".to_string();
+        }
+
+    }
+
+
+
+}
+
+
+
+
+
 // TODO
-// 2. Event and Object Attributes
-// 3. check where ocel_changed_field check is needed (may complicate with object attributes)
-// 4. Do Union (optional)
+// 1. DuckDB mappings of tables, timestamp check
+// 2. check where ocel_changed_field check is needed (may complicate with object attributes)
+// 3. Do Union (optional)
