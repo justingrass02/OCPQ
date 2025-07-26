@@ -3,12 +3,13 @@ use std::{
     fmt::Display,
     hash::Hash,
 };
-use crate::binding_box::{structs::{Constraint, Filter, SizeFilter}, BindingBoxTree};
+use crate::binding_box::{structs::{Constraint, Filter, ObjectValueFilterTimepoint, SizeFilter, ValueFilter}, BindingBoxTree};
 use crate::binding_box::structs::NewEventVariables;
 use crate::binding_box::structs::NewObjectVariables;
 use crate::binding_box::structs::ObjectVariable;
 use crate::binding_box::structs::EventVariable;
 use crate::binding_box::structs::Qualifier;
+
 
 
 #[derive(Clone)]
@@ -264,7 +265,7 @@ pub fn extract_filters(
     filters: Vec<Filter>,
     size_filters: Vec<SizeFilter>
 ) -> (Vec<Filter>, Vec<SizeFilter>){
-    let result = Vec::new();
+    let mut result = Vec::new();
 
     let mut resultSize = Vec::new();
 
@@ -283,6 +284,29 @@ pub fn extract_filters(
 
         }
     }
+
+
+    for filter in &filters{
+        match filter{
+
+            Filter::ObjectAttributeValueFilter { object, attribute_name, at_time, value_filter } =>{
+                result.push(filter.clone());
+            }
+
+            Filter::EventAttributeValueFilter { event, attribute_name, value_filter } =>{
+                result.push(filter.clone());
+            }
+
+
+            _=>{
+
+            }
+
+
+        }
+    }
+
+
 
     return (result, resultSize);
 }
@@ -477,9 +501,8 @@ pub fn construct_from_clauses(
     for (obj_var, types) in &sql_parts.node.object_vars {
         for object_type in types {
             let key = format!("O{}", obj_var.0);
-            if  used_keys.insert(key.clone()) {
-                from_clauses.push(format!("object_{} AS {}", sql_parts.object_tables[object_type], key));
-            }
+            from_clauses.push(format!("object_{} AS {}", sql_parts.object_tables[object_type], key));
+            
         }
     }
 
@@ -487,9 +510,8 @@ pub fn construct_from_clauses(
     for (event_var, types) in &sql_parts.node.event_vars {
         for event_type in types {
             let key = format!("E{}", event_var.0);
-            if  used_keys.insert(key.clone()) {
-                from_clauses.push(format!("event_{} AS {}", sql_parts.event_tables[event_type] , key));
-            }
+            from_clauses.push(format!("event_{} AS {}", sql_parts.event_tables[event_type] , key));
+            
         }
     }
 
@@ -849,15 +871,205 @@ pub fn construct_filter_non_basic(
 
         }
 
+    }
 
-    }    
+        for(i, filter) in sql_parts.node.filter.iter().enumerate(){
+
+            match filter{
+
+
+                Filter::EventAttributeValueFilter { event, attribute_name, value_filter } => {
+                let col = format!("E{}.\"{}\"", event.0, attribute_name);
+
+                let clause = match value_filter {
+                    
+                    
+                    ValueFilter::String { is_in } => {
+                        let values = is_in.iter()
+                            .map(|v| format!("'{}'", v.replace('\'', "''")))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        format!("{} IN ({})", col, values)
+                    },
+                    
+                    
+                    ValueFilter::Boolean { is_true } => {
+                        format!("{} = {}", col, is_true)
+                    },
+                    
+                    ValueFilter::Integer { min, max } => {
+                        let mut parts = vec![];
+                        if let Some(min) = min {
+                            parts.push(format!("{} >= {}", col, min));
+                        }
+                        if let Some(max) = max {
+                            parts.push(format!("{} <= {}", col, max));
+                        }
+                        parts.join(" AND ")
+                    },
+                    
+                    ValueFilter::Float { min, max } => {
+                        let mut parts = vec![];
+                        if let Some(min) = min {
+                            parts.push(format!("{} >= {}", col, min));
+                        }
+                        if let Some(max) = max {
+                            parts.push(format!("{} <= {}", col, max));
+                        }
+                        parts.join(" AND ")
+                    },
+                    
+                    
+                    
+                    // prototyp cast probably necessary
+                    ValueFilter::Time { from, to } => {
+                        let mut parts = vec![];
+                        if let Some(from) = from {
+                            parts.push(format!("{} >= '{}'", col, from));
+                        }
+                        if let Some(to) = to {
+                            parts.push(format!("{} <= '{}'", col, to));
+                        }
+                        parts.join(" AND ")
+                    },
+                };
+
+                result.push(clause);
+            }
+
+
+
+            Filter::ObjectAttributeValueFilter { object, attribute_name,at_time,value_filter } => {
+                let object_alias = format!("O{}", object.0);
+                let attr = attribute_name;
+                let value_sql = match value_filter {
+                    ValueFilter::String { is_in } => {
+                        let values = is_in.iter()
+                            .map(|v| format!("'{}'", v.replace('\'', "''")))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        format!("{}.{} IN ({})", object_alias, attr, values)
+                    },
+                    ValueFilter::Boolean { is_true } => {
+                        format!("{}.{} = {}", object_alias,attr,is_true)
+                    },
+                    ValueFilter::Integer { min, max } => {
+                        let mut parts = vec![];
+                        if let Some(min) = min {
+                            parts.push(format!("{}.{} >= {}", object_alias,attr, min));
+                        }
+                        if let Some(max) = max {
+                            parts.push(format!("{}.{} <= {}", object_alias,attr,max));
+                        }
+                        parts.join(" AND ")
+                    },
+                    ValueFilter::Float { min, max } => {
+                        let mut parts = vec![];
+                        if let Some(min) = min {
+                            parts.push(format!("{}.{} >= {}", object_alias,attr,min));
+                        }
+                        if let Some(max) = max {
+                            parts.push(format!("{}.{} <= {}",object_alias,attr, max));
+                        }
+                        parts.join(" AND ")
+                    },
+                    
+                    // maybe have to cast as in other timestamp methods
+                    ValueFilter::Time { from, to } => {
+                        let mut parts = vec![];
+                        if let Some(from) = from {
+                            parts.push(format!("strftime('%s',{}.{}) >= strftime('%s',{}) ", object_alias, attr, from));
+                        }
+                        if let Some(to) = to {
+                            parts.push(format!("strftime('%s',{}.{}) <= strftime('%s',{})", object_alias,attr, to));
+                        }
+                        parts.join(" AND ")
+                    },
+                };
+
+
+                let mut object_type = "";
+
+                // bit scuffed but lets see (extracts object type)
+                for (obj_var, types) in &sql_parts.node.object_vars {
+                    for object_typer in types{
+                        if obj_var.0 == object.0{
+                             object_type = object_typer;
+                        }
+                    }
+                    }
+
+
+
+                // need for used_keys here?    
+                let clause = match at_time {
+                    ObjectValueFilterTimepoint::Sometime => {
+                        let condition = value_sql;
+                        format!(
+                            "(EXISTS  SELECT 1\n FROM object_{otype} AS OA\n WHERE OA.ocel_id = {oid} AND {cond})",
+                            otype = sql_parts.object_tables[object_type],
+                            oid = format!("{}.ocel_id", object_alias),
+                            cond = condition
+                        )
+                    },
+                    
+                    
+                    ObjectValueFilterTimepoint::Always => {
+                        let condition = value_sql;
+                        format!(
+                            "NOT EXISTS (SELECT 1\n FROM object_{otype} AS OA{iterator}\n WHERE OA{iterator}.ocel_id = {oid} AND NOT ({cond})
+                            )",
+                            iterator = i,
+                            otype = sql_parts.object_tables[object_type],
+                            oid = format!("{}.ocel_id", object_alias),
+                            cond = condition
+                        )
+                    },
+                    
+                    
+                    ObjectValueFilterTimepoint::AtEvent { event } => {
+                        let event_time = format!("E{}.ocel_time", event.0);
+                        let condition = value_sql;
+                        format!(
+                            "EXISTS (SELECT 1\n FROM object_{otype} AS OA{iterator}\n WHERE OA{iterator}.ocel_id = {oid} AND OA{iterator}.ocel_time = (SELECT MAX(OA2{iterator2}.ocel_time)\n FROM object_{otype} AS OA2{iterator2}\n WHERE OA2{iterator2}.ocel_id = {oid} AND strftime('%s',OA2{iterator2}.ocel_time)  <= strftime('%s',{etime})   ) AND {cond})",
+                            iterator = i,
+                            iterator2 = i*3,
+                            otype = sql_parts.object_tables[object_type],
+                            oid = format!("{}.ocel_id", object_alias),
+                            etime = event_time,
+                            cond = condition
+                        )
+                    }
+
+
+                };
+
+                result.push(clause);
+            }
+
+
+
+
+            _ => {
+                
+            }
+
+
+
+            }
+
+
+        }
+
+
+
+        
 
    return result; 
 }
 
 
 // TODO
-// 1. Do not use Table names more than once to avoid difficulties (check if e.g E1 can be used in two different Child Queries)
 // 2. Event and Object Attributes
 // 3. check where ocel_changed_field check is needed (may complicate with object attributes)
 // 4. Do Union (optional)
