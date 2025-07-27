@@ -942,10 +942,10 @@ pub fn construct_filter_non_basic(
                     ValueFilter::Time { from, to } => {
                         let mut parts = vec![];
                         if let Some(from) = from {
-                            parts.push(format!("{} >= '{}'", col, from));
+                            parts.push(format!("strftime('%s',{}) >= '{}'", col, from));
                         }
                         if let Some(to) = to {
-                            parts.push(format!("{} <= '{}'", col, to));
+                            parts.push(format!("strftime('%s',{}) <= '{}'", col, to));
                         }
                         parts.join(" AND ")
                     },
