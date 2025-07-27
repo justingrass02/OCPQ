@@ -1,6 +1,6 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
-    fmt::Display,
+    fmt::{format, Display},
     hash::Hash,
 };
 use crate::binding_box::{structs::{Constraint, Filter, ObjectValueFilterTimepoint, SizeFilter, ValueFilter}, BindingBoxTree};
@@ -45,7 +45,7 @@ pub fn translate_to_sql_shared(
 
     // Create SQL Struct
 
-    let sql_parts = SQL_Parts{
+    let mut sql_parts = SQL_Parts{
         node: inter,
         select_fields: vec![],
         from_clauses: vec![],
@@ -388,7 +388,7 @@ pub fn translate_to_sql_from_intermediate(
     sql_parts.select_fields = construct_select_fields(&sql_parts);
     
     
-    (base_from, used_keys) = construct_from_clauses(&sql_parts, used_keys);
+    (base_from, used_keys) = construct_from_clauses(&mut sql_parts, used_keys);
     sql_parts.used_keys = used_keys;
     
     let (join_clauses, where_clauses) = construct_basic_operations(&mut sql_parts);
@@ -497,7 +497,7 @@ pub fn construct_select_fields(
 
 // Could make used_keys function argument and return type for children! Could also put E2O and O2O in there to make sure no double tables defined
 pub fn construct_from_clauses(
-    mut sql_parts: &SQL_Parts,
+    mut sql_parts: &mut SQL_Parts,
     mut used_keys: HashSet<String>
 ) -> (Vec<String>, HashSet<String>) {
     let mut from_clauses = Vec::new();
@@ -507,6 +507,7 @@ pub fn construct_from_clauses(
         for object_type in types {
             let key = format!("O{}", obj_var.0);
             from_clauses.push(format!("{} AS {}", map_objecttables(sql_parts, object_type), key));
+            sql_parts.where_clauses.push(format!("O{}.ocel_changed_field IS NULL", obj_var.0));
             
         }
     }
@@ -530,7 +531,7 @@ pub fn construct_basic_operations(
     sql_parts: &mut SQL_Parts
 ) -> (Vec<String>, Vec<String>) {
     let mut join_clauses = Vec::new();
-    let mut where_clauses = Vec::new();
+    let mut where_clauses = sql_parts.where_clauses.clone();
 
     for relation in &sql_parts.node.relations {
         match relation {
@@ -791,7 +792,7 @@ pub fn translate_to_sql_from_child(
     let mut used_keys = HashSet::new();
     let mut base_from = Vec::new();
 
-    (base_from, sql_parts.used_keys) = construct_from_clauses(&sql_parts, used_keys);
+    (base_from, sql_parts.used_keys) = construct_from_clauses(sql_parts, used_keys);
     let (join_clauses, where_clauses) = construct_basic_operations(sql_parts);
     sql_parts.where_clauses = where_clauses;
     let childs = construct_childstrings(&sql_parts);
@@ -1152,5 +1153,4 @@ pub fn map_eventttables(
 
 // TODO
 // 1. DuckDB mappings of tables, timestamp check
-// 2. check where ocel_changed_field check is needed (may complicate with object attributes)
-// 3. Do Union (optional)
+// 2. Do Union (optional)
