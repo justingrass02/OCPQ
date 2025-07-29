@@ -1,7 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
-    fmt::{format, Display},
-    hash::Hash,
+    collections::{ HashMap, HashSet}
 };
 use crate::binding_box::{structs::{Constraint, Filter, ObjectValueFilterTimepoint, SizeFilter, ValueFilter}, BindingBoxTree};
 use crate::binding_box::structs::NewEventVariables;
@@ -12,17 +10,30 @@ use crate::binding_box::structs::Qualifier;
 
 
 
+#[derive(Debug,Clone, Copy)]
+enum DatabaseType {
+
+SQLite,
+
+DuckDB
+
+}
+
+
+
+
 #[derive(Clone)]
-pub struct SQL_Parts{
+pub struct SqlParts{
     node: InterMediateNode,
     select_fields: Vec<String>,
-    from_clauses: Vec<String>,
+    base_from: Vec<String>,
+    join_clauses: Vec<String>,
     where_clauses: Vec<String>,
     child_sql: Vec<(String,String)>,
     event_tables: HashMap<String,String>,
     object_tables: HashMap<String,String>,
     used_keys: HashSet<String>,
-    usedDatabase: i32  // 0: SQLLite  1: DuckDB
+    database_type: DatabaseType 
 }
 
 
@@ -45,16 +56,17 @@ pub fn translate_to_sql_shared(
 
     // Create SQL Struct
 
-    let mut sql_parts = SQL_Parts{
+    let sql_parts = SqlParts{
         node: inter,
         select_fields: vec![],
-        from_clauses: vec![],
+        base_from: vec![],
+        join_clauses: vec![],
         where_clauses: vec![],
         child_sql: vec![],
         event_tables: event_tables,
         object_tables: object_tables,
         used_keys: HashSet::new(),
-        usedDatabase:0,
+        database_type: DatabaseType::SQLite ,
     };
 
     // Step 2: Translate the Intermediate Representation to SQL
@@ -216,21 +228,27 @@ pub fn extract_constraints(
 
     for constraint in &constraints{
         match constraint{
-            Constraint::ANY { child_names } =>{
+            Constraint::ANY { child_names: _} =>{
                 result.push(constraint.clone());
             }
 
-            Constraint::AND { child_names } =>{
+            Constraint::AND { child_names: _ } =>{
                 result.push(constraint.clone());
             }
 
-            Constraint::NOT { child_names } => {
+            Constraint::NOT { child_names: _ } => {
                 result.push(constraint.clone());
             }
+
+
+            Constraint::OR { child_names:_ } =>{
+                result.push(constraint.clone());
+            }
+
 
             Constraint::SizeFilter { filter } =>{
                 match filter {
-                    SizeFilter::NumChilds { child_name, min, max } =>{
+                    SizeFilter::NumChilds { child_name: _, min: _, max: _ } =>{
                         result.push(constraint.clone());
                     }
 
@@ -242,18 +260,15 @@ pub fn extract_constraints(
             }
 
 
-            Constraint::Filter { filter } =>{
+            Constraint::Filter { filter: _ } =>{
                 result.push(constraint.clone());
             }
 
-            Constraint::SAT { child_names }=>{
+            Constraint::SAT { child_names: _ }=>{
                 result.push(constraint.clone());
             }
 
            
-            _ => {
-                // Ignore the other constraints
-            }
         }
     }
 
@@ -268,19 +283,19 @@ pub fn extract_filters(
 ) -> (Vec<Filter>, Vec<SizeFilter>){
     let mut result = Vec::new();
 
-    let mut resultSize = Vec::new();
+    let mut result_size = Vec::new();
 
 
     for size_filter in &size_filters{
         match size_filter{
 
-            SizeFilter::NumChilds { child_name, min, max } =>{
-                resultSize.push(size_filter.clone());
+            SizeFilter::NumChilds { child_name:_, min:_, max:_ } =>{
+                result_size.push(size_filter.clone());
             }
 
 
             _ =>{
-                resultSize.push(size_filter.clone()); // Take all for now
+                result_size.push(size_filter.clone()); // Take all for now
             }
 
         }
@@ -290,11 +305,11 @@ pub fn extract_filters(
     for filter in &filters{
         match filter{
 
-            Filter::ObjectAttributeValueFilter { object, attribute_name, at_time, value_filter } =>{
+            Filter::ObjectAttributeValueFilter { object:_, attribute_name:_, at_time:_, value_filter:_ } =>{
                 result.push(filter.clone());
             }
 
-            Filter::EventAttributeValueFilter { event, attribute_name, value_filter } =>{
+            Filter::EventAttributeValueFilter { event:_, attribute_name:_, value_filter:_ } =>{
                 result.push(filter.clone());
             }
 
@@ -309,7 +324,7 @@ pub fn extract_filters(
 
 
 
-    return (result, resultSize);
+    return (result, result_size);
 }
 
 
@@ -378,40 +393,26 @@ pub fn map_to_object_tables(
 
 // Function which translates Intermediate to SQL
 pub fn translate_to_sql_from_intermediate(
-     mut sql_parts: SQL_Parts
+     mut sql_parts: SqlParts
 ) -> String {
 
-
-    let mut used_keys = HashSet::new(); // Save all the Tables already created
-    let mut  base_from = Vec::new();
 
     sql_parts.select_fields = construct_select_fields(&sql_parts);
     
     
-    (base_from, used_keys) = construct_from_clauses(&mut sql_parts, used_keys);
-    sql_parts.used_keys = used_keys;
+    sql_parts.base_from = construct_from_clauses(&mut sql_parts);
     
-    let (join_clauses, where_clauses) = construct_basic_operations(&mut sql_parts);
-    sql_parts.where_clauses = where_clauses;
+    (sql_parts.join_clauses, sql_parts.where_clauses) = construct_basic_operations(&mut sql_parts);
 
-    
     let childs = construct_childstrings(&sql_parts);
     sql_parts.child_sql = childs;
     
-    let child_strings: Vec<String> = sql_parts.child_sql
-        .iter()
-        .map(|(sql, _)| sql.clone())
-        .collect();
-
 
     let filter_clauses = construct_filter_non_basic(&mut sql_parts);
     sql_parts.where_clauses.extend(filter_clauses);    
 
         let result = construct_result(
         &mut sql_parts,
-        base_from,
-        join_clauses,
-        child_strings,
     );
 
     return result;
@@ -422,19 +423,13 @@ pub fn translate_to_sql_from_intermediate(
 // Construct the resulting SQL query with tools given
 
 pub fn construct_result(
-    sql_parts: &mut SQL_Parts,
-    base_from: Vec<String>,
-    join_clauses: Vec<String>,
-    child_strings: Vec<String>,
+    sql_parts: &mut SqlParts,
 
 ) -> String {
     let mut result = String::new();
 
-    let mut from_section = String::new();
 
     
-
-
     // SELECT result
     result.push_str("SELECT ");
 
@@ -446,7 +441,7 @@ pub fn construct_result(
 
     // Handle Constraints and Childs here
     
-    if  (!sql_parts.node.constraints.is_empty()){
+    if  !sql_parts.node.constraints.is_empty() {
         let child_constraint_string = construct_child_constraints(sql_parts);
         result.push_str(&format!(",\n({}) AS satisfied \n", child_constraint_string));
     }
@@ -454,10 +449,14 @@ pub fn construct_result(
 
 
 
-    // FROM result
-    result.push_str(&format!("FROM {}\n", base_from.join(",\n")));
+    // FROM result generate dummy if basefrom empty
+
+    if  sql_parts.base_from.is_empty(){
+        result.push_str("FROM (SELECT 1) as dummy");
+    }else{
+    result.push_str(&format!("FROM {}\n", sql_parts.base_from.join(",\n")));}
     
-    for join in &join_clauses{
+    for join in &sql_parts.join_clauses{
     result.push_str(&format!("{}\n",join));
     }
 
@@ -478,7 +477,7 @@ pub fn construct_result(
 
 
 pub fn construct_select_fields(
-     sql_parts: &SQL_Parts
+     sql_parts: &SqlParts
 ) -> Vec<String> {
     let mut select_fields = Vec::new();
 
@@ -497,9 +496,8 @@ pub fn construct_select_fields(
 
 // Could make used_keys function argument and return type for children! Could also put E2O and O2O in there to make sure no double tables defined
 pub fn construct_from_clauses(
-    mut sql_parts: &mut SQL_Parts,
-    mut used_keys: HashSet<String>
-) -> (Vec<String>, HashSet<String>) {
+     sql_parts: &mut SqlParts,
+) -> Vec<String> {
     let mut from_clauses = Vec::new();
 
 
@@ -521,14 +519,14 @@ pub fn construct_from_clauses(
         }
     }
 
-    return (from_clauses,used_keys);
+    return from_clauses;
 }
 
 
 
 
 pub fn construct_basic_operations(
-    sql_parts: &mut SQL_Parts
+    sql_parts: &mut SqlParts
 ) -> (Vec<String>, Vec<String>) {
     let mut join_clauses = Vec::new();
     let mut where_clauses = sql_parts.where_clauses.clone();
@@ -600,20 +598,21 @@ pub fn construct_basic_operations(
 
 
 
-pub fn construct_childstrings(sql_parts: &SQL_Parts) -> Vec<(String, String)> {
+pub fn construct_childstrings(sql_parts: &SqlParts) -> Vec<(String, String)> {
     let mut result = Vec::new();
 
     for (inter_node, node_label) in &sql_parts.node.children {
-        let mut child_sql_parts = SQL_Parts {
+        let mut child_sql_parts = SqlParts {
             node: inter_node.clone(),
             select_fields: vec![],
-            from_clauses: vec![],
+            base_from: vec![],
+            join_clauses: vec![],
             where_clauses: vec![],
             child_sql: vec![],
             event_tables: sql_parts.event_tables.clone(),
             object_tables: sql_parts.object_tables.clone(),
             used_keys: sql_parts.used_keys.clone(),
-            usedDatabase: sql_parts.usedDatabase,
+            database_type: sql_parts.database_type,
         };
 
 
@@ -630,7 +629,7 @@ pub fn construct_childstrings(sql_parts: &SQL_Parts) -> Vec<(String, String)> {
 
 //TODO in this function: Names of subq more different
 pub fn construct_child_constraints(
-    sql_parts: &mut SQL_Parts
+    sql_parts: &mut SqlParts
 ) -> String { 
     let mut result_string = Vec::new();
 
@@ -644,8 +643,12 @@ pub fn construct_child_constraints(
                 for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
                     if child_names.contains(child_label) {
                         parts.push(format!(
-                            "EXISTS (SELECT 1 FROM ({}) AS subqC_{}_{}_{} WHERE subqC_{}_{}_{}.satisfied = 1 AND subqC_{}_{}_{}.count > 0 )",
-                            child_sql, i, j,child_label, i, j,child_label, i, j,child_label.trim()
+                            "EXISTS (SELECT 1 FROM ({}) AS subqC_{iterator1}_{iterator2}_{label} WHERE subqC_{iterator1}_{iterator2}_{label}.satisfied = 1 AND subqC_{iterator1}_{iterator2}_{label}.count > 0 )",
+                            
+                            child_sql,
+                            iterator1 = i,
+                            iterator2 = j,
+                            label = child_label.trim()
                         ));
                     }
                 }
@@ -660,8 +663,11 @@ pub fn construct_child_constraints(
                 for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
                     if child_names.contains(child_label) {
                         parts.push(format!(
-                            "NOT EXISTS (SELECT 1 FROM ({}) AS subqC_{}_{}_{} WHERE subqC_{}_{}_{}.satisfied = 0)",
-                            child_sql, i, j,child_label, i, j,child_label.trim()
+                            "NOT EXISTS (SELECT 1 FROM ({}) AS subqC_{iterator1}_{iterator2}_{label} WHERE subqC_{iterator1}_{iterator2}_{label}.satisfied = 0)",
+                            child_sql,
+                            iterator1 = i,
+                            iterator2 = j,
+                            label = child_label.trim()
                         ));
                     }
                 }
@@ -674,8 +680,11 @@ pub fn construct_child_constraints(
                 for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
                     if child_names.contains(child_label) {
                         parts.push(format!(
-                            "NOT EXISTS (SELECT 1 FROM ({}) AS subqC_{}_{}_{} WHERE subqC_{}_{}_{}.satisfied = 1)",
-                            child_sql, i, j,child_label, i, j,child_label.trim()
+                            "NOT EXISTS (SELECT 1 FROM ({}) AS subqC_{iterator1}_{iterator2}_{label} WHERE subqC_{iterator1}_{iterator2}_{label}.satisfied = 1)",
+                            child_sql,
+                            iterator1 = i,
+                            iterator2 = j,
+                            label = child_label.trim()
                         ));
                     }
                 }
@@ -688,8 +697,11 @@ pub fn construct_child_constraints(
                 for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
                     if child_names.contains(child_label) {
                         result_string.push(format!(
-                            "NOT EXISTS (SELECT 1 FROM ({}) AS subqC_{}_{}_{} WHERE subqC_{}_{}_{}.satisfied = 0)",
-                            child_sql, i, j,child_label, i, j,child_label.trim()
+                            "NOT EXISTS (SELECT 1 FROM ({}) AS subqC_{iterator1}_{iterator2}_{label} WHERE subqC_{iterator1}_{iterator2}_{label}.satisfied = 0)",
+                            child_sql,
+                            iterator1 = i,
+                            iterator2 = j,
+                            label = child_label.trim()
                         ));
                     }
                 }
@@ -702,8 +714,11 @@ pub fn construct_child_constraints(
                 for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
                     if child_names.contains(child_label) {
                         parts.push(format!(
-                            "NOT EXISTS (SELECT 1 FROM ({}) AS subqC_{}_{}_{} WHERE subqC_{}_{}_{}.satisfied = 0)",
-                            child_sql, i, j,child_label, i, j,child_label.trim()
+                            "NOT EXISTS (SELECT 1 FROM ({}) AS subqC_{iterator1}_{iterator2}_{label} WHERE subqC_{iterator1}_{iterator2}_{label}.satisfied = 0)",
+                            child_sql,
+                            iterator1 = i,
+                            iterator2 = j,
+                            label = child_label.trim()
                         ));
                     }
                 }
@@ -719,11 +734,28 @@ pub fn construct_child_constraints(
                         if child_label == child_name {
                             let clause = match (min, max) {
                                 (Some(min), Some(max)) =>
-                                    format!("(SELECT subqC_{}_{}_{}.count FROM ({}) AS subqC_{}_{}_{}) BETWEEN {} AND {}", i, j,child_label.trim(), child_sql, i, j,child_label.trim(), min, max),
+                                    format!("(SELECT subqC_{iterator1}_{iterator2}_{label}.count FROM ({child}) AS subqC_{iterator1}_{iterator2}_{label}) BETWEEN {minimum} AND {maximum}",
+                                     iterator1 = i,
+                                     iterator2 = j,
+                                     label = child_label.trim(),
+                                     child = child_sql,
+                                     minimum = min,
+                                     maximum = max
+                                     ),
                                 (Some(min), None) =>
-                                    format!("(SELECT subqC_{}_{}_{}.count FROM ({}) AS subqC_{}_{}_{}) >= {}", i, j, child_label, child_sql, i, j, child_label.trim(), min),
+                                    format!("(SELECT subqC_{iterator1}_{iterator2}_{label}.count FROM ({child}) AS subqC_{iterator1}_{iterator2}_{label}) >= {minimum}",
+                                     iterator1 = i,
+                                     iterator2 = j,
+                                     label = child_label.trim(),
+                                     child = child_sql,
+                                     minimum = min),
                                 (None, Some(max)) =>
-                                    format!("(SELECT subqC_{}_{}_{}.count FROM ({}) AS subqC_{}_{}_{}) <= {}", i, j, child_label, child_sql, i, j,child_label.trim(), max),
+                                    format!("(SELECT subqC_{iterator1}_{iterator2}_{label}.count FROM ({child}) AS subqC_{iterator1}_{iterator2}_{label}) <= {maximum}",
+                                     iterator1 = i,
+                                     iterator2 = j,
+                                     label = child_label.trim(),
+                                     child = child_sql,
+                                     maximum = max),
                                 (None, None) => continue,
                             };
                             result_string.push(clause);
@@ -773,7 +805,6 @@ pub fn construct_child_constraints(
                     _ => {}
                 }
             }
-            _ => {}
         }
     }
 
@@ -787,18 +818,16 @@ pub fn construct_child_constraints(
 
 
 pub fn translate_to_sql_from_child(
-    sql_parts: &mut SQL_Parts
+    sql_parts: &mut SqlParts
 ) -> String {
-    let mut used_keys = HashSet::new();
-    let mut base_from = Vec::new();
 
-    (base_from, sql_parts.used_keys) = construct_from_clauses(sql_parts, used_keys);
-    let (join_clauses, where_clauses) = construct_basic_operations(sql_parts);
-    sql_parts.where_clauses = where_clauses;
+    sql_parts.base_from = construct_from_clauses(sql_parts);
+    (sql_parts.join_clauses, sql_parts.where_clauses) = construct_basic_operations(sql_parts);
+    
     let childs = construct_childstrings(&sql_parts);
     sql_parts.child_sql = childs;
 
-    let constraint_expr = construct_child_constraints( sql_parts);
+    let constraint_expr = construct_child_constraints(sql_parts);
 
     let sub_condition = if constraint_expr.trim().is_empty() {
         "True".to_string()
@@ -806,20 +835,15 @@ pub fn translate_to_sql_from_child(
         constraint_expr
     };
 
-    let select_fields = vec![
+    sql_parts.select_fields = vec![
         "COUNT(*) AS count".to_string(),
         format!("CASE WHEN {} THEN 1 ELSE 0 END AS satisfied", sub_condition)
     ];
 
 
 
-    // hier noch updaten
-    sql_parts.select_fields = select_fields;
-
     return  construct_result_child(
-        &sql_parts,
-        base_from,
-        join_clauses,
+        &sql_parts
     );
 }
 
@@ -827,9 +851,7 @@ pub fn translate_to_sql_from_child(
 
 pub fn construct_result_child(
     
-    sql_parts: &SQL_Parts,
-    base_from: Vec<String>,
-    join_clauses: Vec<String>,
+    sql_parts: &SqlParts,
 
 ) -> String {
     let mut result = String::new();
@@ -838,8 +860,14 @@ pub fn construct_result_child(
     result.push_str(&sql_parts.select_fields.join(",\n"));
     result.push_str("\n");
 
-    result.push_str(&format!("FROM {}\n", base_from.join(",\n")));
-    for join in &join_clauses {
+    if  sql_parts.base_from.is_empty(){
+        result.push_str("FROM (SELECT 1) as dummy");
+    }else{
+    result.push_str(&format!("FROM {}\n", sql_parts.base_from.join(",\n")));}
+    
+    
+    
+    for join in &sql_parts.join_clauses {
         result.push_str(&format!("{}\n", join));
     }
 
@@ -853,7 +881,7 @@ pub fn construct_result_child(
 
 
 pub fn construct_filter_non_basic(
-    sql_parts: &mut SQL_Parts
+    sql_parts: &mut SqlParts
 ) -> Vec<String> {
 
     let mut result = Vec::new();
@@ -868,11 +896,28 @@ pub fn construct_filter_non_basic(
                         if child_label == child_name {
                             let clause = match (min, max) {
                                 (Some(min), Some(max)) =>
-                                    format!("(SELECT subqF_{}_{}_{}.count FROM ({}) AS subqF_{}_{}_{}) BETWEEN {} AND {}", i, j,child_label.trim(), child_sql, i, j,child_label.trim(), min, max),
+                                    format!("(SELECT subqC_{iterator1}_{iterator2}_{label}.count FROM ({child}) AS subqC_{iterator1}_{iterator2}_{label}) BETWEEN {minimum} AND {maximum}",
+                                     iterator1 = i,
+                                     iterator2 = j,
+                                     label = child_label.trim(),
+                                     child = child_sql,
+                                     minimum = min,
+                                     maximum = max
+                                     ),
                                 (Some(min), None) =>
-                                    format!("(SELECT subqF_{}_{}_{}.count FROM ({}) AS subqF_{}_{}_{}) >= {}", i, j, child_label, child_sql, i, j, child_label.trim(), min),
+                                    format!("(SELECT subqC_{iterator1}_{iterator2}_{label}.count FROM ({child}) AS subqC_{iterator1}_{iterator2}_{label}) >= {minimum}",
+                                     iterator1 = i,
+                                     iterator2 = j,
+                                     label = child_label.trim(),
+                                     child = child_sql,
+                                     minimum = min),
                                 (None, Some(max)) =>
-                                    format!("(SELECT subqF_{}_{}_{}.count FROM ({}) AS subqF_{}_{}_{}) <= {}", i, j, child_label, child_sql, i, j,child_label.trim(), max),
+                                    format!("(SELECT subqC_{iterator1}_{iterator2}_{label}.count FROM ({child}) AS subqC_{iterator1}_{iterator2}_{label}) <= {maximum}",
+                                     iterator1 = i,
+                                     iterator2 = j,
+                                     label = child_label.trim(),
+                                     child = child_sql,
+                                     maximum = max),
                                 (None, None) => continue,
                             };
                             result.push(clause);
@@ -1090,27 +1135,24 @@ pub fn construct_filter_non_basic(
 
 
 pub fn map_objecttables(
-    sql_parts: &SQL_Parts,
+    sql_parts: &SqlParts,
     object_type: &str
 
 ) -> String {
 
-    match sql_parts.usedDatabase{
+    match sql_parts.database_type{
 
         // Case SQLLite
-        0 =>{
+        DatabaseType::SQLite =>{
             return format!("object_{}", sql_parts.object_tables[object_type]);
         }
 
 
         //Case DuckDB
-        1 =>{
+        DatabaseType::DuckDB =>{
             return format!("\"object_{}\"", sql_parts.object_tables[object_type]);
         }
 
-        _ =>{
-            return "Should not be here".to_string();
-        }
 
     }
 
@@ -1119,27 +1161,24 @@ pub fn map_objecttables(
 }
 
 pub fn map_eventttables(
-    sql_parts: &SQL_Parts,
+    sql_parts: &SqlParts,
     event_type: &str
 
 ) -> String {
 
-    match sql_parts.usedDatabase{
+    match sql_parts.database_type{
 
         // Case SQLLite
-        0 =>{
+        DatabaseType::SQLite =>{
             return format!("event_{}", sql_parts.event_tables[event_type]);
         }
 
 
         //Case DuckDB
-        1 =>{
+        DatabaseType::DuckDB =>{
             return format!("\"event_{}\"", sql_parts.event_tables[event_type]);
         }
 
-        _ =>{
-            return "Should not be here".to_string();
-        }
 
     }
 
