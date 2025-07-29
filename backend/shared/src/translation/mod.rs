@@ -20,8 +20,6 @@ DuckDB
 }
 
 
-
-
 #[derive(Clone)]
 pub struct SqlParts{
     node: InterMediateNode,
@@ -43,34 +41,45 @@ pub fn translate_to_sql_shared(
     tree: BindingBoxTree
 )-> String{
 
-    // Erstelle Mapping der Tabellen Hashmaps event object String zu String
-    
-
-    let event_tables = map_to_event_tables(); // args can be done later, for now hardcoded for Management
-
-    let object_tables = map_to_object_tables();
-
-
     
     //Step 1:  Extract Intermediate Representation
     let inter = convert_to_intermediate(tree);
 
+   
+   
     // Create SQL Struct
 
-    let sql_parts = SqlParts{
+    let mut sql_parts = SqlParts{
         node: inter,
         select_fields: vec![],
         base_from: vec![],
         join_clauses: vec![],
         where_clauses: vec![],
         child_sql: vec![],
-        event_tables: event_tables,
-        object_tables: object_tables,
+        event_tables: HashMap::new(),
+        object_tables: HashMap::new(),
         used_keys: HashSet::new(),
-        database_type: DatabaseType::SQLite ,
+        database_type: DatabaseType::DuckDB ,
     };
 
+    match sql_parts.database_type {
+
+            DatabaseType::SQLite => {
+                sql_parts.event_tables = map_to_event_tables_sqllite(); // args can be done later, for now hardcoded for Management
+
+                sql_parts.object_tables = map_to_object_tables_sqllite();
+            }
+
+            DatabaseType::DuckDB => {
+                sql_parts.event_tables = map_to_event_tables_duckdb();
+                sql_parts.object_tables = map_to_object_tables_duckdb();
+            }
+
+        }
+   
+   
     // Step 2: Translate the Intermediate Representation to SQL
+   
     let result = translate_to_sql_from_intermediate(sql_parts);
     
     
@@ -330,7 +339,7 @@ pub fn extract_filters(
 
 
 
-pub fn map_to_event_tables(
+pub fn map_to_event_tables_sqllite(
 ) -> HashMap<String, String>{
 
     let mut event_tables: HashMap<String, String> = HashMap::new();
@@ -355,7 +364,7 @@ pub fn map_to_event_tables(
 
 
 
-pub fn map_to_object_tables(
+pub fn map_to_object_tables_sqllite(
 
 ) -> HashMap<String, String>{
 
@@ -376,6 +385,47 @@ pub fn map_to_object_tables(
 }
 
 
+
+pub fn map_to_event_tables_duckdb(
+
+) -> HashMap<String,String>{
+    let mut event_tables: HashMap<String, String> = HashMap::new();
+
+    event_tables.insert("confirm order".to_string(), "Confirm Order".to_string());
+    event_tables.insert("create package".to_string(), "Create Package".to_string());
+    event_tables.insert("failed delivery".to_string(), "Failed Delivery".to_string());
+    event_tables.insert("item out of stock".to_string(), "Item Out Of Stock".to_string());
+    event_tables.insert("package delivered".to_string(), "Package Delivered".to_string());
+    event_tables.insert("pay order".to_string(), "Pay Order".to_string());
+    event_tables.insert("payment reminder".to_string(), "Payment Reminder".to_string());
+    event_tables.insert("pick item".to_string(), "Pick Item".to_string());
+    event_tables.insert("place order".to_string(), "Place Order".to_string());
+    event_tables.insert("reorder item".to_string(), "Reorder Item".to_string());
+    event_tables.insert("send package".to_string(), "Send Package".to_string());
+
+    event_tables.insert("object".to_string(),"object".to_string() );
+
+    return event_tables;
+}
+
+
+pub fn map_to_object_tables_duckdb(
+
+) -> HashMap<String,String>{
+    let mut object_tables: HashMap<String, String> = HashMap::new();
+
+    object_tables.insert("customers".to_string(), "Customers".to_string());
+    object_tables.insert("employees".to_string(), "Employees".to_string());
+    object_tables.insert("items".to_string(), "Items".to_string());
+    object_tables.insert("orders".to_string(), "Orders".to_string());
+    object_tables.insert("packages".to_string(), "Packages".to_string());
+    object_tables.insert("products".to_string(), "Products".to_string());
+
+    object_tables.insert("object".to_string(),"object".to_string());
+
+
+    return object_tables;
+}
 
 
 // End of Intermediate
