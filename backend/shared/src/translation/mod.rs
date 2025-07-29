@@ -45,6 +45,7 @@ pub fn translate_to_sql_shared(
 
     // Erstelle Mapping der Tabellen Hashmaps event object String zu String
     
+
     let event_tables = map_to_event_tables(); // args can be done later, for now hardcoded for Management
 
     let object_tables = map_to_object_tables();
@@ -581,12 +582,18 @@ pub fn construct_basic_operations(
                 min_seconds,
                 max_seconds,
             } => {
-                where_clauses.push(format!("strftime('%s', E{}.ocel_time) <= strftime('%s', E{}.ocel_time)", from_event.0, to_event.0));
+                where_clauses.push(format!("{left_event} <= {right_event}",
+                 left_event = map_timestamp_event(sql_parts, from_event.0),
+                 right_event = map_timestamp_event(sql_parts, to_event.0)));
                 if let Some(min) = min_seconds {
-                    where_clauses.push(format!("strftime('%s', E{}.ocel_time) - strftime('%s', E{}.ocel_time) >= {}", to_event.0, from_event.0, min));
+                    where_clauses.push(format!("{time_left} - {time_right} >= {min}", 
+                    time_left = map_timestamp_event(sql_parts, to_event.0),
+                    time_right = map_timestamp_event(sql_parts, from_event.0)));
                 }
                 if let Some(max) = max_seconds {
-                    where_clauses.push(format!("strftime('%s', E{}.ocel_time) - strftime('%s', E{}.ocel_time) <= {}", to_event.0, from_event.0, max));
+                    where_clauses.push(format!("{time_left} - {time_right} <= {max}",
+                     time_left = map_timestamp_event(sql_parts, to_event.0),
+                     time_right = map_timestamp_event(sql_parts, from_event.0)));
                 }
             }
         }
@@ -987,10 +994,14 @@ pub fn construct_filter_non_basic(
                     ValueFilter::Time { from, to } => {
                         let mut parts = vec![];
                         if let Some(from) = from {
-                            parts.push(format!("strftime('%s',{}) >= '{}'", col, from));
+                            parts.push(format!("{time} >= '{from}'",
+                            
+                            time = map_timestamp(sql_parts, col.clone())));
                         }
                         if let Some(to) = to {
-                            parts.push(format!("strftime('%s',{}) <= '{}'", col, to));
+                            parts.push(format!("{time2} <= '{to}'",
+                            
+                            time2 = map_timestamp(sql_parts, col.clone())));
                         }
                         parts.join(" AND ")
                     },
@@ -1036,14 +1047,20 @@ pub fn construct_filter_non_basic(
                         parts.join(" AND ")
                     },
                     
-                    // maybe have to cast as in other timestamp methods
+                    // need to see if this form conversion works as intended
                     ValueFilter::Time { from, to } => {
                         let mut parts = vec![];
                         if let Some(from) = from {
-                            parts.push(format!("strftime('%s',{}.{}) >= strftime('%s',{}) ", object_alias, attr, from));
+                            parts.push(format!("{time_left} >= {time_right}",
+                            
+                            time_left = map_timestamp(sql_parts, format!("{}.{}", object_alias, attr)),
+                            time_right = map_timestamp(sql_parts, from.to_string())
+                            ));
                         }
                         if let Some(to) = to {
-                            parts.push(format!("strftime('%s',{}.{}) <= strftime('%s',{})", object_alias,attr, to));
+                            parts.push(format!("{time_left} <= {time_right}",
+                            time_left = map_timestamp(sql_parts, format!("{}.{}", object_alias, attr)),
+                            time_right = map_timestamp(sql_parts, to.to_string())));
                         }
                         parts.join(" AND ")
                     },
@@ -1095,12 +1112,13 @@ pub fn construct_filter_non_basic(
                         format!(
                             "EXISTS (SELECT 1\n FROM {otype} AS OA{iterator}\n 
                             WHERE OA{iterator}.ocel_id = {oid} AND OA{iterator}.ocel_time = (SELECT MAX(OA2{iterator2}.ocel_time)\n 
-                            FROM object_{otype} AS OA2{iterator2}\n WHERE OA2{iterator2}.ocel_id = {oid} AND strftime('%s',OA2{iterator2}.ocel_time)  <= strftime('%s',{etime})   ) AND {cond})",
+                            FROM object_{otype} AS OA2{iterator2}\n WHERE OA2{iterator2}.ocel_id = {oid} AND {time_left}  <= {time_right}   ) AND {cond})",
                             iterator = i,
                             iterator2 = i*3,
+                            time_left = map_timestamp(sql_parts, format!("OA2{}.ocel_time", i*3)),
+                            time_right = map_timestamp(sql_parts, event_time ),
                             otype = map_objecttables(sql_parts, object_type),
                             oid = format!("{}.ocel_id", object_alias),
-                            etime = event_time,
                             cond = condition
                         )
                     }
@@ -1110,9 +1128,6 @@ pub fn construct_filter_non_basic(
 
                 result.push(clause);
             }
-
-
-
 
             _ => {
                 
@@ -1124,11 +1139,7 @@ pub fn construct_filter_non_basic(
 
 
         }
-
-
-
         
-
    return result; 
 }
 
@@ -1187,6 +1198,47 @@ pub fn map_eventttables(
 }
 
 
+pub fn map_timestamp_event(
+    sql_parts: &SqlParts,
+    event_count: usize
+) -> String{
+
+    match sql_parts.database_type{
+
+        DatabaseType::SQLite =>{
+            return format!("strftime('%s', E{}.ocel_time)", event_count);
+        }
+
+
+
+        DatabaseType::DuckDB => {
+            return format!("EPOCH(E{}.ocel_time)", event_count);
+        }
+
+    }
+
+
+}
+
+pub fn map_timestamp(
+    sql_parts: &SqlParts,
+    alias: String
+) -> String {
+
+    match sql_parts.database_type{
+
+        DatabaseType::SQLite =>{
+            return format!("strftime('%s', {})", alias)
+        }
+
+
+        DatabaseType::DuckDB =>{
+             return format!("EPOCH({})", alias);
+        }
+
+    }
+
+}
 
 
 
