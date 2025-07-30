@@ -712,11 +712,10 @@ pub fn construct_child_constraints(
                 for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
                     if child_names.contains(child_label) {
                         parts.push(format!(
-                            "EXISTS (SELECT 1 FROM ({}) AS subqC_{iterator1}_{iterator2}_{label} WHERE subqC_{iterator1}_{iterator2}_{label}.satisfied = 1 AND subqC_{iterator1}_{iterator2}_{label}.count > 0 )",
-                            
+                            "(SELECT COUNT(*) FROM ({}) AS subqC_{i}_{j}_{label} WHERE subqC_{i}_{j}_{label}.satisfied = 1) >= 1",
                             child_sql,
-                            iterator1 = i,
-                            iterator2 = j,
+                            i = i,
+                            j = j,
                             label = child_label.trim()
                         ));
                     }
@@ -800,38 +799,26 @@ pub fn construct_child_constraints(
             Constraint::SizeFilter { filter } => {
                 if let SizeFilter::NumChilds { child_name, min, max } = filter {
                     for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
-                        if child_label == child_name {
-                            let clause = match (min, max) {
-                                (Some(min), Some(max)) =>
-                                    format!("(SELECT subqC_{iterator1}_{iterator2}_{label}.count FROM ({child}) AS subqC_{iterator1}_{iterator2}_{label}) BETWEEN {minimum} AND {maximum}",
-                                     iterator1 = i,
-                                     iterator2 = j,
-                                     label = child_label.trim(),
-                                     child = child_sql,
-                                     minimum = min,
-                                     maximum = max
-                                     ),
-                                (Some(min), None) =>
-                                    format!("(SELECT subqC_{iterator1}_{iterator2}_{label}.count FROM ({child}) AS subqC_{iterator1}_{iterator2}_{label}) >= {minimum}",
-                                     iterator1 = i,
-                                     iterator2 = j,
-                                     label = child_label.trim(),
-                                     child = child_sql,
-                                     minimum = min),
-                                (None, Some(max)) =>
-                                    format!("(SELECT subqC_{iterator1}_{iterator2}_{label}.count FROM ({child}) AS subqC_{iterator1}_{iterator2}_{label}) <= {maximum}",
-                                     iterator1 = i,
-                                     iterator2 = j,
-                                     label = child_label.trim(),
-                                     child = child_sql,
-                                     maximum = max),
-                                (None, None) => continue,
-                            };
-                            result_string.push(clause);
-                        }
+                    if child_label == child_name {
+                        let count_expr = format!(
+                            "(SELECT COUNT(*) FROM ({}) AS subqC_{i}_{j}_{label})",
+                            child_sql,
+                            i = i,
+                            j = j,
+                            label = child_label.trim()
+                        );
+                        let clause = match (min, max) {
+                            (Some(min), Some(max)) => format!("{count_expr} BETWEEN {min} AND {max}"),
+                            (Some(min), None) => format!("{count_expr} >= {min}"),
+                            (None, Some(max)) => format!("{count_expr} <= {max}"),
+                            (None, None) => continue,
+                        };
+                        result_string.push(clause);
                     }
                 }
             }
+                }
+            
             Constraint::Filter { filter } => {
                 match filter {
                     Filter::O2E { object, event, .. } => {
@@ -905,9 +892,8 @@ pub fn translate_to_sql_from_child(
     };
 
     sql_parts.select_fields = vec![
-        "COUNT(*) AS count".to_string(),
-        format!("CASE WHEN {} THEN 1 ELSE 0 END AS satisfied", sub_condition)
-    ];
+            format!("CASE WHEN {} THEN 1 ELSE 0 END AS satisfied", sub_condition)
+        ];
 
 
 
@@ -959,40 +945,39 @@ pub fn construct_filter_non_basic(
 
         match sizefilter{
 
-            SizeFilter::NumChilds { child_name, min, max } =>{
-
+            SizeFilter::NumChilds { child_name, min, max } => {
                 for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
-                        if child_label == child_name {
-                            let clause = match (min, max) {
-                                (Some(min), Some(max)) =>
-                                    format!("(SELECT subqC_{iterator1}_{iterator2}_{label}.count FROM ({child}) AS subqC_{iterator1}_{iterator2}_{label}) BETWEEN {minimum} AND {maximum}",
-                                     iterator1 = i,
-                                     iterator2 = j,
-                                     label = child_label.trim(),
-                                     child = child_sql,
-                                     minimum = min,
-                                     maximum = max
-                                     ),
-                                (Some(min), None) =>
-                                    format!("(SELECT subqC_{iterator1}_{iterator2}_{label}.count FROM ({child}) AS subqC_{iterator1}_{iterator2}_{label}) >= {minimum}",
-                                     iterator1 = i,
-                                     iterator2 = j,
-                                     label = child_label.trim(),
-                                     child = child_sql,
-                                     minimum = min),
-                                (None, Some(max)) =>
-                                    format!("(SELECT subqC_{iterator1}_{iterator2}_{label}.count FROM ({child}) AS subqC_{iterator1}_{iterator2}_{label}) <= {maximum}",
-                                     iterator1 = i,
-                                     iterator2 = j,
-                                     label = child_label.trim(),
-                                     child = child_sql,
-                                     maximum = max),
-                                (None, None) => continue,
-                            };
-                            result.push(clause);
-                        }
+                    if child_label == child_name {
+                        let clause = match (min, max) {
+                            (Some(min), Some(max)) =>
+                                format!(
+                                    "(SELECT COUNT(*) FROM ({}) AS subqC_{i}_{j}_{label}) BETWEEN {} AND {}",
+                                    child_sql, min, max,
+                                    i = i,
+                                    j = j,
+                                    label = child_label.trim()
+                                ),
+                            (Some(min), None) =>
+                                format!(
+                                    "(SELECT COUNT(*) FROM ({}) AS subqC_{i}_{j}_{label}) >= {}",
+                                    child_sql, min,
+                                    i = i,
+                                    j = j,
+                                    label = child_label.trim()
+                                ),
+                            (None, Some(max)) =>
+                                format!(
+                                    "(SELECT COUNT(*) FROM ({}) AS subqC_{i}_{j}_{label}) <= {}",
+                                    child_sql, max,
+                                    i = i,
+                                    j = j,
+                                    label = child_label.trim()
+                                ),
+                            (None, None) => continue,
+                        };
+                        result.push(clause);
                     }
-
+                }
             }
 
 
