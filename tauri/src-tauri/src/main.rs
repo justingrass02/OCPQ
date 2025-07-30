@@ -11,26 +11,15 @@ use std::{
 use ocpq_shared::{
     binding_box::{
         evaluate_box_tree, filter_ocel_box_tree, BindingBoxTree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult, ExportFormat, FilterExportWithBoxTreeRequest
-    },
-    discovery::{
+    }, discovery::{
         auto_discover_constraints_with_options, AutoDiscoverConstraintsRequest,
         AutoDiscoverConstraintsResponse,
-    },
-    get_event_info, get_object_info,
-    hpc_backend::{
+    }, get_event_info, get_object_info, hpc_backend::{
         get_job_status, login_on_hpc, start_port_forwarding, submit_hpc_job, Client,
         ConnectionConfig, JobStatus, OCPQJobOptions,
-    },
-    ocel_graph::{get_ocel_graph, OCELGraph, OCELGraphOptions},
-    ocel_qualifiers::qualifiers::{get_qualifiers_for_event_types, QualifiersForEventType},
-    preprocessing::linked_ocel::{link_ocel_info, IndexLinkedOCEL},
-    table_export::{export_bindings_to_writer, TableExportFormat, TableExportOptions},
-    EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
-
-
-    translation::{
-        translate_to_sql_shared
-    }
+    }, ocel_graph::{get_ocel_graph, OCELGraph, OCELGraphOptions}, ocel_qualifiers::qualifiers::{get_qualifiers_for_event_types, QualifiersForEventType}, preprocessing::linked_ocel::{link_ocel_info, IndexLinkedOCEL}, table_export::{export_bindings_to_writer, TableExportFormat, TableExportOptions}, translation::{
+        translate_to_sql_shared, DatabaseType
+    }, EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
 
 };
 use process_mining::{
@@ -303,8 +292,9 @@ async fn get_hpc_job_status_tauri(
 #[tauri::command(async)]
 async  fn translate_to_sql_tauri(
     tree: BindingBoxTree,
+    database: DatabaseType
 )-> Result<String, String>{
-    let res = translate_to_sql_shared(tree);
+    let res = translate_to_sql_shared(tree, database);
     Ok(res)
 }
 

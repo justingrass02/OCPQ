@@ -1,6 +1,11 @@
 TODO SQL:
-1. DuckDB Mappings correctly
-2. What todo if only joins in form clauses (right now dummy solution)
+1. What todo if only joins in from clauses (right now dummy solution)
+2. Why Q5 not working?
+3. Database Function Parameter
+4. Evaluation
+
+
+
 
 After Cypher Basics (optional):
 1. Union for Object, Event Variables
@@ -8,6 +13,5 @@ After Cypher Basics (optional):
 3. Cel scripts
 
 Next Steps:
--DuckDB
 -Cypher Basics
-- clean up SQL part
+-Clean up SQL part

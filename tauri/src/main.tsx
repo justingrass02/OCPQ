@@ -20,6 +20,7 @@ import { ConnectionConfig, JobStatus } from "$/types/hpc-backend";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import * as dialog from "@tauri-apps/plugin-dialog"
+import { DatabaseType } from "$/types/generated/DatabaseType";
 
 const tauriBackend: BackendProvider = {
   "ocel/info": async () => {
@@ -88,8 +89,8 @@ const tauriBackend: BackendProvider = {
       await writeFile(filePath, new Uint8Array(await blob.arrayBuffer()));
     }
   },
-  "translate-to-sql": async (tree:BindingBoxTree): Promise<string> =>{
-    return await invoke("translate_to_sql_tauri",{tree});
+  "translate-to-sql": async (tree:BindingBoxTree, database: DatabaseType): Promise<string> =>{
+    return await invoke("translate_to_sql_tauri",{tree, database});
   }
 };
 

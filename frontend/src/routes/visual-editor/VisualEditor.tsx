@@ -73,6 +73,7 @@ import {
   type EventTypeNodeData,
   type GateNodeData,
 } from "./helper/types";
+import { DatabaseType } from "@/types/generated/DatabaseType";
 import { error } from "console";
 
 function isEditorElementTarget(el: HTMLElement | EventTarget | null) {
@@ -845,13 +846,14 @@ export default function VisualEditor(props: VisualEditorProps) {
                  variant="outline"
                  title="Translate to SQL"
                  className="bg-white relative"
-                 onClick={() => {
+                 onClick={(ev) => {
                   const subTrees = evaluateConstraints(
-                  instance.getNodes(),
-                  instance.getEdges(),
-                );  
+                    instance.getNodes(),
+                    instance.getEdges(),
+                  );
+                  const database_used: DatabaseType = ev.shiftKey ? "DuckDB" : "SQLite";
                   for (const tree of subTrees){
-                  backend["translate-to-sql"](tree.tree).then((x)=> {console.log(x)}).catch((x)=> {console.error(x)})
+                  backend["translate-to-sql"](tree.tree, database_used).then((x)=> {console.log(x)}).catch((x)=> {console.error(x)})
                   }
                   }}
                 >

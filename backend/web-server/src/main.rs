@@ -37,7 +37,7 @@ use ocpq_shared::{
     EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
     
     translation::{
-        translate_to_sql_shared
+        translate_to_sql_shared, TranslationToSQL
     },
 };
 use process_mining::{
@@ -381,11 +381,11 @@ async fn get_hpc_job_status_web(
     Ok(Json(status))
 }
 
-// TODO: function args and everything
+
 async fn translate_to_sql(
-    Json(tree): Json<BindingBoxTree>
+    Json(req): Json<TranslationToSQL>
 )-> Result<Json<String>, (StatusCode, String)>{
-    let res = translate_to_sql_shared(tree);
+    let res = translate_to_sql_shared(req.tree, req.database_type);
 
     Ok(Json(res))
 }

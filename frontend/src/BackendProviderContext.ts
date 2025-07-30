@@ -18,6 +18,7 @@ import { TableExportOptions } from "./types/generated/TableExportOptions";
 import { z } from "zod";
 import { ConnectionConfig, JobStatus } from "./types/hpc-backend";
 import { OCPQJobOptions } from "./types/generated/OCPQJobOptions";
+import { DatabaseType } from "./types/generated/DatabaseType";
 export type BackendProvider = {
   "ocel/info": () => Promise<OCELInfo|undefined>;
   "ocel/upload"?: (file: File) => Promise<OCELInfo>;
@@ -56,7 +57,8 @@ export type BackendProvider = {
   "hpc/job-status": (jobID: string) => Promise<JobStatus>,
   "download-blob": (blob: Blob, fileName: string) => unknown,
   "translate-to-sql": (
-    tree: BindingBoxTree)
+    tree: BindingBoxTree,
+    database: DatabaseType)
     => Promise<string>,
 };
 
@@ -272,11 +274,11 @@ export function getAPIServerBackendProvider(localBackendURL: string):  BackendPr
     },2000);
 
 },
-"translate-to-sql": async (tree) => {
+"translate-to-sql": async (tree, database) => {
   const res = await fetch(localBackendURL + "/translate-to-sql",{
     method: "post",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(tree),
+    body: JSON.stringify({ tree, databaseType: database }),
   });
   if(res.ok){
     return await res.json()

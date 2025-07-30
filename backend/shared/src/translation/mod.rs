@@ -7,11 +7,23 @@ use crate::binding_box::structs::NewObjectVariables;
 use crate::binding_box::structs::ObjectVariable;
 use crate::binding_box::structs::EventVariable;
 use crate::binding_box::structs::Qualifier;
+use ts_rs::TS;
+use serde::{Deserialize, Serialize};
+
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TranslationToSQL{
+    pub tree: BindingBoxTree,
+    pub database_type: DatabaseType
+}
 
 
 
-#[derive(Debug,Clone, Copy)]
-enum DatabaseType {
+#[derive(TS)]
+#[ts(export, export_to = "../../../frontend/src/types/generated/")]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum DatabaseType {
 
 SQLite,
 
@@ -38,7 +50,8 @@ pub struct SqlParts{
 
 // Implementation of the General translate to SQL function
 pub fn translate_to_sql_shared(
-    tree: BindingBoxTree
+    tree: BindingBoxTree,
+    database: DatabaseType
 )-> String{
 
     
@@ -59,7 +72,7 @@ pub fn translate_to_sql_shared(
         event_tables: HashMap::new(),
         object_tables: HashMap::new(),
         used_keys: HashSet::new(),
-        database_type: DatabaseType::DuckDB ,
+        database_type: database ,
     };
 
     match sql_parts.database_type {
@@ -684,7 +697,6 @@ pub fn construct_childstrings(sql_parts: &SqlParts) -> Vec<(String, String)> {
 
 
 
-//TODO in this function: Names of subq more different
 pub fn construct_child_constraints(
     sql_parts: &mut SqlParts
 ) -> String { 
