@@ -11,6 +11,11 @@ use ts_rs::TS;
 use serde::{Deserialize, Serialize};
 
 
+use std::fs::File;
+use std::path::PathBuf;
+use std::str::FromStr;
+
+
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TranslationToSQL{
@@ -371,6 +376,39 @@ pub fn map_to_event_tables_sqllite(
 
     event_tables.insert("object".to_string(),"object".to_string() );
 
+
+
+    event_tables.insert("A_Accepted".to_string(), "event_A_Accepted".to_string());
+    event_tables.insert("A_Cancelled".to_string(), "event_A_Cancelled".to_string());
+    event_tables.insert("A_Complete".to_string(), "event_A_Complete".to_string());
+    event_tables.insert("A_Concept".to_string(), "event_A_Concept".to_string());
+    event_tables.insert("A_Create Application".to_string(), "event_A_Create Application".to_string());
+    event_tables.insert("A_Denied".to_string(), "event_A_Denied".to_string());
+    event_tables.insert("A_Incomplete".to_string(), "event_A_Incomplete".to_string());
+    event_tables.insert("A_Pending".to_string(), "event_A_Pending".to_string());
+    event_tables.insert("A_Submitted".to_string(), "event_A_Submitted".to_string());
+    event_tables.insert("A_Validating".to_string(), "event_A_Validating".to_string());
+
+    event_tables.insert("O_Accepted".to_string(), "event_O_Accepted".to_string());
+    event_tables.insert("O_Cancelled".to_string(), "event_O_Cancelled".to_string());
+    event_tables.insert("O_Create Offer".to_string(), "event_O_Create Offer".to_string());
+    event_tables.insert("O_Created".to_string(), "event_O_Created".to_string());
+    event_tables.insert("O_Refused".to_string(), "event_O_Refused".to_string());
+    event_tables.insert("O_Returned".to_string(), "event_O_Returned".to_string());
+    event_tables.insert("O_Sent (mail and online)".to_string(), "event_O_Sent (mail and online)".to_string());
+    event_tables.insert("O_Sent (online only)".to_string(), "event_O_Sent (online only)".to_string());
+
+    event_tables.insert("W_Assess potential fraud".to_string(), "event_W_Assess potential fraud".to_string());
+    event_tables.insert("W_Call after offers".to_string(), "event_W_Call after offers".to_string());
+    event_tables.insert("W_Call incomplete files".to_string(), "event_W_Call incomplete files".to_string());
+    event_tables.insert("W_Complete application".to_string(), "event_W_Complete application".to_string());
+    event_tables.insert("W_Handle leads".to_string(), "event_W_Handle leads".to_string());
+    event_tables.insert("W_Personal Loan collection".to_string(), "event_W_Personal Loan collection".to_string());
+    event_tables.insert("W_Shorten completion".to_string(), "event_W_Shorten completion".to_string());
+    event_tables.insert("W_Validate application".to_string(), "event_W_Validate application".to_string());
+
+
+
     return event_tables;
 
 }
@@ -391,6 +429,15 @@ pub fn map_to_object_tables_sqllite(
     object_tables.insert("products".to_string(), "Products".to_string());
 
     object_tables.insert("object".to_string(),"object".to_string());
+
+
+
+
+
+    object_tables.insert("Application".to_string(), "object_Application".to_string());
+    object_tables.insert("Case_R".to_string(), "object_Case_R".to_string());
+    object_tables.insert("Offer".to_string(), "object_Offer".to_string());
+    object_tables.insert("Workflow".to_string(), "object_Workflow".to_string());
 
 
     return object_tables;
@@ -417,6 +464,8 @@ pub fn map_to_event_tables_duckdb(
     event_tables.insert("send package".to_string(), "Send Package".to_string());
 
     event_tables.insert("object".to_string(),"object".to_string() );
+
+
 
     return event_tables;
 }
@@ -1202,7 +1251,8 @@ pub fn map_objecttables(
 
         // Case SQLLite
         DatabaseType::SQLite =>{
-            return format!("object_{}", sql_parts.object_tables[object_type]);
+             eprintln!("Requested key: {}", object_type);
+             return format!("object_{}", sql_parts.object_tables[object_type]);
         }
 
 
@@ -1228,6 +1278,7 @@ pub fn map_eventttables(
 
         // Case SQLLite
         DatabaseType::SQLite =>{
+            eprintln!("Requested key: {}", event_type);
             return format!("event_{}", sql_parts.event_tables[event_type]);
         }
 
@@ -1288,7 +1339,45 @@ pub fn map_timestamp(
 }
 
 
+#[test]
+
+fn export_sql_queries(){
+
+use std::io::Write;
+
+let query_names = ["Q1","Q2","Q3","Q4","Q5","Q6",
+"Q7"];
+
+let base_path = PathBuf::from_str("C:\\Users\\justi\\Desktop\\ocpq-eval").unwrap();
+
+
+for query in query_names {
+
+let tree_path = base_path.join(query).join("ocpq-tree.json");
+
+for db_type in [DatabaseType::SQLite]
+{ 
+
+let tree = serde_json::from_reader(File::open(&tree_path).unwrap()).unwrap();
+
+let sql = translate_to_sql_shared(tree, db_type);
+
+let sql_export_path = base_path.join(query).join(format!("auto-sql-{db_type:?}.txt"));
+
+let mut sql_export_file = File::create(sql_export_path).unwrap();
+
+write!(sql_export_file,"{sql}").unwrap();
+
+}
+
+}
+
+}
+
+
+
 
 // TODO
+
 // 1. DuckDB mappings of tables, timestamp check
 // 2. Do Union (optional)
