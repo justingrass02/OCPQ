@@ -907,6 +907,27 @@ pub fn construct_child_constraints(
                         ));
                     }
 
+
+                    Filter::TimeBetweenEvents { from_event, to_event, min_seconds, max_seconds } =>{
+
+                        result_string.push(format!("{left_event} <= {right_event}",
+                        left_event = map_timestamp_event(sql_parts, from_event.0),
+                        right_event = map_timestamp_event(sql_parts, to_event.0)));
+                        if let Some(min) = min_seconds {
+                            result_string.push(format!("{time_left} - {time_right} >= {min}", 
+                            time_left = map_timestamp_event(sql_parts, to_event.0),
+                            time_right = map_timestamp_event(sql_parts, from_event.0)));
+                        }
+                        if let Some(max) = max_seconds {
+                            result_string.push(format!("{time_left} - {time_right} <= {max}",
+                            time_left = map_timestamp_event(sql_parts, to_event.0),
+                            time_right = map_timestamp_event(sql_parts, from_event.0)));
+                        }
+
+
+
+                    }
+
                     _ => {}
                 }
             }
