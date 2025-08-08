@@ -11,11 +11,6 @@ use ts_rs::TS;
 use serde::{Deserialize, Serialize};
 
 
-use std::fs::File;
-use std::path::PathBuf;
-use std::str::FromStr;
-
-
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TranslationToSQL{
@@ -467,6 +462,36 @@ pub fn map_to_event_tables_duckdb(
 
 
 
+    event_tables.insert("A_Accepted".to_string(), "A_Accepted".to_string());
+    event_tables.insert("A_Cancelled".to_string(), "A_Cancelled".to_string());
+    event_tables.insert("A_Complete".to_string(), "A_Complete".to_string());
+    event_tables.insert("A_Concept".to_string(), "A_Concept".to_string());
+    event_tables.insert("A_Create Application".to_string(), "A_Create Application".to_string());
+    event_tables.insert("A_Denied".to_string(), "A_Denied".to_string());
+    event_tables.insert("A_Incomplete".to_string(), "A_Incomplete".to_string());
+    event_tables.insert("A_Pending".to_string(), "A_Pending".to_string());
+    event_tables.insert("A_Submitted".to_string(), "A_Submitted".to_string());
+    event_tables.insert("A_Validating".to_string(), "A_Validating".to_string());
+
+    event_tables.insert("O_Accepted".to_string(), "O_Accepted".to_string());
+    event_tables.insert("O_Cancelled".to_string(), "O_Cancelled".to_string());
+    event_tables.insert("O_Create Offer".to_string(), "O_Create Offer".to_string());
+    event_tables.insert("O_Created".to_string(), "O_Created".to_string());
+    event_tables.insert("O_Refused".to_string(), "O_Refused".to_string());
+    event_tables.insert("O_Returned".to_string(), "O_Returned".to_string());
+    event_tables.insert("O_Sent (mail and online)".to_string(), "O_Sent (mail and online)".to_string());
+    event_tables.insert("O_Sent (online only)".to_string(), "O_Sent (online only)".to_string());
+
+    event_tables.insert("W_Assess potential fraud".to_string(), "W_Assess potential fraud".to_string());
+    event_tables.insert("W_Call after offers".to_string(), "W_Call after offers".to_string());
+    event_tables.insert("W_Call incomplete files".to_string(), "W_Call incomplete files".to_string());
+    event_tables.insert("W_Complete application".to_string(), "W_Complete application".to_string());
+    event_tables.insert("W_Handle leads".to_string(), "W_Handle leads".to_string());
+    event_tables.insert("W_Personal Loan collection".to_string(), "W_Personal Loan collection".to_string());
+    event_tables.insert("W_Shorten completion".to_string(), "W_Shorten completion".to_string());
+    event_tables.insert("W_Validate application".to_string(), "W_Validate application".to_string());
+
+
     return event_tables;
 }
 
@@ -484,6 +509,13 @@ pub fn map_to_object_tables_duckdb(
     object_tables.insert("products".to_string(), "Products".to_string());
 
     object_tables.insert("object".to_string(),"object".to_string());
+
+
+    object_tables.insert("Application".to_string(), "Application".to_string());
+    object_tables.insert("Case_R".to_string(), "Case_R".to_string());
+    object_tables.insert("Offer".to_string(), "Offer".to_string());
+    object_tables.insert("Workflow".to_string(), "Workflow".to_string());
+
 
 
     return object_tables;
@@ -556,7 +588,10 @@ pub fn construct_result(
     
     if  !sql_parts.node.constraints.is_empty() {
         let child_constraint_string = construct_child_constraints(sql_parts);
-        result.push_str(&format!(",\n({}) AS satisfied \n", child_constraint_string));
+        result.push_str(&format!(
+            ",\nCASE WHEN {} THEN 1 ELSE 0 END AS satisfied \n",
+            child_constraint_string
+        ));
     }
 
 
@@ -613,7 +648,6 @@ pub fn construct_from_clauses(
 ) -> Vec<String> {
     let mut from_clauses = Vec::new();
 
-
     for (obj_var, types) in &sql_parts.node.object_vars {
         for object_type in types {
             let key = format!("O{}", obj_var.0);
@@ -634,6 +668,7 @@ pub fn construct_from_clauses(
 
     return from_clauses;
 }
+
 
 
 
@@ -1363,6 +1398,9 @@ pub fn map_timestamp(
 fn export_sql_queries(){
 
 use std::io::Write;
+use std::fs::File;
+use std::path::PathBuf;
+use std::str::FromStr;
 
 let query_names = ["Q1","Q2","Q3","Q4","Q5","Q6",
 "Q7"];
@@ -1374,7 +1412,7 @@ for query in query_names {
 
 let tree_path = base_path.join(query).join("ocpq-tree.json");
 
-for db_type in [DatabaseType::SQLite]
+for db_type in [DatabaseType::SQLite, DatabaseType::DuckDB]
 { 
 
 let tree = serde_json::from_reader(File::open(&tree_path).unwrap()).unwrap();
@@ -1396,7 +1434,5 @@ write!(sql_export_file,"{sql}").unwrap();
 
 
 
-// TODO
 
-// 1. DuckDB mappings of tables, timestamp check
-// 2. Do Union (optional)
+
