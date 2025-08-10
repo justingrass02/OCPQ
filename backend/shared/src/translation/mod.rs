@@ -556,6 +556,12 @@ pub fn translate_to_sql_from_intermediate(
     let filter_clauses = construct_filter_non_basic(&mut sql_parts);
     sql_parts.where_clauses.extend(filter_clauses);    
 
+    for (obj_var, _types) in &sql_parts.node.object_vars {
+            sql_parts.where_clauses.push(format!("O{}.ocel_changed_field IS NULL", obj_var.0));
+
+    }
+
+
         let result = construct_result(
         &mut sql_parts,
     );
@@ -596,20 +602,46 @@ pub fn construct_result(
 
 
 
+    let mut contains_relation = false;
+
+    for filter in &sql_parts.node.relations{
+        match filter{
+            Relation::E2O { event:_, object:_, qualifier:_ } =>{
+                contains_relation = true;
+                break;
+
+            }
+
+
+            Relation::O2O { object_1:_, object_2:_, qualifier:_ } =>{
+                contains_relation = true;
+                break;
+            }
+        
+            _ => {}
+        
+        }
+    }
+
+
 
     // FROM result generate dummy if basefrom empty
 
     if  sql_parts.base_from.is_empty(){
         result.push_str("FROM (SELECT 1) as dummy");
     }else{
-    result.push_str(&format!("FROM {}\n", sql_parts.base_from.join(",\n")));}
-    
-    for join in &sql_parts.join_clauses{
-    result.push_str(&format!("{}\n",join));
+
+        if contains_relation{
+            result.push_str(&format!("FROM {}\n", sql_parts.base_from.join("\n")));
+        }else{
+            result.push_str(&format!("FROM {}\n", sql_parts.base_from.join(",\n")))
+        }
+
+
     }
+    
 
-
-
+    
     // WHERE result
 
     if !sql_parts.where_clauses.is_empty() {
@@ -641,18 +673,330 @@ pub fn construct_select_fields(
     return select_fields;
 }
 
-
-// Could make used_keys function argument and return type for children! Could also put E2O and O2O in there to make sure no double tables defined
-pub fn construct_from_clauses(
-     sql_parts: &mut SqlParts,
-) -> Vec<String> {
-    let mut from_clauses = Vec::new();
+// 
+pub fn get_object_type(
+    sql_parts: &SqlParts
+    ,index: usize
+) -> String{
 
     for (obj_var, types) in &sql_parts.node.object_vars {
+        if obj_var.0 == index{
+            for object_type in types {
+                return object_type.to_string();
+        }
+
+        }
+    }
+        return "no type found object".to_string()
+}
+
+
+pub fn get_event_type(
+    sql_parts: &SqlParts
+    ,index: usize
+) -> String{
+    for (ev_var, types) in &sql_parts.node.event_vars {
+        if ev_var.0 == index{
+            for event_type in types {
+                return event_type.to_string();
+            
+        }
+
+        }
+    }
+
+        return "no type found event".to_string()
+}
+
+
+
+
+
+// problem when creating table but Table was already created (missing entry)
+pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
+    let mut from_clauses = Vec::new();
+    let mut is_first_join = true;
+    let mut counter = 0;
+
+
+    for relation in &sql_parts.node.relations {
+        match relation {
+            Relation::E2O { event, object, qualifier: _ } => {
+                let event_alias = format!("E{}", event.0);
+                let object_alias = format!("O{}", object.0);
+                let mut event_object_alias = format!("E2O{}", counter);
+
+                while sql_parts.used_keys.contains(&event_object_alias) {
+                    counter += 1;
+                    event_object_alias = format!("E2O{}", counter);
+                }
+                sql_parts.used_keys.insert(event_object_alias.clone());
+
+                if is_first_join { // first join to distinct if we have to use INNER JOIN first
+                    if sql_parts.used_keys.contains(&event_alias) {
+                        if sql_parts.used_keys.contains(&object_alias) {
+                            from_clauses.push(format!("event_object AS {}", event_object_alias));
+                            sql_parts.where_clauses.push(format!(
+                                "{}.ocel_event_id = {}.ocel_id",
+                                event_object_alias, event_alias
+                            ));
+                            sql_parts.where_clauses.push(format!(
+                                "{}.ocel_object_id = {}.ocel_id",
+                                event_object_alias, object_alias
+                            ));
+                        } else {
+                            // event exists, object does not
+                            from_clauses.push(format!(
+                                "{} AS {}",
+                                map_objecttables(sql_parts, &get_object_type(sql_parts, object.0)),
+                                object_alias
+                            ));
+                            from_clauses.push(format!(
+                                "INNER JOIN event_object AS {} ON {}.ocel_object_id = {}.ocel_id AND {}.ocel_event_id = {}.ocel_id",
+                                event_object_alias, event_object_alias, object_alias, event_object_alias, event_alias
+                            ));
+                            sql_parts.used_keys.insert(object_alias.clone());
+                        }
+                    } else {
+                        if sql_parts.used_keys.contains(&object_alias) {
+                            // object table exists, event not
+                            from_clauses.push(format!(
+                                "{} AS {}",
+                                map_eventttables(sql_parts, &get_event_type(sql_parts, event.0)),
+                                event_alias
+                            ));
+                            from_clauses.push(format!(
+                                "INNER JOIN event_object AS {} ON {}.ocel_object_id = {}.ocel_id AND {}.ocel_event_id = {}.ocel_id",
+                                event_object_alias, event_object_alias, object_alias, event_object_alias, event_alias
+                            ));
+                            sql_parts.used_keys.insert(event_alias.clone());
+                        } else {
+                            // both not existing
+                            from_clauses.push(format!(
+                                "{} AS {}",
+                                map_eventttables(sql_parts, &get_event_type(sql_parts, event.0)),
+                                event_alias
+                            ));
+                            from_clauses.push(format!(
+                                "INNER JOIN event_object AS {} ON {}.ocel_event_id = {}.ocel_id",
+                                event_object_alias, event_object_alias, event_alias
+                            ));
+                            from_clauses.push(format!(
+                                "INNER JOIN {} AS {} ON {}.ocel_object_id = {}.ocel_id",
+                                map_objecttables(sql_parts, &get_object_type(sql_parts, object.0)),
+                                object_alias,
+                                event_object_alias,
+                                object_alias
+                            ));
+                            sql_parts.used_keys.insert(object_alias.clone());
+                            sql_parts.used_keys.insert(event_alias.clone());
+                        }
+                    }
+
+                    is_first_join = false;
+                } else {
+                    if sql_parts.used_keys.contains(&event_alias) {
+                        if sql_parts.used_keys.contains(&object_alias) {
+                            // both table created
+                            from_clauses.push(format!(
+                                "INNER JOIN event_object AS {} ON {}.ocel_object_id = {}.ocel_id AND {}.ocel_event_id = {}.ocel_id",
+                                event_object_alias, event_object_alias, object_alias, event_object_alias, event_alias
+                            ));
+                        } else {
+                            // only event table
+                            from_clauses.push(format!(
+                                "INNER JOIN event_object AS {} ON {}.ocel_event_id = {}.ocel_id",
+                                event_object_alias, event_object_alias, event_alias
+                            ));
+                            from_clauses.push(format!(
+                                "INNER JOIN {} AS {} ON {}.ocel_object_id = {}.ocel_id",
+                                map_objecttables(sql_parts, &get_object_type(sql_parts, object.0)),
+                                object_alias,
+                                event_object_alias,
+                                object_alias
+                            ));
+                            sql_parts.used_keys.insert(object_alias.clone());
+                        }
+                    } else {
+                        if sql_parts.used_keys.contains(&object_alias) {
+                            // only object table created
+                            from_clauses.push(format!(
+                                "INNER JOIN event_object AS {} ON {}.ocel_object_id = {}.ocel_id",
+                                event_object_alias, event_object_alias, object_alias
+                            ));
+                            from_clauses.push(format!(
+                                "INNER JOIN {} AS {} ON {}.ocel_event_id = {}.ocel_id",
+                                map_eventttables(sql_parts, &get_event_type(sql_parts, event.0)),
+                                event_alias,
+                                event_object_alias,
+                                event_alias
+                            ));
+                            sql_parts.used_keys.insert(event_alias.clone());
+                        } else {
+                            // both missing
+                            from_clauses.push(format!(
+                                "CROSS JOIN {} AS {}",
+                                map_eventttables(sql_parts, &get_event_type(sql_parts, event.0)),
+                                event_alias
+                            ));
+                            from_clauses.push(format!(
+                                "INNER JOIN event_object AS {} ON {}.ocel_event_id = {}.ocel_id",
+                                event_object_alias, event_object_alias, event_alias
+                            ));
+                            from_clauses.push(format!(
+                                "INNER JOIN {} AS {} ON {}.ocel_object_id = {}.ocel_id",
+                                map_objecttables(sql_parts, &get_object_type(sql_parts, object.0)),
+                                object_alias,
+                                event_object_alias,
+                                object_alias
+                            ));
+                            sql_parts.used_keys.insert(object_alias.clone());
+                            sql_parts.used_keys.insert(event_alias.clone());
+                        }
+                    }
+                }
+            }
+
+            Relation::O2O { object_1, object_2, qualifier: _ } => {
+                let object1_alias = format!("O{}", object_1.0);
+                let object2_alias = format!("O{}", object_2.0);
+                let mut object_object_alias = format!("O2O{}", counter);
+
+                while sql_parts.used_keys.contains(&object_object_alias) {
+                    counter += 1;
+                    object_object_alias = format!("O2O{}", counter);
+                }
+                sql_parts.used_keys.insert(object_object_alias.clone());
+
+                if is_first_join {
+                    if sql_parts.used_keys.contains(&object1_alias) {
+                        if sql_parts.used_keys.contains(&object2_alias) {
+                            from_clauses.push(format!("object_object AS {}", object_object_alias));
+                            sql_parts.where_clauses.push(format!(
+                                "{}.ocel_source_id = {}.ocel_id",
+                                object_object_alias, object1_alias
+                            ));
+                            sql_parts.where_clauses.push(format!(
+                                "{}.ocel_target_id = {}.ocel_id",
+                                object_object_alias, object2_alias
+                            ));
+                        } else {
+                            from_clauses.push(format!(
+                                "{} AS {}",
+                                map_objecttables(sql_parts, &get_object_type(sql_parts, object_2.0)),
+                                object2_alias
+                            ));
+                            from_clauses.push(format!(
+                                "INNER JOIN object_object AS {} ON {}.ocel_source_id = {}.ocel_id AND {}.ocel_target_id = {}.ocel_id",
+                                object_object_alias, object_object_alias, object1_alias, object_object_alias, object2_alias
+                            ));
+                            sql_parts.used_keys.insert(object2_alias.clone());
+                        }
+                    } else {
+                        if sql_parts.used_keys.contains(&object2_alias) {
+                            from_clauses.push(format!(
+                                "{} AS {}",
+                                map_objecttables(sql_parts, &get_object_type(sql_parts, object_1.0)),
+                                object1_alias
+                            ));
+                            from_clauses.push(format!(
+                                "INNER JOIN object_object AS {} ON {}.ocel_source_id = {}.ocel_id AND {}.ocel_target_id = {}.ocel_id",
+                                object_object_alias, object_object_alias, object1_alias, object_object_alias, object2_alias
+                            ));
+                            sql_parts.used_keys.insert(object1_alias.clone());
+                        } else {
+                            from_clauses.push(format!(
+                                "{} AS {}",
+                                map_objecttables(sql_parts, &get_object_type(sql_parts, object_1.0)),
+                                object1_alias
+                            ));
+                            from_clauses.push(format!(
+                                "INNER JOIN object_object AS {} ON {}.ocel_source_id = {}.ocel_id",
+                                object_object_alias, object_object_alias, object1_alias
+                            ));
+                            from_clauses.push(format!(
+                                "INNER JOIN {} AS {} ON {}.ocel_target_id = {}.ocel_id",
+                                map_objecttables(sql_parts, &get_object_type(sql_parts, object_2.0)),
+                                object2_alias,
+                                object_object_alias,
+                                object2_alias
+                            ));
+                            sql_parts.used_keys.insert(object1_alias.clone());
+                            sql_parts.used_keys.insert(object2_alias.clone());
+                        }
+                    }
+
+                    is_first_join = false;
+                } else {
+                    if sql_parts.used_keys.contains(&object1_alias) {
+                        if sql_parts.used_keys.contains(&object2_alias) {
+                            from_clauses.push(format!(
+                                "INNER JOIN object_object AS {} ON {}.ocel_source_id = {}.ocel_id AND {}.ocel_target_id = {}.ocel_id",
+                                object_object_alias, object_object_alias, object1_alias, object_object_alias, object2_alias
+                            ));
+                        } else {
+                            from_clauses.push(format!(
+                                "INNER JOIN object_object AS {} ON {}.ocel_source_id = {}.ocel_id",
+                                object_object_alias, object_object_alias, object1_alias
+                            ));
+                            from_clauses.push(format!(
+                                "INNER JOIN {} AS {} ON {}.ocel_target_id = {}.ocel_id",
+                                map_objecttables(sql_parts, &get_object_type(sql_parts, object_2.0)),
+                                object2_alias,
+                                object_object_alias,
+                                object2_alias
+                            ));
+                            sql_parts.used_keys.insert(object2_alias.clone());
+                        }
+                    } else {
+                        if sql_parts.used_keys.contains(&object2_alias) {
+                            from_clauses.push(format!(
+                                "INNER JOIN object_object AS {} ON {}.ocel_target_id = {}.ocel_id",
+                                object_object_alias, object_object_alias, object2_alias
+                            ));
+                            from_clauses.push(format!(
+                                "INNER JOIN {} AS {} ON {}.ocel_source_id = {}.ocel_id",
+                                map_objecttables(sql_parts, &get_object_type(sql_parts, object_1.0)),
+                                object1_alias,
+                                object_object_alias,
+                                object1_alias
+                            ));
+                            sql_parts.used_keys.insert(object1_alias.clone());
+                        } else {
+                            from_clauses.push(format!(
+                                "CROSS JOIN {} AS {}",
+                                map_objecttables(sql_parts, &get_object_type(sql_parts, object_1.0)),
+                                object1_alias
+                            ));
+                            from_clauses.push(format!(
+                                "INNER JOIN object_object AS {} ON {}.ocel_source_id = {}.ocel_id",
+                                object_object_alias, object_object_alias, object1_alias
+                            ));
+                            from_clauses.push(format!(
+                                "INNER JOIN {} AS {} ON {}.ocel_target_id = {}.ocel_id",
+                                map_objecttables(sql_parts, &get_object_type(sql_parts, object_2.0)),
+                                object2_alias,
+                                object_object_alias,
+                                object2_alias
+                            ));
+                            sql_parts.used_keys.insert(object2_alias.clone());
+                            sql_parts.used_keys.insert(object1_alias.clone());
+                        }
+                    }
+                }
+            }
+
+            _ => {}
+        }
+    }
+
+
+    if is_first_join{// Does not contain E2O or O2O
+        for (obj_var, types) in &sql_parts.node.object_vars {
         for object_type in types {
             let key = format!("O{}", obj_var.0);
+            sql_parts.used_keys.insert(key.clone());
             from_clauses.push(format!("{} AS {}", map_objecttables(sql_parts, object_type), key));
-            sql_parts.where_clauses.push(format!("O{}.ocel_changed_field IS NULL", obj_var.0));
             
         }
     }
@@ -661,10 +1005,42 @@ pub fn construct_from_clauses(
     for (event_var, types) in &sql_parts.node.event_vars {
         for event_type in types {
             let key = format!("E{}", event_var.0);
+            sql_parts.used_keys.insert(key.clone());
             from_clauses.push(format!("{} AS {}", map_eventttables(sql_parts, event_type) , key));
             
         }
     }
+    }else{ // there might be relations, but there might be object tables which are not created
+
+        for (obj_var, types) in &sql_parts.node.object_vars {
+        for object_type in types {
+            let key = format!("O{}", obj_var.0);
+            sql_parts.used_keys.insert(key.clone());
+            
+             if !sql_parts.used_keys.contains(&key){
+            from_clauses.push(format!(" CROSS JOIN {} AS {}", map_objecttables(sql_parts, object_type), key));
+            sql_parts.used_keys.insert(key.clone());
+             }
+            
+        }
+    }
+
+
+    for (event_var, types) in &sql_parts.node.event_vars {
+        for event_type in types {
+            let key = format!("E{}", event_var.0);
+            if !sql_parts.used_keys.contains(&key){
+            from_clauses.push(format!("CROSS JOIN{} AS {}", map_eventttables(sql_parts, event_type) , key));
+            sql_parts.used_keys.insert(key.clone());
+            }
+            
+        }
+    }
+
+
+
+    } 
+
 
     return from_clauses;
 }
@@ -673,56 +1049,15 @@ pub fn construct_from_clauses(
 
 
 
+
 pub fn construct_basic_operations(
     sql_parts: &mut SqlParts
 ) -> (Vec<String>, Vec<String>) {
-    let mut join_clauses = Vec::new();
+    let join_clauses = Vec::new();
     let mut where_clauses = sql_parts.where_clauses.clone();
 
     for relation in &sql_parts.node.relations {
         match relation {
-            Relation::E2O { event, object, .. } => {
-                let base_alias = format!("E2O{}{}", event.0, object.0);
-                let mut alias = base_alias.clone();
-                let mut counter = 1;
-
-                while sql_parts.used_keys.contains(&alias) {
-                    alias = format!("{}_{}", base_alias, counter);
-                    counter += 1;
-                }
-
-                sql_parts.used_keys.insert(alias.clone());
-
-                join_clauses.push(format!(
-                    "INNER JOIN event_object AS {temp} ON {temp}.ocel_event_id = E{temp2}.ocel_id AND {temp}.ocel_object_id = O{temp3}.ocel_id",
-                    
-                    //eve_obj = map_eventttables(sql_parts, "object"), // check wheter this works as intended
-                    temp = alias,
-                    temp2 = event.0,
-                    temp3 = object.0
-                ));
-            }
-
-            Relation::O2O { object_1, object_2, .. } => {
-                let base_alias = format!("O2O{}{}", object_1.0, object_2.0);
-                let mut alias = base_alias.clone();
-                let mut counter = 1;
-
-                while sql_parts.used_keys.contains(&alias) {
-                    alias = format!("{}_{}", base_alias, counter);
-                    counter += 1;
-                }
-
-                sql_parts.used_keys.insert(alias.clone());
-
-                join_clauses.push(format!(
-                    "INNER JOIN {} AS {} ON {}.ocel_source_id = O{}.ocel_id AND {}.ocel_target_id = O{}.ocel_id",
-                    map_objecttables(sql_parts, "object")
-                    ,alias, alias, object_1.0, alias, object_2.0
-                ));
-            }
-
-
             Relation::TimeBetweenEvents {
                 from_event,
                 to_event,
@@ -742,8 +1077,16 @@ pub fn construct_basic_operations(
                      time_left = map_timestamp_event(sql_parts, to_event.0),
                      time_right = map_timestamp_event(sql_parts, from_event.0)));
                 }
+           
+           
+           
             }
+        
+            _ => {}
+            
+        
         }
+
     }
 
     return (join_clauses, where_clauses);
@@ -1023,14 +1366,10 @@ pub fn construct_result_child(
     if  sql_parts.base_from.is_empty(){
         result.push_str("FROM (SELECT 1) as dummy");
     }else{
-    result.push_str(&format!("FROM {}\n", sql_parts.base_from.join(",\n")));}
+    result.push_str(&format!("FROM {}\n", sql_parts.base_from.join("\n")));}
     
     
     
-    for join in &sql_parts.join_clauses {
-        result.push_str(&format!("{}\n", join));
-    }
-
     if !sql_parts.where_clauses.is_empty() {
         result.push_str(&format!("WHERE {}\n", sql_parts.where_clauses.join("\nAND ")));
     }
