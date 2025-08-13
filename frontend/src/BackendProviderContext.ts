@@ -60,6 +60,9 @@ export type BackendProvider = {
     tree: BindingBoxTree,
     database: DatabaseType)
     => Promise<string>,
+    "translate-to-cypher": (
+    tree: BindingBoxTree,)
+    => Promise<string>,
 };
 
 export async function warnForNoBackendProvider<T>(): Promise<T> {
@@ -85,6 +88,7 @@ export const ErrorBackendContext: BackendProvider = {
   "hpc/job-status": warnForNoBackendProvider,
   "download-blob": warnForNoBackendProvider,
   "translate-to-sql": warnForNoBackendProvider,
+  "translate-to-cypher": warnForNoBackendProvider,
 };
 
 export const BackendProviderContext = createContext<BackendProvider>(ErrorBackendContext);
@@ -285,6 +289,21 @@ export function getAPIServerBackendProvider(localBackendURL: string):  BackendPr
   }else{
     throw Error(await res.text())
   }
+  },
+
+"translate-to-cypher": async (tree) => {
+  const res = await fetch(localBackendURL + "/translate-to-cypher",{
+    method: "post",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(tree),
+  });
+  if(res.ok){
+    return await res.json()
+  }else{
+    throw Error(await res.text())
   }
+  }
+
+
 }
 };

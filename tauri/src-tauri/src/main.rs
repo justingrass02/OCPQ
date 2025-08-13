@@ -18,7 +18,7 @@ use ocpq_shared::{
         get_job_status, login_on_hpc, start_port_forwarding, submit_hpc_job, Client,
         ConnectionConfig, JobStatus, OCPQJobOptions,
     }, ocel_graph::{get_ocel_graph, OCELGraph, OCELGraphOptions}, ocel_qualifiers::qualifiers::{get_qualifiers_for_event_types, QualifiersForEventType}, preprocessing::linked_ocel::{link_ocel_info, IndexLinkedOCEL}, table_export::{export_bindings_to_writer, TableExportFormat, TableExportOptions}, translation::{
-        translate_to_sql_shared, DatabaseType
+        translate_to_sql_shared, DatabaseType, translate_to_cypher_shared
     }, EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
 
 };
@@ -298,6 +298,15 @@ async  fn translate_to_sql_tauri(
     Ok(res)
 }
 
+
+#[tauri::command(async)]
+async  fn translate_to_cypher_tauri(
+    tree: BindingBoxTree,
+)-> Result<String, String>{
+    let res = translate_to_cypher_shared(tree);
+    Ok(res)
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
@@ -318,7 +327,8 @@ fn main() {
             login_to_hpc_tauri,
             start_hpc_job_tauri,
             get_hpc_job_status_tauri,
-            translate_to_sql_tauri
+            translate_to_sql_tauri,
+            translate_to_cypher_tauri
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -675,11 +675,11 @@ pub fn construct_select_fields(
 
 // 
 pub fn get_object_type(
-    sql_parts: &SqlParts
+    node: InterMediateNode
     ,index: usize
 ) -> String{
 
-    for (obj_var, types) in &sql_parts.node.object_vars {
+    for (obj_var, types) in node.object_vars {
         if obj_var.0 == index{
             for object_type in types {
                 return object_type.to_string();
@@ -692,10 +692,10 @@ pub fn get_object_type(
 
 
 pub fn get_event_type(
-    sql_parts: &SqlParts
+    node: InterMediateNode
     ,index: usize
 ) -> String{
-    for (ev_var, types) in &sql_parts.node.event_vars {
+    for (ev_var, types) in node.event_vars {
         if ev_var.0 == index{
             for event_type in types {
                 return event_type.to_string();
@@ -748,7 +748,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                             // event exists, object does not
                             from_clauses.push(format!(
                                 "{} AS {}",
-                                map_objecttables(sql_parts, &get_object_type(sql_parts, object.0)),
+                                map_objecttables(sql_parts, &get_object_type(sql_parts.node.clone(), object.0)),
                                 object_alias
                             ));
                             from_clauses.push(format!(
@@ -762,7 +762,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                             // object table exists, event not
                             from_clauses.push(format!(
                                 "{} AS {}",
-                                map_eventttables(sql_parts, &get_event_type(sql_parts, event.0)),
+                                map_eventttables(sql_parts, &get_event_type(sql_parts.node.clone(), event.0)),
                                 event_alias
                             ));
                             from_clauses.push(format!(
@@ -774,7 +774,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                             // both not existing
                             from_clauses.push(format!(
                                 "{} AS {}",
-                                map_eventttables(sql_parts, &get_event_type(sql_parts, event.0)),
+                                map_eventttables(sql_parts, &get_event_type(sql_parts.node.clone(), event.0)),
                                 event_alias
                             ));
                             from_clauses.push(format!(
@@ -783,7 +783,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                             ));
                             from_clauses.push(format!(
                                 "INNER JOIN {} AS {} ON {}.ocel_object_id = {}.ocel_id",
-                                map_objecttables(sql_parts, &get_object_type(sql_parts, object.0)),
+                                map_objecttables(sql_parts, &get_object_type(sql_parts.node.clone(), object.0)),
                                 object_alias,
                                 event_object_alias,
                                 object_alias
@@ -810,7 +810,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                             ));
                             from_clauses.push(format!(
                                 "INNER JOIN {} AS {} ON {}.ocel_object_id = {}.ocel_id",
-                                map_objecttables(sql_parts, &get_object_type(sql_parts, object.0)),
+                                map_objecttables(sql_parts, &get_object_type(sql_parts.node.clone(), object.0)),
                                 object_alias,
                                 event_object_alias,
                                 object_alias
@@ -826,7 +826,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                             ));
                             from_clauses.push(format!(
                                 "INNER JOIN {} AS {} ON {}.ocel_event_id = {}.ocel_id",
-                                map_eventttables(sql_parts, &get_event_type(sql_parts, event.0)),
+                                map_eventttables(sql_parts, &get_event_type(sql_parts.node.clone(), event.0)),
                                 event_alias,
                                 event_object_alias,
                                 event_alias
@@ -836,7 +836,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                             // both missing
                             from_clauses.push(format!(
                                 "CROSS JOIN {} AS {}",
-                                map_eventttables(sql_parts, &get_event_type(sql_parts, event.0)),
+                                map_eventttables(sql_parts, &get_event_type(sql_parts.node.clone(), event.0)),
                                 event_alias
                             ));
                             from_clauses.push(format!(
@@ -845,7 +845,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                             ));
                             from_clauses.push(format!(
                                 "INNER JOIN {} AS {} ON {}.ocel_object_id = {}.ocel_id",
-                                map_objecttables(sql_parts, &get_object_type(sql_parts, object.0)),
+                                map_objecttables(sql_parts, &get_object_type(sql_parts.node.clone(), object.0)),
                                 object_alias,
                                 event_object_alias,
                                 object_alias
@@ -883,7 +883,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                         } else {
                             from_clauses.push(format!(
                                 "{} AS {}",
-                                map_objecttables(sql_parts, &get_object_type(sql_parts, object_2.0)),
+                                map_objecttables(sql_parts, &get_object_type(sql_parts.node.clone(), object_2.0)),
                                 object2_alias
                             ));
                             from_clauses.push(format!(
@@ -896,7 +896,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                         if sql_parts.used_keys.contains(&object2_alias) {
                             from_clauses.push(format!(
                                 "{} AS {}",
-                                map_objecttables(sql_parts, &get_object_type(sql_parts, object_1.0)),
+                                map_objecttables(sql_parts, &get_object_type(sql_parts.node.clone(), object_1.0)),
                                 object1_alias
                             ));
                             from_clauses.push(format!(
@@ -907,7 +907,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                         } else {
                             from_clauses.push(format!(
                                 "{} AS {}",
-                                map_objecttables(sql_parts, &get_object_type(sql_parts, object_1.0)),
+                                map_objecttables(sql_parts, &get_object_type(sql_parts.node.clone(), object_1.0)),
                                 object1_alias
                             ));
                             from_clauses.push(format!(
@@ -916,7 +916,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                             ));
                             from_clauses.push(format!(
                                 "INNER JOIN {} AS {} ON {}.ocel_target_id = {}.ocel_id",
-                                map_objecttables(sql_parts, &get_object_type(sql_parts, object_2.0)),
+                                map_objecttables(sql_parts, &get_object_type(sql_parts.node.clone(), object_2.0)),
                                 object2_alias,
                                 object_object_alias,
                                 object2_alias
@@ -941,7 +941,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                             ));
                             from_clauses.push(format!(
                                 "INNER JOIN {} AS {} ON {}.ocel_target_id = {}.ocel_id",
-                                map_objecttables(sql_parts, &get_object_type(sql_parts, object_2.0)),
+                                map_objecttables(sql_parts, &get_object_type(sql_parts.node.clone(), object_2.0)),
                                 object2_alias,
                                 object_object_alias,
                                 object2_alias
@@ -956,7 +956,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                             ));
                             from_clauses.push(format!(
                                 "INNER JOIN {} AS {} ON {}.ocel_source_id = {}.ocel_id",
-                                map_objecttables(sql_parts, &get_object_type(sql_parts, object_1.0)),
+                                map_objecttables(sql_parts, &get_object_type(sql_parts.node.clone(), object_1.0)),
                                 object1_alias,
                                 object_object_alias,
                                 object1_alias
@@ -965,7 +965,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                         } else {
                             from_clauses.push(format!(
                                 "CROSS JOIN {} AS {}",
-                                map_objecttables(sql_parts, &get_object_type(sql_parts, object_1.0)),
+                                map_objecttables(sql_parts, &get_object_type(sql_parts.node.clone(), object_1.0)),
                                 object1_alias
                             ));
                             from_clauses.push(format!(
@@ -974,7 +974,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                             ));
                             from_clauses.push(format!(
                                 "INNER JOIN {} AS {} ON {}.ocel_target_id = {}.ocel_id",
-                                map_objecttables(sql_parts, &get_object_type(sql_parts, object_2.0)),
+                                map_objecttables(sql_parts, &get_object_type(sql_parts.node.clone(), object_2.0)),
                                 object2_alias,
                                 object_object_alias,
                                 object2_alias
@@ -1775,3 +1775,213 @@ write!(sql_export_file,"{sql}").unwrap();
 
 
 
+// Cypher Translation 
+
+
+pub struct CypherParts{
+    node:  InterMediateNode,
+    match_clauses: Vec<String>,
+    return_clauses: Vec<String>,
+    used_alias: HashSet<String>,
+    event_tables: HashMap<String,String>,
+    object_tables: HashMap<String,String>,
+}
+
+
+
+
+pub fn translate_to_cypher_shared(
+   tree: BindingBoxTree ) -> String{
+    
+    // Convert to Intermediate
+
+    let inter = convert_to_intermediate(tree);
+
+
+
+    let mut cypher_parts = CypherParts{
+    node: inter,    
+    match_clauses: vec![],
+    return_clauses: vec![],
+    used_alias: HashSet::new(),
+    event_tables: HashMap::new(),
+    object_tables: HashMap::new()
+    };
+
+
+    get_event_table_cypher(&mut cypher_parts);
+
+    get_object_table_cypher(&mut cypher_parts);
+
+    let result = convert_to_cypher_from_inter(&mut cypher_parts);
+
+
+    return result;
+
+
+
+   }
+
+// For root node in particular, could make other functions for child queries later
+pub fn convert_to_cypher_from_inter(
+   cypher_parts: &mut CypherParts
+)  -> String{
+    
+    construct_match_clauses(cypher_parts);
+    
+    
+
+    construct_return_clauses(cypher_parts);
+    
+    
+    
+
+
+    let result = construct_result_cypher(cypher_parts);
+
+    return result;
+    
+    }  
+
+
+
+// Start with E2O and O2O    
+pub fn construct_match_clauses(
+     cypher_parts: &mut CypherParts
+){
+
+
+    for relation in &cypher_parts.node.relations{
+        match relation{
+
+            Relation::E2O { event, object, qualifier:_ } =>{
+
+                let event_alias = format!("e{}", event.0);
+                let object_alias = format!("o{}", object.0);
+
+                let event_object_alias = "E2O".to_string();
+
+                let event_type = get_event_type(cypher_parts.node.clone(), event.0);
+                let object_type = get_object_type(cypher_parts.node.clone(), object.0);
+
+
+                let mapped_event_type = &cypher_parts.event_tables[&event_type.clone()];
+                let mapped_object_type = &cypher_parts.object_tables[&object_type.clone()];
+
+
+                cypher_parts.used_alias.insert(event_alias.clone());
+                cypher_parts.used_alias.insert(object_alias.clone());
+
+                cypher_parts.match_clauses.push(format!("({event_alias}:{mapped_event_type})-[:{event_object_alias}]->({object_alias}:{mapped_object_type})", 
+                
+            ));
+
+
+
+            }
+
+
+            Relation::O2O { object_1, object_2, qualifier:_ } => {
+
+                let object1_alias = format!("o{}", object_1.0);
+                let object2_alias = format!("o{}", object_2.0);
+
+                let object_object_alias = "O2O".to_string();
+
+                
+
+                let object1_type = get_object_type(cypher_parts.node.clone(), object_1.0);
+                let object2_type = get_object_type(cypher_parts.node.clone(), object_2.0);
+
+                let mapped_object1_type =  &cypher_parts.object_tables[&object1_type.clone()];
+                let mapped_object2_type =  &cypher_parts.object_tables[&object2_type.clone()];
+
+                cypher_parts.used_alias.insert(object1_alias.clone());
+                cypher_parts.used_alias.insert(object2_alias.clone());
+
+                cypher_parts.match_clauses.push(format!("({object1_alias}:{mapped_object1_type})-[:{object_object_alias}]->({object2_alias}:{mapped_object2_type})"));
+
+
+            }
+
+
+
+            _ =>{
+
+            }
+        }
+    }
+
+
+
+}
+
+
+pub fn get_event_table_cypher(
+    cypher_parts: &mut CypherParts
+){
+    cypher_parts.event_tables.insert("confirm order".to_string(), "confirmorder".to_string());
+    cypher_parts.event_tables.insert("create package".to_string(), "createpackage".to_string());
+    cypher_parts.event_tables.insert("failed delivery".to_string(), "faileddelivery".to_string());
+    cypher_parts.event_tables.insert("item out of stock".to_string(), "itemoutofstock".to_string());
+    cypher_parts.event_tables.insert("package delivered".to_string(), "packagedelivered".to_string());
+    cypher_parts.event_tables.insert("pay order".to_string(), "payorder".to_string());
+    cypher_parts.event_tables.insert("payment reminder".to_string(), "paymentreminder".to_string());
+    cypher_parts.event_tables.insert("pick item".to_string(), "pickitem".to_string());
+    cypher_parts.event_tables.insert("place order".to_string(), "placeorder".to_string());
+    cypher_parts.event_tables.insert("reorder item".to_string(), "reorderitem".to_string());
+    cypher_parts.event_tables.insert("send package".to_string(), "sendpackage".to_string());
+}
+
+
+
+pub fn get_object_table_cypher(
+    cypher_parts: &mut CypherParts
+){
+    cypher_parts.object_tables.insert("customers".to_string(), "customers".to_string());
+    cypher_parts.object_tables.insert("employees".to_string(), "employees".to_string());
+    cypher_parts.object_tables.insert("items".to_string(), "items".to_string());
+    cypher_parts.object_tables.insert("orders".to_string(), "orders".to_string());
+    cypher_parts.object_tables.insert("packages".to_string(), "packages".to_string());
+    cypher_parts.object_tables.insert("products".to_string(), "products".to_string());
+}
+
+
+// Construct return clauses, at the moment only event and object ids
+pub fn construct_return_clauses(
+    cypher_parts: &mut CypherParts
+){
+
+    for (obj_var, _) in &cypher_parts.node.object_vars {
+        cypher_parts.return_clauses.push(format!("o{}.id", obj_var.0));
+    }
+
+    for (event_var, _) in &cypher_parts.node.event_vars {
+        cypher_parts.return_clauses.push(format!("e{}.id", event_var.0));
+    }
+
+
+}
+
+
+
+pub fn construct_result_cypher(
+    cypher_parts: &mut CypherParts
+) -> String{
+
+    let mut result = String::new();
+    
+    // MATCH
+    for match_clause in &cypher_parts.match_clauses{
+        result.push_str(&format!("MATCH {match_clause}\n"));
+    }
+
+
+
+    // Return
+
+    result.push_str(&format!("RETURN {}", cypher_parts.return_clauses.join(",")));
+
+    return result;
+
+}

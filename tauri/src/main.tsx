@@ -91,6 +91,9 @@ const tauriBackend: BackendProvider = {
   },
   "translate-to-sql": async (tree:BindingBoxTree, database: DatabaseType): Promise<string> =>{
     return await invoke("translate_to_sql_tauri",{tree, database});
+  },
+  "translate-to-cypher": async (tree:BindingBoxTree): Promise<string> =>{
+    return await invoke("translate_to_cypher_tauri",{tree});
   }
 };
 

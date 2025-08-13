@@ -18,27 +18,17 @@ use std::{
 use ocpq_shared::{
     binding_box::{
         evaluate_box_tree, filter_ocel_box_tree, BindingBoxTree, CheckWithBoxTreeRequest, EvaluateBoxTreeResult, ExportFormat, FilterExportWithBoxTreeRequest
-    },
-    discovery::{
+    }, discovery::{
         auto_discover_constraints_with_options, AutoDiscoverConstraintsRequest,
         AutoDiscoverConstraintsResponse,
-    },
-    get_event_info, get_object_info,
-    hpc_backend::{
+    }, get_event_info, get_object_info, hpc_backend::{
         get_job_status, login_on_hpc, start_port_forwarding, submit_hpc_job, Client,
         ConnectionConfig, JobStatus, OCPQJobOptions,
-    },
-    ocel_graph::{get_ocel_graph, OCELGraph, OCELGraphOptions},
-    ocel_qualifiers::qualifiers::{
+    }, ocel_graph::{get_ocel_graph, OCELGraph, OCELGraphOptions}, ocel_qualifiers::qualifiers::{
         get_qualifiers_for_event_types, QualifierAndObjectType, QualifiersForEventType,
-    },
-    preprocessing::{linked_ocel::IndexLinkedOCEL, preprocess::link_ocel_info},
-    table_export::{export_bindings_to_writer, TableExportOptions},
-    EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex,
-    
-    translation::{
-        translate_to_sql_shared, TranslationToSQL
-    },
+    }, preprocessing::{linked_ocel::IndexLinkedOCEL, preprocess::link_ocel_info}, table_export::{export_bindings_to_writer, TableExportOptions}, translation::{
+        translate_to_cypher_shared, translate_to_sql_shared, TranslationToSQL
+    }, EventWithIndex, IndexOrID, OCELInfo, ObjectWithIndex
 };
 use process_mining::{
     event_log::ocel::ocel_struct::OCEL,
@@ -120,6 +110,7 @@ async fn main() {
         .route("/hpc/start", post(start_hpc_job_web))
         .route("/hpc/job-status/:job_id", get(get_hpc_job_status_web))
         .route("/translate-to-sql", post(translate_to_sql))
+        .route("/translate-to-cypher", post(translate_to_cypher))
         .with_state(state)
         .route("/", get(|| async { "Hello, Aaron!" }))
         .layer(cors);
@@ -390,4 +381,12 @@ async fn translate_to_sql(
     Ok(Json(res))
 }
 
+
+async fn translate_to_cypher(
+    Json(tree): Json<BindingBoxTree>
+) -> Result<Json<String>, (StatusCode, String)>{
+    let res = translate_to_cypher_shared(tree);
+
+    Ok(Json(res))
+}
 
