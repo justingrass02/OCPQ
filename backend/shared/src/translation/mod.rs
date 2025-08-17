@@ -1015,8 +1015,6 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
         for (obj_var, types) in &sql_parts.node.object_vars {
         for object_type in types {
             let key = format!("O{}", obj_var.0);
-            sql_parts.used_keys.insert(key.clone());
-            
              if !sql_parts.used_keys.contains(&key){
             from_clauses.push(format!(" CROSS JOIN {} AS {}", map_objecttables(sql_parts, object_type), key));
             sql_parts.used_keys.insert(key.clone());
@@ -1781,10 +1779,13 @@ write!(sql_export_file,"{sql}").unwrap();
 pub struct CypherParts{
     node:  InterMediateNode,
     match_clauses: Vec<String>,
+    child_queries: Vec<(String,String)>,
+    where_clauses: Vec<String>,
     return_clauses: Vec<String>,
     used_alias: HashSet<String>,
     event_tables: HashMap<String,String>,
     object_tables: HashMap<String,String>,
+    alias_type: HashMap<String,String>
 }
 
 
@@ -1802,10 +1803,13 @@ pub fn translate_to_cypher_shared(
     let mut cypher_parts = CypherParts{
     node: inter,    
     match_clauses: vec![],
+    child_queries: vec![],
+    where_clauses: vec![],
     return_clauses: vec![],
     used_alias: HashSet::new(),
     event_tables: HashMap::new(),
-    object_tables: HashMap::new()
+    object_tables: HashMap::new(),
+    alias_type: HashMap::new()
     };
 
 
@@ -1830,12 +1834,17 @@ pub fn convert_to_cypher_from_inter(
     construct_match_clauses(cypher_parts);
     
     
+    construct_childstrings_cypher(cypher_parts);
 
+    
+    construct_filter_clauses(cypher_parts);
+    
+    
+    
+    
     construct_return_clauses(cypher_parts);
     
     
-    
-
 
     let result = construct_result_cypher(cypher_parts);
 
@@ -1865,12 +1874,26 @@ pub fn construct_match_clauses(
                 let object_type = get_object_type(cypher_parts.node.clone(), object.0);
 
 
-                let mapped_event_type = &cypher_parts.event_tables[&event_type.clone()];
-                let mapped_object_type = &cypher_parts.object_tables[&object_type.clone()];
+                let mut mapped_event_type = &cypher_parts.event_tables[&event_type.clone()];
+                let mut mapped_object_type = &cypher_parts.object_tables[&object_type.clone()];
+
+
+
+                if(mapped_event_type == "no type found event"){
+                    mapped_event_type = &cypher_parts.event_tables[&event_type.clone()];
+                }
+                
+                if(mapped_object_type == "no type found object"){
+                    mapped_object_type = &cypher_parts.object_tables[&object_type.clone()];
+                }
 
 
                 cypher_parts.used_alias.insert(event_alias.clone());
                 cypher_parts.used_alias.insert(object_alias.clone());
+
+
+                cypher_parts.alias_type.insert(event_alias.clone(),mapped_event_type.to_string());
+                cypher_parts.alias_type.insert(object_alias.clone(),mapped_object_type.to_string());
 
                 cypher_parts.match_clauses.push(format!("({event_alias}:{mapped_event_type})-[:{event_object_alias}]->({object_alias}:{mapped_object_type})", 
                 
@@ -1893,13 +1916,46 @@ pub fn construct_match_clauses(
                 let object1_type = get_object_type(cypher_parts.node.clone(), object_1.0);
                 let object2_type = get_object_type(cypher_parts.node.clone(), object_2.0);
 
-                let mapped_object1_type =  &cypher_parts.object_tables[&object1_type.clone()];
-                let mapped_object2_type =  &cypher_parts.object_tables[&object2_type.clone()];
+
+
+                let mut mapped_object1_type = cypher_parts
+                    .object_tables
+                    .get(&object1_type)
+                    .cloned()
+                    .unwrap_or_else(|| "no type found object".to_string());
+
+                let mut mapped_object2_type = cypher_parts
+                    .object_tables
+                    .get(&object2_type)
+                    .cloned()
+                    .unwrap_or_else(|| "no type found object".to_string());
+
+                if mapped_object1_type == "no type found object" {
+                    mapped_object1_type = cypher_parts
+                        .alias_type
+                        .get(&object1_alias)
+                        .cloned()
+                        .unwrap_or_else(|| "unknown".to_string());
+                }
+
+                if mapped_object2_type == "no type found object" {
+                    mapped_object2_type = cypher_parts
+                        .alias_type
+                        .get(&object2_alias)
+                        .cloned()
+                        .unwrap_or_else(|| "unknown".to_string());
+                }
 
                 cypher_parts.used_alias.insert(object1_alias.clone());
                 cypher_parts.used_alias.insert(object2_alias.clone());
 
-                cypher_parts.match_clauses.push(format!("({object1_alias}:{mapped_object1_type})-[:{object_object_alias}]->({object2_alias}:{mapped_object2_type})"));
+                cypher_parts.alias_type.insert(object1_alias.clone(), mapped_object1_type.clone());
+                cypher_parts.alias_type.insert(object2_alias.clone(), mapped_object2_type.clone());
+
+                cypher_parts.match_clauses.push(format!(
+                    "({object1_alias}:{mapped_object1_type})-[:{object_object_alias}]->({object2_alias}:{mapped_object2_type})"
+                ));
+
 
 
             }
@@ -1912,6 +1968,36 @@ pub fn construct_match_clauses(
         }
     }
 
+
+
+    // Check for Variables which are not included in a Relation
+
+    for (obj_var, types) in &cypher_parts.node.object_vars {
+        for object_type in types {
+            let key = format!("o{}", obj_var.0);
+             if !cypher_parts.used_alias.contains(&key){
+                let type1 = &cypher_parts.object_tables[&object_type.clone()];
+                cypher_parts.match_clauses.push(format!("({}:{})", key, &cypher_parts.object_tables[&object_type.clone()] ));
+                cypher_parts.used_alias.insert(key.clone());
+                cypher_parts.alias_type.insert(key, type1.to_string());
+             }
+            
+        }
+    }
+
+
+    for (event_var, types) in &cypher_parts.node.event_vars {
+        for event_type in types {
+            let key = format!("e{}", event_var.0);
+            if !cypher_parts.used_alias.contains(&key){
+            let type1 = &cypher_parts.event_tables[&event_type.clone()];
+            cypher_parts.match_clauses.push(format!("({}:{})",key, &cypher_parts.event_tables[&event_type.clone()]  ));
+            cypher_parts.used_alias.insert(key.clone());
+            cypher_parts.alias_type.insert(key, type1.to_string());
+            }
+            
+        }
+    }
 
 
 }
@@ -1967,20 +2053,118 @@ pub fn construct_return_clauses(
 
 pub fn construct_result_cypher(
     cypher_parts: &mut CypherParts
-) -> String{
-
+) -> String {
     let mut result = String::new();
+
+    //  MATCH
+    for m in &cypher_parts.match_clauses {
+        result.push_str(&format!("MATCH {m}\n"));
+    }
+
+    //  WHERE 
+    if !cypher_parts.where_clauses.is_empty() {
+        result.push_str(&format!("WHERE {}\n", cypher_parts.where_clauses.join(" AND ")));
+    }
+
+    //  RETURN 
+    result.push_str(&format!("RETURN {}", cypher_parts.return_clauses.join(",")));
+    return result;
+}
+
+
+pub fn construct_filter_clauses(
+    cypher_parts: &mut CypherParts
+) {
+    for (i, sizefilter) in cypher_parts.node.sizefilter.iter().enumerate() {
+        match sizefilter {
+            SizeFilter::NumChilds { child_name, min, max } => {
+                for (j, (child_cypher, child_label)) in cypher_parts.child_queries.iter().enumerate() {
+                    if child_label == child_name {
+
+                        let clause = match (min, max) {
+                            (Some(min), Some(max)) => format!("BETWEEN {min} AND {max}"),
+                            (Some(min), None) => format!(">= {min}"),
+                            (None, Some(max)) => format!("<= {max}"),
+                            (None, None) => continue,
+                        };
+
+                        cypher_parts.where_clauses.push(format!("COUNT {{{child_cypher}}} {clause}"));
+
+
+                    }
+                }
+            }
+            _ => { }
+        }
+    }
+}
+
+pub fn construct_childstrings_cypher(
+    cypher_parts: &mut CypherParts
+){
+
+    for (inter_node, node_label) in &cypher_parts.node.children {
+        let mut child_cypheer_parts = CypherParts {
+            node: inter_node.clone(),
+            match_clauses: vec![],
+            child_queries: vec![],
+            return_clauses: vec![],
+            where_clauses: vec![],
+            event_tables: cypher_parts.event_tables.clone(),
+            object_tables: cypher_parts.object_tables.clone(),
+            used_alias: cypher_parts.used_alias.clone(),
+            alias_type: cypher_parts.alias_type.clone()
+        };
     
-    // MATCH
-    for match_clause in &cypher_parts.match_clauses{
-        result.push_str(&format!("MATCH {match_clause}\n"));
+    
+        let child_cypher = translate_to_cypher_from_child(&mut child_cypheer_parts);
+        cypher_parts.child_queries.push((child_cypher, node_label.clone()));
+    
+    }
+    
+
     }
 
 
+pub fn translate_to_cypher_from_child(
+    cypher_parts: &mut CypherParts
+) -> String {
+    construct_match_clauses(cypher_parts);
 
-    // Return
+    
+    
+    construct_filter_clauses(cypher_parts);
+    
+    
 
+    let result = construct_result_child_cypher(cypher_parts);
+
+    return result;
+
+}
+
+
+pub fn construct_result_child_cypher(
+    cypher_parts: &mut CypherParts
+) -> String {
+    let mut result = String::new();
+
+    //  MATCH
+    for m in &cypher_parts.match_clauses {
+        result.push_str(&format!("MATCH {m}\n"));
+    }
+
+
+    //  WHERE 
+    if !cypher_parts.where_clauses.is_empty() {
+        result.push_str(&format!("WHERE {}\n", cypher_parts.where_clauses.join(" AND ")));
+    }
+
+    //  RETURN 
+    
+    if(!cypher_parts.return_clauses.is_empty()){
     result.push_str(&format!("RETURN {}", cypher_parts.return_clauses.join(",")));
+    }
 
     return result;
 
