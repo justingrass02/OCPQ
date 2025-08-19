@@ -2097,6 +2097,47 @@ pub fn construct_filter_clauses(
             _ => { }
         }
     }
+
+
+    for filter in &cypher_parts.node.relations{
+        match filter{
+            Relation::TimeBetweenEvents { from_event, to_event, min_seconds, max_seconds } =>{
+
+                let alias_eventto = format!("e{}", to_event.0);
+                let alias_eventfrom = format!("e{}", from_event.0);
+
+                if let Some(min) = min_seconds {
+                cypher_parts.where_clauses.push(format!(
+                    "{alias_eventto}.time >= {alias_eventfrom}.time + INTERVAL('{min} SECONDS')",
+                ));
+            }
+
+            if let Some(max) = max_seconds {
+                cypher_parts.where_clauses.push(format!(
+                    "{alias_eventto}.time <= {alias_eventfrom}.time + INTERVAL('{max} SECONDS')"
+                ));
+            }
+
+
+            cypher_parts.where_clauses.push(format!(
+                    "{alias_eventto}.time >= {alias_eventfrom}.time + INTERVAL('0 SECONDS')",
+                ));
+
+
+
+            }
+
+
+            _ =>{
+
+            }
+
+        }
+    }
+
+
+
+
 }
 
 pub fn construct_childstrings_cypher(
