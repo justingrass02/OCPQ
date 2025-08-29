@@ -386,21 +386,30 @@ pub fn map_to_event_tables_sqllite(
 
     event_tables.insert("O_Accepted".to_string(), "O_Accepted".to_string());
     event_tables.insert("O_Cancelled".to_string(), "O_Cancelled".to_string());
-    event_tables.insert("O_Create Offer".to_string(), "O_Create Offer".to_string());
+    event_tables.insert("O_Create Offer".to_string(), "\"O_Create Offer\"".to_string());
     event_tables.insert("O_Created".to_string(), "O_Created".to_string());
     event_tables.insert("O_Refused".to_string(), "O_Refused".to_string());
     event_tables.insert("O_Returned".to_string(), "O_Returned".to_string());
     event_tables.insert("O_Sent (mail and online)".to_string(), "O_Sent (mail and online)".to_string());
     event_tables.insert("O_Sent (online only)".to_string(), "O_Sent (online only)".to_string());
 
-    event_tables.insert("W_Assess potential fraud".to_string(), "W_Assess potential fraud".to_string());
-    event_tables.insert("W_Call after offers".to_string(), "W_Call after offers".to_string());
-    event_tables.insert("W_Call incomplete files".to_string(), "W_Call incomplete files".to_string());
-    event_tables.insert("W_Complete application".to_string(), "W_Complete application".to_string());
-    event_tables.insert("W_Handle leads".to_string(), "W_Handle leads".to_string());
-    event_tables.insert("W_Personal Loan collection".to_string(), "W_Personal Loan collection".to_string());
-    event_tables.insert("W_Shorten completion".to_string(), "W_Shorten completion".to_string());
-    event_tables.insert("W_Validate application".to_string(), "W_Validate application".to_string());
+    event_tables.insert("Register Customer Order".to_string(), "RegisterCustomerOrder".to_string());
+    event_tables.insert("Create Transport Document".to_string(), "CreateTransportDocument".to_string());
+    event_tables.insert("Book Vehicles".to_string(), "BookVehicles".to_string());
+    event_tables.insert("Order Empty Containers".to_string(), "OrderEmptyContainers".to_string());
+    event_tables.insert("Pick Up Empty Container".to_string(), "PickUpEmptyContainer".to_string());
+    event_tables.insert("Collect Goods".to_string(), "CollectGoods".to_string());
+    event_tables.insert("Load Truck".to_string(), "LoadTruck".to_string());
+    event_tables.insert("Drive to Terminal".to_string(), "DrivetoTerminal".to_string());
+    event_tables.insert("Weigh".to_string(), "Weigh".to_string());
+    event_tables.insert("Place in Stock".to_string(), "PlaceinStock".to_string());
+    event_tables.insert("Bring to Loading Bay".to_string(), "BringtoLoadingBay".to_string());
+    event_tables.insert("Load to Vehicle".to_string(), "LoadtoVehicle".to_string());
+    event_tables.insert("Reschedule Container".to_string(), "RescheduleContainer".to_string());
+    event_tables.insert("Depart".to_string(), "Depart".to_string());
+
+
+    
 
 
 
@@ -435,6 +444,17 @@ pub fn map_to_object_tables_sqllite(
     object_tables.insert("Workflow".to_string(), "Workflow".to_string());
 
 
+
+
+    object_tables.insert("Customer Order".to_string(), "CustomerOrder".to_string());
+    object_tables.insert("Transport Document".to_string(), "TransportDocument".to_string());
+    object_tables.insert("Container".to_string(), "Container".to_string());
+    object_tables.insert("Truck".to_string(), "Truck".to_string());
+    object_tables.insert("Handling Unit".to_string(), "HandlingUnit".to_string());
+    object_tables.insert("Forklift".to_string(), "Forklift".to_string());
+    object_tables.insert("Vehicle".to_string(), "Vehicle".to_string());
+
+
     return object_tables;
 
 }
@@ -446,6 +466,7 @@ pub fn map_to_event_tables_duckdb(
 ) -> HashMap<String,String>{
     let mut event_tables: HashMap<String, String> = HashMap::new();
 
+    // order management
     event_tables.insert("confirm order".to_string(), "Confirm Order".to_string());
     event_tables.insert("create package".to_string(), "Create Package".to_string());
     event_tables.insert("failed delivery".to_string(), "Failed Delivery".to_string());
@@ -461,7 +482,7 @@ pub fn map_to_event_tables_duckdb(
     event_tables.insert("object".to_string(),"object".to_string() );
 
 
-
+    // Bpic
     event_tables.insert("A_Accepted".to_string(), "A_Accepted".to_string());
     event_tables.insert("A_Cancelled".to_string(), "A_Cancelled".to_string());
     event_tables.insert("A_Complete".to_string(), "A_Complete".to_string());
@@ -492,6 +513,25 @@ pub fn map_to_event_tables_duckdb(
     event_tables.insert("W_Validate application".to_string(), "W_Validate application".to_string());
 
 
+
+
+    // Container Logistics
+
+    event_tables.insert("Register Customer Order".to_string(), "RegisterCustomerOrder".to_string());
+    event_tables.insert("Create Transport Document".to_string(), "CreateTransportDocument".to_string());
+    event_tables.insert("Book Vehicles".to_string(), "BookVehicles".to_string());
+    event_tables.insert("Order Empty Containers".to_string(), "OrderEmptyContainers".to_string());
+    event_tables.insert("Pick Up Empty Container".to_string(), "PickUpEmptyContainer".to_string());
+    event_tables.insert("Collect Goods".to_string(), "CollectGoods".to_string());
+    event_tables.insert("Load Truck".to_string(), "LoadTruck".to_string());
+    event_tables.insert("Drive to Terminal".to_string(), "DrivetoTerminal".to_string());
+    event_tables.insert("Weigh".to_string(), "Weigh".to_string());
+    event_tables.insert("Place in Stock".to_string(), "PlaceinStock".to_string());
+    event_tables.insert("Bring to Loading Bay".to_string(), "BringtoLoadingBay".to_string());
+    event_tables.insert("Load to Vehicle".to_string(), "LoadtoVehicle".to_string());
+    event_tables.insert("Reschedule Container".to_string(), "RescheduleContainer".to_string());
+    event_tables.insert("Depart".to_string(), "Depart".to_string());
+
     return event_tables;
 }
 
@@ -517,6 +557,14 @@ pub fn map_to_object_tables_duckdb(
     object_tables.insert("Workflow".to_string(), "Workflow".to_string());
 
 
+    object_tables.insert("Customer Order".to_string(), "CustomerOrder".to_string());
+    object_tables.insert("Transport Document".to_string(), "TransportDocument".to_string());
+    object_tables.insert("Container".to_string(), "Container".to_string());
+    object_tables.insert("Truck".to_string(), "Truck".to_string());
+    object_tables.insert("Handling Unit".to_string(), "HandlingUnit".to_string());
+    object_tables.insert("Forklift".to_string(), "Forklift".to_string());
+    object_tables.insert("Vehicle".to_string(), "Vehicle".to_string());
+    
 
     return object_tables;
 }
@@ -1137,7 +1185,7 @@ pub fn construct_child_constraints(
                 for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
                     if child_names.contains(child_label) {
                         parts.push(format!(
-                            "(SELECT COUNT(*) FROM ({}) AS subqC_{i}_{j}_{label} WHERE subqC_{i}_{j}_{label}.satisfied = 1) >= 1",
+                            "COALESCE((SELECT COUNT(*) FROM ({}) AS subqC_{i}_{j}_{label} WHERE subqC_{i}_{j}_{label}.satisfied = 1), 0) >= 1",
                             child_sql,
                             i = i,
                             j = j,
@@ -1226,7 +1274,7 @@ pub fn construct_child_constraints(
                     for (j, (child_sql, child_label)) in sql_parts.child_sql.iter().enumerate() {
                     if child_label == child_name {
                         let count_expr = format!(
-                            "(SELECT COUNT(*) FROM ({}) AS subqC_{i}_{j}_{label})",
+                            "COALESCE((SELECT COUNT(DISTINCT subqC_{i}_{j}_{label}.cnt_key) FROM ({}) AS subqC_{i}_{j}_{label}), 0)",
                             child_sql,
                             i = i,
                             j = j,
@@ -1337,9 +1385,24 @@ pub fn translate_to_sql_from_child(
         constraint_expr
     };
 
-    sql_parts.select_fields = vec![
-            format!("CASE WHEN {} THEN 1 ELSE 0 END AS satisfied", sub_condition)
-        ];
+    sql_parts.select_fields = {
+            let mut _tmp = Vec::new();
+            _tmp.push(format!("CASE WHEN {} THEN 1 ELSE 0 END AS satisfied", sub_condition));
+            // Build a stable counting key from all object/event vars in this child (handles multiple vars)
+            let key_parts = construct_select_fields(&sql_parts);
+            if key_parts.is_empty() {
+                _tmp.push("1 AS cnt_key".to_string());
+            } else {
+                // Concatenate IDs with a delimiter; works for SQLite and Postgres
+                let delim = "'|'";
+                let concat = key_parts.iter()
+                    .map(|c| format!("COALESCE(CAST({} AS TEXT),'')", c))
+                    .collect::<Vec<_>>()
+                    .join(&format!(" || {} || ", delim));
+                _tmp.push(format!("({}) AS cnt_key", concat));
+            }
+            _tmp
+        };
 
 
 
@@ -1393,7 +1456,7 @@ pub fn construct_filter_non_basic(
                         let clause = match (min, max) {
                             (Some(min), Some(max)) =>
                                 format!(
-                                    "(SELECT COUNT(*) FROM ({}) AS subqC_{i}_{j}_{label}) BETWEEN {} AND {}",
+                                    "COALESCE((SELECT COUNT(DISTINCT subqC_{i}_{j}_{label}.cnt_key) FROM ({}) AS subqC_{i}_{j}_{label}), 0) BETWEEN {} AND {}",
                                     child_sql, min, max,
                                     i = i,
                                     j = j,
@@ -1401,7 +1464,7 @@ pub fn construct_filter_non_basic(
                                 ),
                             (Some(min), None) =>
                                 format!(
-                                    "(SELECT COUNT(*) FROM ({}) AS subqC_{i}_{j}_{label}) >= {}",
+                                    "COALESCE((SELECT COUNT(DISTINCT subqC_{i}_{j}_{label}.cnt_key) FROM ({}) AS subqC_{i}_{j}_{label}), 0) >= {}",
                                     child_sql, min,
                                     i = i,
                                     j = j,
@@ -1409,7 +1472,7 @@ pub fn construct_filter_non_basic(
                                 ),
                             (None, Some(max)) =>
                                 format!(
-                                    "(SELECT COUNT(*) FROM ({}) AS subqC_{i}_{j}_{label}) <= {}",
+                                    "COALESCE((SELECT COUNT(DISTINCT subqC_{i}_{j}_{label}.cnt_key) FROM ({}) AS subqC_{i}_{j}_{label}), 0) <= {}",
                                     child_sql, max,
                                     i = i,
                                     j = j,
@@ -1504,6 +1567,7 @@ pub fn construct_filter_non_basic(
             Filter::ObjectAttributeValueFilter { object, attribute_name,at_time,value_filter } => {
                 let object_alias = format!("O{}", object.0);
                 let attr = attribute_name;
+                let temp_alias = format!("OA{}", i);
                 let value_sql = match value_filter {
                     ValueFilter::String { is_in } => {
                         let values = is_in.iter()
@@ -1518,20 +1582,20 @@ pub fn construct_filter_non_basic(
                     ValueFilter::Integer { min, max } => {
                         let mut parts = vec![];
                         if let Some(min) = min {
-                            parts.push(format!("{}.{} >= {}", object_alias,attr, min));
+                            parts.push(format!("{}.{} >= {}", temp_alias,attr, min));
                         }
                         if let Some(max) = max {
-                            parts.push(format!("{}.{} <= {}", object_alias,attr,max));
+                            parts.push(format!("{}.{} <= {}", temp_alias,attr,max));
                         }
                         parts.join(" AND ")
                     },
                     ValueFilter::Float { min, max } => {
                         let mut parts = vec![];
                         if let Some(min) = min {
-                            parts.push(format!("{}.{} >= {}", object_alias,attr,min));
+                            parts.push(format!("{}.{} >= {}", temp_alias,attr,min));
                         }
                         if let Some(max) = max {
-                            parts.push(format!("{}.{} <= {}",object_alias,attr, max));
+                            parts.push(format!("{}.{} <= {}",temp_alias,attr, max));
                         }
                         parts.join(" AND ")
                     },
@@ -1644,7 +1708,7 @@ pub fn map_objecttables(
 
         // Case SQLLite
         DatabaseType::SQLite =>{
-             return format!("object_{}", sql_parts.object_tables[object_type]);
+             return format!("\"object_{}\"", sql_parts.object_tables[object_type]);
         }
 
 
@@ -1670,7 +1734,7 @@ pub fn map_eventttables(
 
         // Case SQLLite
         DatabaseType::SQLite =>{
-            return format!("event_{}", sql_parts.event_tables[event_type]);
+            return format!("\"event_{}\"", sql_parts.event_tables[event_type]);
         }
 
 
@@ -1740,9 +1804,9 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 let query_names = ["Q1","Q2","Q3","Q4","Q5","Q6",
-"Q7"];
+"Q7", "Q8", "Q9", "Q10", "Q11"];
 
-let base_path = PathBuf::from_str("C:\\Users\\justi\\Desktop\\ocpq-eval").unwrap();
+let base_path = PathBuf::from_str("C:\\Users\\justi\\Desktop\\ocpq-eval justin").unwrap();
 
 
 for query in query_names {
@@ -1834,12 +1898,13 @@ pub fn convert_to_cypher_from_inter(
     construct_match_clauses(cypher_parts);
     
     
+    if(!cypher_parts.node.filter.is_empty()){
     construct_childstrings_cypher(cypher_parts);
 
     
     construct_filter_clauses(cypher_parts);
     
-    
+    }
     
     
     construct_return_clauses(cypher_parts);
@@ -2017,6 +2082,40 @@ pub fn get_event_table_cypher(
     cypher_parts.event_tables.insert("place order".to_string(), "placeorder".to_string());
     cypher_parts.event_tables.insert("reorder item".to_string(), "reorderitem".to_string());
     cypher_parts.event_tables.insert("send package".to_string(), "sendpackage".to_string());
+
+
+
+
+    cypher_parts.event_tables.insert("A_Accepted".to_string(), "A_Accepted".to_string());
+    cypher_parts.event_tables.insert("A_Cancelled".to_string(), "A_Cancelled".to_string());
+    cypher_parts.event_tables.insert("A_Complete".to_string(), "A_Complete".to_string());
+    cypher_parts.event_tables.insert("A_Concept".to_string(), "A_Concept".to_string());
+    cypher_parts.event_tables.insert("A_Create Application".to_string(), "A_Create Application".to_string());
+    cypher_parts.event_tables.insert("A_Denied".to_string(), "A_Denied".to_string());
+    cypher_parts.event_tables.insert("A_Incomplete".to_string(), "A_Incomplete".to_string());
+    cypher_parts.event_tables.insert("A_Pending".to_string(), "A_Pending".to_string());
+    cypher_parts.event_tables.insert("A_Submitted".to_string(), "A_Submitted".to_string());
+    cypher_parts.event_tables.insert("A_Validating".to_string(), "A_Validating".to_string());
+
+    cypher_parts.event_tables.insert("O_Accepted".to_string(), "O_Accepted".to_string());
+    cypher_parts.event_tables.insert("O_Cancelled".to_string(), "O_Cancelled".to_string());
+    cypher_parts.event_tables.insert("O_Create Offer".to_string(), "O_Create Offer".to_string());
+    cypher_parts.event_tables.insert("O_Created".to_string(), "O_Created".to_string());
+    cypher_parts.event_tables.insert("O_Refused".to_string(), "O_Refused".to_string());
+    cypher_parts.event_tables.insert("O_Returned".to_string(), "O_Returned".to_string());
+    cypher_parts.event_tables.insert("O_Sent (mail and online)".to_string(), "O_Sent (mail and online)".to_string());
+    cypher_parts.event_tables.insert("O_Sent (online only)".to_string(), "O_Sent (online only)".to_string());
+
+    cypher_parts.event_tables.insert("W_Assess potential fraud".to_string(), "W_Assess potential fraud".to_string());
+    cypher_parts.event_tables.insert("W_Call after offers".to_string(), "W_Call after offers".to_string());
+    cypher_parts.event_tables.insert("W_Call incomplete files".to_string(), "W_Call incomplete files".to_string());
+    cypher_parts.event_tables.insert("W_Complete application".to_string(), "W_Complete application".to_string());
+    cypher_parts.event_tables.insert("W_Handle leads".to_string(), "W_Handle leads".to_string());
+    cypher_parts.event_tables.insert("W_Personal Loan collection".to_string(), "W_Personal Loan collection".to_string());
+    cypher_parts.event_tables.insert("W_Shorten completion".to_string(), "W_Shorten completion".to_string());
+    cypher_parts.event_tables.insert("W_Validate application".to_string(), "W_Validate application".to_string());
+
+
 }
 
 
@@ -2030,6 +2129,15 @@ pub fn get_object_table_cypher(
     cypher_parts.object_tables.insert("orders".to_string(), "orders".to_string());
     cypher_parts.object_tables.insert("packages".to_string(), "packages".to_string());
     cypher_parts.object_tables.insert("products".to_string(), "products".to_string());
+
+
+
+    cypher_parts.object_tables.insert("Application".to_string(), "Application".to_string());
+    cypher_parts.object_tables.insert("Case_R".to_string(), "Case_R".to_string());
+    cypher_parts.object_tables.insert("Offer".to_string(), "Offer".to_string());
+    cypher_parts.object_tables.insert("Workflow".to_string(), "Workflow".to_string());
+
+
 }
 
 
