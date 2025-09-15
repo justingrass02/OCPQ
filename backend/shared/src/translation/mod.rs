@@ -105,10 +105,11 @@ pub fn convert_to_intermediate(
     tree: BindingBoxTree
 ) -> InterMediateNode {
 
+
     // Recursive approach for each binding box, start with the root node
     let intermediate = bindingbox_to_intermediate(&tree, 0);
 
-    
+
     return intermediate;
 }
 
@@ -155,9 +156,9 @@ pub fn bindingbox_to_intermediate(
     let (binding_box, child_indices) = node.clone().to_box();
 
 
-    // Copy event and object variables of the given binding box
     let event_vars = binding_box.new_event_vars.clone();
     let object_vars = binding_box.new_object_vars.clone();
+
 
     // Extract the relations we HAVE to translate to query language (O2O, E2O, TBE) could as mentioned split O2O, E2O and TBE
     let relations = extract_basic_relations(binding_box.filters.clone());
@@ -403,7 +404,7 @@ pub fn map_to_event_tables_sqllite(
     event_tables.insert("Drive to Terminal".to_string(), "DrivetoTerminal".to_string());
     event_tables.insert("Weigh".to_string(), "Weigh".to_string());
     event_tables.insert("Place in Stock".to_string(), "PlaceinStock".to_string());
-    event_tables.insert("Bring to Loading Bay".to_string(), "BringtoLoadingBay".to_string());
+    event_tables.insert("Bring to Loading Bay".to_string(), "BringtoLoading_Bay".to_string());
     event_tables.insert("Load to Vehicle".to_string(), "LoadtoVehicle".to_string());
     event_tables.insert("Reschedule Container".to_string(), "RescheduleContainer".to_string());
     event_tables.insert("Depart".to_string(), "Depart".to_string());
@@ -517,19 +518,19 @@ pub fn map_to_event_tables_duckdb(
 
     // Container Logistics
 
-    event_tables.insert("Register Customer Order".to_string(), "RegisterCustomerOrder".to_string());
-    event_tables.insert("Create Transport Document".to_string(), "CreateTransportDocument".to_string());
-    event_tables.insert("Book Vehicles".to_string(), "BookVehicles".to_string());
-    event_tables.insert("Order Empty Containers".to_string(), "OrderEmptyContainers".to_string());
-    event_tables.insert("Pick Up Empty Container".to_string(), "PickUpEmptyContainer".to_string());
-    event_tables.insert("Collect Goods".to_string(), "CollectGoods".to_string());
-    event_tables.insert("Load Truck".to_string(), "LoadTruck".to_string());
-    event_tables.insert("Drive to Terminal".to_string(), "DrivetoTerminal".to_string());
+    event_tables.insert("Register Customer Order".to_string(), "Register_Customer_Order".to_string());
+    event_tables.insert("Create Transport Document".to_string(), "Create_Transport_Document".to_string());
+    event_tables.insert("Book Vehicles".to_string(), "Book_Vehicles".to_string());
+    event_tables.insert("Order Empty Containers".to_string(), "Order_Empty_Containers".to_string());
+    event_tables.insert("Pick Up Empty Container".to_string(), "Pick_Up_Empty_Container".to_string());
+    event_tables.insert("Collect Goods".to_string(), "Collect_Goods".to_string());
+    event_tables.insert("Load Truck".to_string(), "Load_Truck".to_string());
+    event_tables.insert("Drive to Terminal".to_string(), "Drive_to_Terminal".to_string());
     event_tables.insert("Weigh".to_string(), "Weigh".to_string());
-    event_tables.insert("Place in Stock".to_string(), "PlaceinStock".to_string());
-    event_tables.insert("Bring to Loading Bay".to_string(), "BringtoLoadingBay".to_string());
-    event_tables.insert("Load to Vehicle".to_string(), "LoadtoVehicle".to_string());
-    event_tables.insert("Reschedule Container".to_string(), "RescheduleContainer".to_string());
+    event_tables.insert("Place in Stock".to_string(), "Place_in_Stock".to_string());
+    event_tables.insert("Bring to Loading Bay".to_string(), "Bring_to_Loading_Bay".to_string());
+    event_tables.insert("Load to Vehicle".to_string(), "Load_to_Vehicle".to_string());
+    event_tables.insert("Reschedule Container".to_string(), "Reschedule_Container".to_string());
     event_tables.insert("Depart".to_string(), "Depart".to_string());
 
     return event_tables;
@@ -557,13 +558,14 @@ pub fn map_to_object_tables_duckdb(
     object_tables.insert("Workflow".to_string(), "Workflow".to_string());
 
 
-    object_tables.insert("Customer Order".to_string(), "CustomerOrder".to_string());
-    object_tables.insert("Transport Document".to_string(), "TransportDocument".to_string());
+    object_tables.insert("Customer Order".to_string(), "Customer_Order".to_string());
+    object_tables.insert("Transport Document".to_string(), "Transport_Document".to_string());
     object_tables.insert("Container".to_string(), "Container".to_string());
     object_tables.insert("Truck".to_string(), "Truck".to_string());
-    object_tables.insert("Handling Unit".to_string(), "HandlingUnit".to_string());
+    object_tables.insert("Handling Unit".to_string(), "Handling_Unit".to_string());
     object_tables.insert("Forklift".to_string(), "Forklift".to_string());
     object_tables.insert("Vehicle".to_string(), "Vehicle".to_string());
+
     
 
     return object_tables;
@@ -590,7 +592,7 @@ pub fn translate_to_sql_from_intermediate(
 ) -> String {
 
 
-    sql_parts.select_fields = construct_select_fields(&sql_parts);
+    sql_parts.select_fields = construct_select_fields_root(&sql_parts);
     
     
     sql_parts.base_from = construct_from_clauses(&mut sql_parts);
@@ -605,7 +607,7 @@ pub fn translate_to_sql_from_intermediate(
     sql_parts.where_clauses.extend(filter_clauses);    
 
     for (obj_var, _types) in &sql_parts.node.object_vars {
-            sql_parts.where_clauses.push(format!("O{}.ocel_changed_field IS NULL", obj_var.0));
+            sql_parts.where_clauses.push(format!("O{}.ocel_changed_field IS NULL", o_alias(obj_var.0)));
 
     }
 
@@ -704,6 +706,30 @@ pub fn construct_result(
 
 
 
+fn o_alias(n: usize) -> String { format!("{}", n + 1) }
+
+fn e_alias(n: usize) -> String { format!("{}", n + 1) }
+
+
+
+pub fn construct_select_fields_root(
+     sql_parts: &SqlParts
+) -> Vec<String> {
+    let mut select_fields = Vec::new();
+
+
+    for (obj_var, _) in &sql_parts.node.object_vars {
+        select_fields.push(format!("O{}.ocel_id AS \"O{}\"", o_alias(obj_var.0),o_alias(obj_var.0) ));
+    }
+
+    for (event_var, _) in &sql_parts.node.event_vars {
+        select_fields.push(format!("E{}.ocel_id AS \"E{}\"", e_alias(event_var.0), e_alias(event_var.0)));
+    }
+
+    return select_fields;
+}
+
+
 pub fn construct_select_fields(
      sql_parts: &SqlParts
 ) -> Vec<String> {
@@ -711,11 +737,11 @@ pub fn construct_select_fields(
 
 
     for (obj_var, _) in &sql_parts.node.object_vars {
-        select_fields.push(format!("O{}.ocel_id", obj_var.0));
+        select_fields.push(format!("O{}.ocel_id", o_alias(obj_var.0)));
     }
 
     for (event_var, _) in &sql_parts.node.event_vars {
-        select_fields.push(format!("E{}.ocel_id", event_var.0));
+        select_fields.push(format!("E{}.ocel_id", e_alias(event_var.0)));
     }
 
     return select_fields;
@@ -770,8 +796,8 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
     for relation in &sql_parts.node.relations {
         match relation {
             Relation::E2O { event, object, qualifier: _ } => {
-                let event_alias = format!("E{}", event.0);
-                let object_alias = format!("O{}", object.0);
+                let event_alias = format!("E{}", e_alias(event.0));
+                let object_alias = format!("O{}", o_alias( object.0));
                 let mut event_object_alias = format!("E2O{}", counter);
 
                 while sql_parts.used_keys.contains(&event_object_alias) {
@@ -906,8 +932,8 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
             }
 
             Relation::O2O { object_1, object_2, qualifier: _ } => {
-                let object1_alias = format!("O{}", object_1.0);
-                let object2_alias = format!("O{}", object_2.0);
+                let object1_alias = format!("O{}", o_alias(object_1.0));
+                let object2_alias = format!("O{}", o_alias(object_2.0));
                 let mut object_object_alias = format!("O2O{}", counter);
 
                 while sql_parts.used_keys.contains(&object_object_alias) {
@@ -1042,7 +1068,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
     if is_first_join{// Does not contain E2O or O2O
         for (obj_var, types) in &sql_parts.node.object_vars {
         for object_type in types {
-            let key = format!("O{}", obj_var.0);
+            let key = format!("O{}", o_alias(obj_var.0));
             sql_parts.used_keys.insert(key.clone());
             from_clauses.push(format!("{} AS {}", map_objecttables(sql_parts, object_type), key));
             
@@ -1052,7 +1078,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
 
     for (event_var, types) in &sql_parts.node.event_vars {
         for event_type in types {
-            let key = format!("E{}", event_var.0);
+            let key = format!("E{}", e_alias(event_var.0));
             sql_parts.used_keys.insert(key.clone());
             from_clauses.push(format!("{} AS {}", map_eventttables(sql_parts, event_type) , key));
             
@@ -1062,7 +1088,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
 
         for (obj_var, types) in &sql_parts.node.object_vars {
         for object_type in types {
-            let key = format!("O{}", obj_var.0);
+            let key = format!("O{}", o_alias(obj_var.0));
              if !sql_parts.used_keys.contains(&key){
             from_clauses.push(format!(" CROSS JOIN {} AS {}", map_objecttables(sql_parts, object_type), key));
             sql_parts.used_keys.insert(key.clone());
@@ -1074,7 +1100,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
 
     for (event_var, types) in &sql_parts.node.event_vars {
         for event_type in types {
-            let key = format!("E{}", event_var.0);
+            let key = format!("E{}", e_alias(event_var.0));
             if !sql_parts.used_keys.contains(&key){
             from_clauses.push(format!("CROSS JOIN{} AS {}", map_eventttables(sql_parts, event_type) , key));
             sql_parts.used_keys.insert(key.clone());
@@ -1194,7 +1220,7 @@ pub fn construct_child_constraints(
                     }
                 }
                 if !parts.is_empty() {
-                    result_string.push(format!("({})", parts.join(" OR ")));
+                    result_string.push(format!("({})", parts.join(" AND ")));
                 }
             }
             
@@ -1308,7 +1334,7 @@ pub fn construct_child_constraints(
                         result_string.push(format!(
                             "EXISTS (SELECT 1 FROM {} AS {} WHERE {}.ocel_event_id = E{}.ocel_id AND {}.ocel_object_id = O{}.ocel_id)",
                             map_eventttables(sql_parts, "object")
-                            ,alias, alias, event.0, alias, object.0
+                            ,alias, alias, e_alias(event.0), alias, o_alias(object.0)
                         ));
                     }
 
@@ -1327,7 +1353,7 @@ pub fn construct_child_constraints(
                         result_string.push(format!(
                             "EXISTS (SELECT 1 FROM {} AS {} WHERE {}.ocel_source_id = O{}.ocel_id AND {}.ocel_target_id = O{}.ocel_id)",
                             map_objecttables(sql_parts, "object")
-                            ,alias, alias, object.0, alias, other_object.0
+                            ,alias, alias, o_alias(object.0), alias, o_alias(other_object.0)
                         ));
                     }
 
@@ -1386,23 +1412,29 @@ pub fn translate_to_sql_from_child(
     };
 
     sql_parts.select_fields = {
-            let mut _tmp = Vec::new();
-            _tmp.push(format!("CASE WHEN {} THEN 1 ELSE 0 END AS satisfied", sub_condition));
-            // Build a stable counting key from all object/event vars in this child (handles multiple vars)
-            let key_parts = construct_select_fields(&sql_parts);
-            if key_parts.is_empty() {
+        let mut _tmp = Vec::new();
+
+        _tmp.push(format!("CASE WHEN {} THEN 1 ELSE 0 END AS satisfied", sub_condition));
+        
+        let key_parts = construct_select_fields(&sql_parts);
+
+        match key_parts.len() {
+            0 => {
                 _tmp.push("1 AS cnt_key".to_string());
-            } else {
-                // Concatenate IDs with a delimiter; works for SQLite and Postgres
+            }
+            1 => {
+                _tmp.push(format!("{} AS cnt_key", key_parts[0]));
+            }
+            _ => {
                 let delim = "'|'";
-                let concat = key_parts.iter()
-                    .map(|c| format!("COALESCE(CAST({} AS TEXT),'')", c))
-                    .collect::<Vec<_>>()
-                    .join(&format!(" || {} || ", delim));
+                let concat = key_parts.join(&format!(" || {} || ", delim));
                 _tmp.push(format!("({}) AS cnt_key", concat));
             }
-            _tmp
-        };
+        }
+
+        _tmp
+    };
+
 
 
 
@@ -1500,7 +1532,7 @@ pub fn construct_filter_non_basic(
 
 
                 Filter::EventAttributeValueFilter { event, attribute_name, value_filter } => {
-                let col = format!("E{}.\"{}\"", event.0, attribute_name);
+                let col = format!("E{}.\"{}\"", e_alias(event.0), attribute_name);
 
                 let clause = match value_filter {
                     
@@ -1565,7 +1597,7 @@ pub fn construct_filter_non_basic(
 
 
             Filter::ObjectAttributeValueFilter { object, attribute_name,at_time,value_filter } => {
-                let object_alias = format!("O{}", object.0);
+                let object_alias = format!("O{}", o_alias(object.0));
                 let attr = attribute_name;
                 let temp_alias = format!("OA{}", i);
                 let value_sql = match value_filter {
@@ -1622,7 +1654,6 @@ pub fn construct_filter_non_basic(
 
                 let mut object_type = "";
 
-                // bit scuffed but lets see (extracts object type)
                 for (obj_var, types) in &sql_parts.node.object_vars {
                     for object_typer in types{
                         if obj_var.0 == object.0{
@@ -1632,8 +1663,7 @@ pub fn construct_filter_non_basic(
                     }
 
 
-
-                // need for used_keys here?    
+   
                 let clause = match at_time {
                     ObjectValueFilterTimepoint::Sometime => {
                         let condition = value_sql;
@@ -1660,12 +1690,12 @@ pub fn construct_filter_non_basic(
                     
                     
                     ObjectValueFilterTimepoint::AtEvent { event } => {
-                        let event_time = format!("E{}.ocel_time", event.0);
+                        let event_time = format!("E{}.ocel_time", e_alias(event.0));
                         let condition = value_sql;
                         format!(
-                            "EXISTS (SELECT 1\n FROM {otype} AS OA{iterator}\n 
-                            WHERE OA{iterator}.ocel_id = {oid} AND OA{iterator}.ocel_time = (SELECT MAX(OA2{iterator2}.ocel_time)\n 
-                            FROM object_{otype} AS OA2{iterator2}\n WHERE OA2{iterator2}.ocel_id = {oid} AND {time_left}  <= {time_right}   ) AND {cond})",
+                            "EXISTS (SELECT 1\n FROM {otype} AS OA{iterator}
+                            WHERE OA{iterator}.ocel_id = {oid} AND OA{iterator}.ocel_time = (SELECT MAX(OA2{iterator2}.ocel_time)
+                            FROM {otype} AS OA2{iterator2}\n WHERE OA2{iterator2}.ocel_id = {oid} AND {time_left} <= {time_right}) AND {cond})",
                             iterator = i,
                             iterator2 = i*3,
                             time_left = map_timestamp(sql_parts, format!("OA2{}.ocel_time", i*3)),
@@ -1759,13 +1789,13 @@ pub fn map_timestamp_event(
     match sql_parts.database_type{
 
         DatabaseType::SQLite =>{
-            return format!("strftime('%s', E{}.ocel_time)", event_count);
+            return format!("strftime('%s', E{}.ocel_time)", e_alias(event_count));
         }
 
 
 
         DatabaseType::DuckDB => {
-            return format!("EPOCH(E{}.ocel_time)", event_count);
+            return format!("EPOCH(E{}.ocel_time)", e_alias(event_count));
         }
 
     }
@@ -1804,7 +1834,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 let query_names = ["Q1","Q2","Q3","Q4","Q5","Q6",
-"Q7", "Q8", "Q9", "Q10", "Q11"];
+"Q7", "Q8", "Q9", "Q10", "Q11","Q12"];
 
 let base_path = PathBuf::from_str("C:\\Users\\justi\\Desktop\\ocpq-eval justin").unwrap();
 
@@ -1820,13 +1850,30 @@ let tree = serde_json::from_reader(File::open(&tree_path).unwrap()).unwrap();
 
 let sql = translate_to_sql_shared(tree, db_type);
 
+
+
 let sql_export_path = base_path.join(query).join(format!("auto-sql-{db_type:?}.txt"));
 
 let mut sql_export_file = File::create(sql_export_path).unwrap();
 
 write!(sql_export_file,"{sql}").unwrap();
 
+
+
 }
+
+
+  let tree_for_cypher: BindingBoxTree =
+    serde_json::from_reader(File::open(&tree_path).unwrap()).unwrap();
+
+    let cypher = translate_to_cypher_shared(tree_for_cypher);
+
+    let cypher_export_path = base_path.join(query).join("auto-cypher-Kuzu.txt");
+    let mut cypher_export_file = File::create(cypher_export_path).unwrap();
+    write!(cypher_export_file, "{cypher}\n").unwrap();
+
+
+
 
 }
 
@@ -1898,7 +1945,7 @@ pub fn convert_to_cypher_from_inter(
     construct_match_clauses(cypher_parts);
     
     
-    if(!cypher_parts.node.filter.is_empty()){
+    if !cypher_parts.node.sizefilter.is_empty() || cypher_parts.node.filter.is_empty() {
     construct_childstrings_cypher(cypher_parts);
 
     
@@ -1930,8 +1977,8 @@ pub fn construct_match_clauses(
 
             Relation::E2O { event, object, qualifier:_ } =>{
 
-                let event_alias = format!("e{}", event.0);
-                let object_alias = format!("o{}", object.0);
+                let event_alias = format!("e{}", e_alias(event.0));
+                let object_alias = format!("o{}", o_alias(object.0));
 
                 let event_object_alias = "E2O".to_string();
 
@@ -1939,17 +1986,37 @@ pub fn construct_match_clauses(
                 let object_type = get_object_type(cypher_parts.node.clone(), object.0);
 
 
-                let mut mapped_event_type = &cypher_parts.event_tables[&event_type.clone()];
-                let mut mapped_object_type = &cypher_parts.object_tables[&object_type.clone()];
+                let mut mapped_event_type = cypher_parts
+                        .event_tables
+                        .get(&event_type)
+                        .cloned()
+                        .unwrap_or_else(|| "no type found event".to_string());
+                
+                
+                let mut mapped_object_type = cypher_parts
+                    .object_tables
+                    .get(&object_type)
+                    .cloned()
+                    .unwrap_or_else(|| "no type found object".to_string());
 
 
 
                 if(mapped_event_type == "no type found event"){
-                    mapped_event_type = &cypher_parts.event_tables[&event_type.clone()];
+                    if mapped_event_type == "no type found event" {
+                       mapped_event_type = cypher_parts
+                        .alias_type
+                        .get(&event_alias)
+                        .cloned()
+                        .unwrap_or_else(|| "unknown".to_string());
+                }
                 }
                 
-                if(mapped_object_type == "no type found object"){
-                    mapped_object_type = &cypher_parts.object_tables[&object_type.clone()];
+                if mapped_object_type == "no type found object" {
+                    mapped_object_type = cypher_parts
+                        .alias_type
+                        .get(&object_alias)
+                        .cloned()
+                        .unwrap_or_else(|| "unknown".to_string());
                 }
 
 
@@ -1971,8 +2038,8 @@ pub fn construct_match_clauses(
 
             Relation::O2O { object_1, object_2, qualifier:_ } => {
 
-                let object1_alias = format!("o{}", object_1.0);
-                let object2_alias = format!("o{}", object_2.0);
+                let object1_alias = format!("o{}", o_alias(object_1.0));
+                let object2_alias = format!("o{}", o_alias(object_2.0));
 
                 let object_object_alias = "O2O".to_string();
 
@@ -2039,7 +2106,7 @@ pub fn construct_match_clauses(
 
     for (obj_var, types) in &cypher_parts.node.object_vars {
         for object_type in types {
-            let key = format!("o{}", obj_var.0);
+            let key = format!("o{}", o_alias(obj_var.0));
              if !cypher_parts.used_alias.contains(&key){
                 let type1 = &cypher_parts.object_tables[&object_type.clone()];
                 cypher_parts.match_clauses.push(format!("({}:{})", key, &cypher_parts.object_tables[&object_type.clone()] ));
@@ -2053,7 +2120,7 @@ pub fn construct_match_clauses(
 
     for (event_var, types) in &cypher_parts.node.event_vars {
         for event_type in types {
-            let key = format!("e{}", event_var.0);
+            let key = format!("e{}", e_alias(event_var.0));
             if !cypher_parts.used_alias.contains(&key){
             let type1 = &cypher_parts.event_tables[&event_type.clone()];
             cypher_parts.match_clauses.push(format!("({}:{})",key, &cypher_parts.event_tables[&event_type.clone()]  ));
@@ -2071,6 +2138,8 @@ pub fn construct_match_clauses(
 pub fn get_event_table_cypher(
     cypher_parts: &mut CypherParts
 ){
+    
+    // Order Management
     cypher_parts.event_tables.insert("confirm order".to_string(), "confirmorder".to_string());
     cypher_parts.event_tables.insert("create package".to_string(), "createpackage".to_string());
     cypher_parts.event_tables.insert("failed delivery".to_string(), "faileddelivery".to_string());
@@ -2085,12 +2154,12 @@ pub fn get_event_table_cypher(
 
 
 
-
+    // Bpic
     cypher_parts.event_tables.insert("A_Accepted".to_string(), "A_Accepted".to_string());
     cypher_parts.event_tables.insert("A_Cancelled".to_string(), "A_Cancelled".to_string());
     cypher_parts.event_tables.insert("A_Complete".to_string(), "A_Complete".to_string());
     cypher_parts.event_tables.insert("A_Concept".to_string(), "A_Concept".to_string());
-    cypher_parts.event_tables.insert("A_Create Application".to_string(), "A_Create Application".to_string());
+    cypher_parts.event_tables.insert("A_Create Application".to_string(), "A_CreateApplication".to_string());
     cypher_parts.event_tables.insert("A_Denied".to_string(), "A_Denied".to_string());
     cypher_parts.event_tables.insert("A_Incomplete".to_string(), "A_Incomplete".to_string());
     cypher_parts.event_tables.insert("A_Pending".to_string(), "A_Pending".to_string());
@@ -2099,21 +2168,38 @@ pub fn get_event_table_cypher(
 
     cypher_parts.event_tables.insert("O_Accepted".to_string(), "O_Accepted".to_string());
     cypher_parts.event_tables.insert("O_Cancelled".to_string(), "O_Cancelled".to_string());
-    cypher_parts.event_tables.insert("O_Create Offer".to_string(), "O_Create Offer".to_string());
-    cypher_parts.event_tables.insert("O_Created".to_string(), "O_Created".to_string());
+    cypher_parts.event_tables.insert("O_Create Offer".to_string(), "O_CreateOffer".to_string());
+    cypher_parts.event_tables.insert("O_Created".to_string(), "o_Created".to_string());
     cypher_parts.event_tables.insert("O_Refused".to_string(), "O_Refused".to_string());
     cypher_parts.event_tables.insert("O_Returned".to_string(), "O_Returned".to_string());
-    cypher_parts.event_tables.insert("O_Sent (mail and online)".to_string(), "O_Sent (mail and online)".to_string());
+    cypher_parts.event_tables.insert("O_Sent (mail and online)".to_string(), "O_Sent(mailandonline)".to_string());
     cypher_parts.event_tables.insert("O_Sent (online only)".to_string(), "O_Sent (online only)".to_string());
 
-    cypher_parts.event_tables.insert("W_Assess potential fraud".to_string(), "W_Assess potential fraud".to_string());
-    cypher_parts.event_tables.insert("W_Call after offers".to_string(), "W_Call after offers".to_string());
-    cypher_parts.event_tables.insert("W_Call incomplete files".to_string(), "W_Call incomplete files".to_string());
-    cypher_parts.event_tables.insert("W_Complete application".to_string(), "W_Complete application".to_string());
+    cypher_parts.event_tables.insert("W_Assess potential fraud".to_string(), "W_Assesspotentialfraud".to_string());
+    cypher_parts.event_tables.insert("W_Call after offers".to_string(), "W_Callafteroffers".to_string());
+    cypher_parts.event_tables.insert("W_Call incomplete files".to_string(), "W_Callincompletefiles".to_string());
+    cypher_parts.event_tables.insert("W_Complete application".to_string(), "W_Completeapplication".to_string());
     cypher_parts.event_tables.insert("W_Handle leads".to_string(), "W_Handle leads".to_string());
-    cypher_parts.event_tables.insert("W_Personal Loan collection".to_string(), "W_Personal Loan collection".to_string());
-    cypher_parts.event_tables.insert("W_Shorten completion".to_string(), "W_Shorten completion".to_string());
-    cypher_parts.event_tables.insert("W_Validate application".to_string(), "W_Validate application".to_string());
+    cypher_parts.event_tables.insert("W_Personal Loan collection".to_string(), "W_PersonalLoancollection".to_string());
+    cypher_parts.event_tables.insert("W_Shorten completion".to_string(), "W_Shortencompletion".to_string());
+    cypher_parts.event_tables.insert("W_Validate application".to_string(), "W_Validateapplication".to_string());
+
+    //Container
+    cypher_parts.event_tables.insert("Register Customer Order".to_string(), "RegisterCustomerOrder".to_string());
+    cypher_parts.event_tables.insert("Create Transport Document".to_string(), "CreateTransportDocument".to_string());
+    cypher_parts.event_tables.insert("Book Vehicles".to_string(), "BookVehicles".to_string());
+    cypher_parts.event_tables.insert("Order Empty Containers".to_string(), "OrderEmptyContainers".to_string());
+    cypher_parts.event_tables.insert("Pick Up Empty Container".to_string(), "PickUpEmptyContainer".to_string());
+    cypher_parts.event_tables.insert("Collect Goods".to_string(), "CollectGoods".to_string());
+    cypher_parts.event_tables.insert("Load Truck".to_string(), "LoadTruck".to_string());
+    cypher_parts.event_tables.insert("Drive to Terminal".to_string(), "DrivetoTerminal".to_string());
+    cypher_parts.event_tables.insert("Weigh".to_string(), "Weigh".to_string());
+    cypher_parts.event_tables.insert("Place in Stock".to_string(), "PlaceinStock".to_string());
+    cypher_parts.event_tables.insert("Bring to Loading Bay".to_string(), "BringtoLoadingBay".to_string());
+    cypher_parts.event_tables.insert("Load to Vehicle".to_string(), "LoadtoVehicle".to_string());
+    cypher_parts.event_tables.insert("Reschedule Container".to_string(), "RescheduleContainer".to_string());
+    cypher_parts.event_tables.insert("Depart".to_string(), "Depart".to_string());
+
 
 
 }
@@ -2123,6 +2209,7 @@ pub fn get_event_table_cypher(
 pub fn get_object_table_cypher(
     cypher_parts: &mut CypherParts
 ){
+    // Order Management
     cypher_parts.object_tables.insert("customers".to_string(), "customers".to_string());
     cypher_parts.object_tables.insert("employees".to_string(), "employees".to_string());
     cypher_parts.object_tables.insert("items".to_string(), "items".to_string());
@@ -2131,11 +2218,21 @@ pub fn get_object_table_cypher(
     cypher_parts.object_tables.insert("products".to_string(), "products".to_string());
 
 
-
-    cypher_parts.object_tables.insert("Application".to_string(), "Application".to_string());
+    // Bpic
+    cypher_parts.object_tables.insert("Application".to_string(), "application".to_string());
     cypher_parts.object_tables.insert("Case_R".to_string(), "Case_R".to_string());
     cypher_parts.object_tables.insert("Offer".to_string(), "Offer".to_string());
     cypher_parts.object_tables.insert("Workflow".to_string(), "Workflow".to_string());
+
+
+    // Order Management
+    cypher_parts.object_tables.insert("Customer Order".to_string(), "CustomerOrder".to_string());
+    cypher_parts.object_tables.insert("Transport Document".to_string(), "TransportDocument".to_string());
+    cypher_parts.object_tables.insert("Container".to_string(), "Container".to_string());
+    cypher_parts.object_tables.insert("Truck".to_string(), "Truck".to_string());
+    cypher_parts.object_tables.insert("Handling Unit".to_string(), "HandlingUnit".to_string());
+    cypher_parts.object_tables.insert("Forklift".to_string(), "Forklift".to_string());
+    cypher_parts.object_tables.insert("Vehicle".to_string(), "Vehicle".to_string());
 
 
 }
@@ -2147,11 +2244,11 @@ pub fn construct_return_clauses(
 ){
 
     for (obj_var, _) in &cypher_parts.node.object_vars {
-        cypher_parts.return_clauses.push(format!("o{}.id", obj_var.0));
+        cypher_parts.return_clauses.push(format!("o{}.id", o_alias(obj_var.0)));
     }
 
     for (event_var, _) in &cypher_parts.node.event_vars {
-        cypher_parts.return_clauses.push(format!("e{}.id", event_var.0));
+        cypher_parts.return_clauses.push(format!("e{}.id", e_alias(event_var.0)));
     }
 
 
@@ -2211,8 +2308,8 @@ pub fn construct_filter_clauses(
         match filter{
             Relation::TimeBetweenEvents { from_event, to_event, min_seconds, max_seconds } =>{
 
-                let alias_eventto = format!("e{}", to_event.0);
-                let alias_eventfrom = format!("e{}", from_event.0);
+                let alias_eventto = format!("e{}", e_alias(to_event.0));
+                let alias_eventfrom = format!("e{}", e_alias(from_event.0));
 
                 if let Some(min) = min_seconds {
                 cypher_parts.where_clauses.push(format!(
@@ -2278,12 +2375,14 @@ pub fn construct_childstrings_cypher(
 pub fn translate_to_cypher_from_child(
     cypher_parts: &mut CypherParts
 ) -> String {
+    
+    
     construct_match_clauses(cypher_parts);
 
-    
-    
+    if !cypher_parts.node.sizefilter.is_empty() || cypher_parts.node.filter.is_empty(){
+    construct_childstrings_cypher(cypher_parts);
     construct_filter_clauses(cypher_parts);
-    
+    }
     
 
     let result = construct_result_child_cypher(cypher_parts);
