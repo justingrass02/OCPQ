@@ -678,7 +678,7 @@ pub fn construct_result(
     // FROM result generate dummy if basefrom empty
 
     if  sql_parts.base_from.is_empty(){
-        result.push_str("FROM (SELECT 1) as dummy");
+        result.push_str("FROM (SELECT 1) as dummy ");
     }else{
 
         if contains_relation{
@@ -1051,7 +1051,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                                 map_objecttables(sql_parts, &get_object_type(sql_parts.node.clone(), object_2.0)),
                                 object2_alias,
                                 object_object_alias,
-                                object2_alias
+                                object2_alias 
                             ));
                             sql_parts.used_keys.insert(object2_alias.clone());
                             sql_parts.used_keys.insert(object1_alias.clone());
@@ -1136,9 +1136,6 @@ pub fn construct_basic_operations(
                 min_seconds,
                 max_seconds,
             } => {
-                where_clauses.push(format!("{left_event} <= {right_event}",
-                 left_event = map_timestamp_event(sql_parts, from_event.0),
-                 right_event = map_timestamp_event(sql_parts, to_event.0)));
                 if let Some(min) = min_seconds {
                     where_clauses.push(format!("{time_left} - {time_right} >= {min}", 
                     time_left = map_timestamp_event(sql_parts, to_event.0),
@@ -1360,9 +1357,6 @@ pub fn construct_child_constraints(
 
                     Filter::TimeBetweenEvents { from_event, to_event, min_seconds, max_seconds } =>{
 
-                        result_string.push(format!("{left_event} <= {right_event}",
-                        left_event = map_timestamp_event(sql_parts, from_event.0),
-                        right_event = map_timestamp_event(sql_parts, to_event.0)));
                         if let Some(min) = min_seconds {
                             result_string.push(format!("{time_left} - {time_right} >= {min}", 
                             time_left = map_timestamp_event(sql_parts, to_event.0),
@@ -1404,6 +1398,9 @@ pub fn translate_to_sql_from_child(
     sql_parts.child_sql = childs;
 
     let constraint_expr = construct_child_constraints(sql_parts);
+
+    let filter_clauses = construct_filter_non_basic(sql_parts);
+    sql_parts.where_clauses.extend(filter_clauses);  
 
     let sub_condition = if constraint_expr.trim().is_empty() {
         "True".to_string()
@@ -1457,7 +1454,7 @@ pub fn construct_result_child(
     result.push_str("\n");
 
     if  sql_parts.base_from.is_empty(){
-        result.push_str("FROM (SELECT 1) as dummy");
+        result.push_str("FROM (SELECT 1) as dummy ");
     }else{
     result.push_str(&format!("FROM {}\n", sql_parts.base_from.join("\n")));}
     
@@ -1632,7 +1629,6 @@ pub fn construct_filter_non_basic(
                         parts.join(" AND ")
                     },
                     
-                    // need to see if this form conversion works as intended
                     ValueFilter::Time { from, to } => {
                         let mut parts = vec![];
                         if let Some(from) = from {
@@ -1668,7 +1664,8 @@ pub fn construct_filter_non_basic(
                     ObjectValueFilterTimepoint::Sometime => {
                         let condition = value_sql;
                         format!(
-                            "(EXISTS  SELECT 1\n FROM {otype} AS OA\n WHERE OA.ocel_id = {oid} AND {cond})",
+                            "EXISTS ( SELECT 1\n FROM {otype} AS OA{iterator}\n WHERE OA{iterator}.ocel_id = {oid} AND {cond})",
+                            iterator = i,
                             otype = map_objecttables(sql_parts, object_type),
                             oid = format!("{}.ocel_id", object_alias),
                             cond = condition
@@ -1733,7 +1730,6 @@ pub fn map_objecttables(
     object_type: &str
 
 ) -> String {
-
     match sql_parts.database_type{
 
         // Case SQLLite
@@ -1759,7 +1755,6 @@ pub fn map_eventttables(
     event_type: &str
 
 ) -> String {
-
     match sql_parts.database_type{
 
         // Case SQLLite
@@ -1833,8 +1828,7 @@ use std::fs::File;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-let query_names = ["Q1","Q2","Q3","Q4","Q5","Q6",
-"Q7", "Q8", "Q9", "Q10", "Q11","Q12"];
+let query_names = ["Q14"];
 
 let base_path = PathBuf::from_str("C:\\Users\\justi\\Desktop\\ocpq-eval justin").unwrap();
 
@@ -2001,7 +1995,7 @@ pub fn construct_match_clauses(
 
 
 
-                if(mapped_event_type == "no type found event"){
+                if mapped_event_type == "no type found event"{
                     if mapped_event_type == "no type found event" {
                        mapped_event_type = cypher_parts
                         .alias_type
@@ -2262,10 +2256,11 @@ pub fn construct_result_cypher(
     let mut result = String::new();
 
     //  MATCH
-    for m in &cypher_parts.match_clauses {
-        result.push_str(&format!("MATCH {m}\n"));
+    if !cypher_parts.match_clauses.is_empty() {
+        result.push_str("MATCH ");
+        result.push_str(&cypher_parts.match_clauses.join(", "));
+        result.push_str("\n");
     }
-
     //  WHERE 
     if !cypher_parts.where_clauses.is_empty() {
         result.push_str(&format!("WHERE {}\n", cypher_parts.where_clauses.join(" AND ")));
@@ -2322,11 +2317,6 @@ pub fn construct_filter_clauses(
                     "{alias_eventto}.time <= {alias_eventfrom}.time + INTERVAL('{max} SECONDS')"
                 ));
             }
-
-
-            cypher_parts.where_clauses.push(format!(
-                    "{alias_eventto}.time >= {alias_eventfrom}.time + INTERVAL('0 SECONDS')",
-                ));
 
 
 
@@ -2398,8 +2388,10 @@ pub fn construct_result_child_cypher(
     let mut result = String::new();
 
     //  MATCH
-    for m in &cypher_parts.match_clauses {
-        result.push_str(&format!("MATCH {m}\n"));
+    if !cypher_parts.match_clauses.is_empty() {
+        result.push_str("MATCH ");
+        result.push_str(&cypher_parts.match_clauses.join(", "));
+        result.push_str("\n");
     }
 
 
