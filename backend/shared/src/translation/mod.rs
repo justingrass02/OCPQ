@@ -43,7 +43,8 @@ pub struct SqlParts{
     event_tables: HashMap<String,String>,
     object_tables: HashMap<String,String>,
     used_keys: HashSet<String>,
-    database_type: DatabaseType 
+    database_type: DatabaseType,
+    alias_type_map: HashMap<String, String> 
 }
 
 
@@ -73,6 +74,7 @@ pub fn translate_to_sql_shared(
         object_tables: HashMap::new(),
         used_keys: HashSet::new(),
         database_type: database ,
+        alias_type_map: HashMap::new()
     };
 
     match sql_parts.database_type {
@@ -829,6 +831,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                                 "INNER JOIN event_object AS {} ON {}.ocel_object_id = {}.ocel_id AND {}.ocel_event_id = {}.ocel_id",
                                 event_object_alias, event_object_alias, object_alias, event_object_alias, event_alias
                             ));
+                            sql_parts.alias_type_map.insert(object_alias.clone(), get_object_type(sql_parts.node.clone(), object.0));
                             sql_parts.used_keys.insert(object_alias.clone());
                         }
                     } else {
@@ -843,6 +846,8 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                                 "INNER JOIN event_object AS {} ON {}.ocel_object_id = {}.ocel_id AND {}.ocel_event_id = {}.ocel_id",
                                 event_object_alias, event_object_alias, object_alias, event_object_alias, event_alias
                             ));
+
+                            sql_parts.alias_type_map.insert(event_alias.clone(), get_event_type(sql_parts.node.clone(), event.0));
                             sql_parts.used_keys.insert(event_alias.clone());
                         } else {
                             // both not existing
@@ -862,6 +867,8 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                                 event_object_alias,
                                 object_alias
                             ));
+                            sql_parts.alias_type_map.insert(object_alias.clone(), get_object_type(sql_parts.node.clone(), object.0));
+                            sql_parts.alias_type_map.insert(event_alias.clone(), get_event_type(sql_parts.node.clone(), event.0));
                             sql_parts.used_keys.insert(object_alias.clone());
                             sql_parts.used_keys.insert(event_alias.clone());
                         }
@@ -889,6 +896,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                                 event_object_alias,
                                 object_alias
                             ));
+                            sql_parts.alias_type_map.insert(object_alias.clone(), get_object_type(sql_parts.node.clone(), object.0));
                             sql_parts.used_keys.insert(object_alias.clone());
                         }
                     } else {
@@ -905,6 +913,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                                 event_object_alias,
                                 event_alias
                             ));
+                            sql_parts.alias_type_map.insert(event_alias.clone(), get_event_type(sql_parts.node.clone(), event.0));
                             sql_parts.used_keys.insert(event_alias.clone());
                         } else {
                             // both missing
@@ -924,6 +933,8 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                                 event_object_alias,
                                 object_alias
                             ));
+                            sql_parts.alias_type_map.insert(object_alias.clone(), get_object_type(sql_parts.node.clone(), object.0));
+                            sql_parts.alias_type_map.insert(event_alias.clone(), get_event_type(sql_parts.node.clone(), event.0));
                             sql_parts.used_keys.insert(object_alias.clone());
                             sql_parts.used_keys.insert(event_alias.clone());
                         }
@@ -964,6 +975,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                                 "INNER JOIN object_object AS {} ON {}.ocel_source_id = {}.ocel_id AND {}.ocel_target_id = {}.ocel_id",
                                 object_object_alias, object_object_alias, object1_alias, object_object_alias, object2_alias
                             ));
+                            sql_parts.alias_type_map.insert(object2_alias.clone(), get_object_type(sql_parts.node.clone(), object_2.0));
                             sql_parts.used_keys.insert(object2_alias.clone());
                         }
                     } else {
@@ -977,6 +989,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                                 "INNER JOIN object_object AS {} ON {}.ocel_source_id = {}.ocel_id AND {}.ocel_target_id = {}.ocel_id",
                                 object_object_alias, object_object_alias, object1_alias, object_object_alias, object2_alias
                             ));
+                            sql_parts.alias_type_map.insert(object1_alias.clone(), get_object_type(sql_parts.node.clone(), object_1.0));
                             sql_parts.used_keys.insert(object1_alias.clone());
                         } else {
                             from_clauses.push(format!(
@@ -995,6 +1008,8 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                                 object_object_alias,
                                 object2_alias
                             ));
+                            sql_parts.alias_type_map.insert(object1_alias.clone(), get_object_type(sql_parts.node.clone(), object_1.0));
+                            sql_parts.alias_type_map.insert(object2_alias.clone(), get_object_type(sql_parts.node.clone(), object_2.0));
                             sql_parts.used_keys.insert(object1_alias.clone());
                             sql_parts.used_keys.insert(object2_alias.clone());
                         }
@@ -1021,6 +1036,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                                 object2_alias
                             ));
                             sql_parts.used_keys.insert(object2_alias.clone());
+                            sql_parts.alias_type_map.insert(object2_alias.clone(), get_object_type(sql_parts.node.clone(), object_2.0));
                         }
                     } else {
                         if sql_parts.used_keys.contains(&object2_alias) {
@@ -1035,6 +1051,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                                 object_object_alias,
                                 object1_alias
                             ));
+                            sql_parts.alias_type_map.insert(object1_alias.clone(), get_object_type(sql_parts.node.clone(), object_1.0));
                             sql_parts.used_keys.insert(object1_alias.clone());
                         } else {
                             from_clauses.push(format!(
@@ -1053,6 +1070,8 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
                                 object_object_alias,
                                 object2_alias 
                             ));
+                            sql_parts.alias_type_map.insert(object1_alias.clone(), get_object_type(sql_parts.node.clone(), object_1.0));
+                            sql_parts.alias_type_map.insert(object2_alias.clone(), get_object_type(sql_parts.node.clone(), object_2.0));
                             sql_parts.used_keys.insert(object2_alias.clone());
                             sql_parts.used_keys.insert(object1_alias.clone());
                         }
@@ -1070,6 +1089,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
         for object_type in types {
             let key = format!("O{}", o_alias(obj_var.0));
             sql_parts.used_keys.insert(key.clone());
+            sql_parts.alias_type_map.insert(key.clone(), object_type.to_string());
             from_clauses.push(format!("{} AS {}", map_objecttables(sql_parts, object_type), key));
             
         }
@@ -1080,6 +1100,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
         for event_type in types {
             let key = format!("E{}", e_alias(event_var.0));
             sql_parts.used_keys.insert(key.clone());
+            sql_parts.alias_type_map.insert(key.clone(), event_type.to_string());
             from_clauses.push(format!("{} AS {}", map_eventttables(sql_parts, event_type) , key));
             
         }
@@ -1092,6 +1113,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
              if !sql_parts.used_keys.contains(&key){
             from_clauses.push(format!(" CROSS JOIN {} AS {}", map_objecttables(sql_parts, object_type), key));
             sql_parts.used_keys.insert(key.clone());
+            sql_parts.alias_type_map.insert(key.clone(), object_type.to_string());
              }
             
         }
@@ -1103,6 +1125,7 @@ pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
             let key = format!("E{}", e_alias(event_var.0));
             if !sql_parts.used_keys.contains(&key){
             from_clauses.push(format!("CROSS JOIN{} AS {}", map_eventttables(sql_parts, event_type) , key));
+            sql_parts.alias_type_map.insert(key.clone(), event_type.to_string());
             sql_parts.used_keys.insert(key.clone());
             }
             
@@ -1179,6 +1202,7 @@ pub fn construct_childstrings(sql_parts: &SqlParts) -> Vec<(String, String)> {
             object_tables: sql_parts.object_tables.clone(),
             used_keys: sql_parts.used_keys.clone(),
             database_type: sql_parts.database_type,
+            alias_type_map: sql_parts.alias_type_map.clone()
         };
 
 
@@ -1658,13 +1682,18 @@ pub fn construct_filter_non_basic(
                     }
                     }
 
+                    if object_type == ""{
+                        let alias = format!{"O{}", object.0};
+                        object_type = &sql_parts.alias_type_map[&alias];
+                    }
+
 
    
                 let clause = match at_time {
                     ObjectValueFilterTimepoint::Sometime => {
                         let condition = value_sql;
                         format!(
-                            "EXISTS ( SELECT 1\n FROM {otype} AS OA{iterator}\n WHERE OA{iterator}.ocel_id = {oid} AND {cond})",
+                            "EXISTS (SELECT 1\n FROM {otype} AS OA{iterator}\n WHERE OA{iterator}.ocel_id = {oid} AND {cond})",
                             iterator = i,
                             otype = map_objecttables(sql_parts, object_type),
                             oid = format!("{}.ocel_id", object_alias),
@@ -1828,9 +1857,9 @@ use std::fs::File;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-let query_names = ["Q14"];
+let query_names = ["Q10"];
 
-let base_path = PathBuf::from_str("C:\\Users\\justi\\Desktop\\ocpq-eval justin").unwrap();
+let base_path = PathBuf::from_str("C:\\Users\\justi\\Desktop\\ocpq-eval_justin").unwrap();
 
 
 for query in query_names {
@@ -2275,10 +2304,10 @@ pub fn construct_result_cypher(
 pub fn construct_filter_clauses(
     cypher_parts: &mut CypherParts
 ) {
-    for (i, sizefilter) in cypher_parts.node.sizefilter.iter().enumerate() {
+    for (_i, sizefilter) in cypher_parts.node.sizefilter.iter().enumerate() {
         match sizefilter {
             SizeFilter::NumChilds { child_name, min, max } => {
-                for (j, (child_cypher, child_label)) in cypher_parts.child_queries.iter().enumerate() {
+                for (_j, (child_cypher, child_label)) in cypher_parts.child_queries.iter().enumerate() {
                     if child_label == child_name {
 
                         let clause = match (min, max) {
@@ -2402,7 +2431,7 @@ pub fn construct_result_child_cypher(
 
     //  RETURN 
     
-    if(!cypher_parts.return_clauses.is_empty()){
+    if !cypher_parts.return_clauses.is_empty(){
     result.push_str(&format!("RETURN {}", cypher_parts.return_clauses.join(",")));
     }
 

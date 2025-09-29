@@ -45,7 +45,7 @@ import { PiPlayFill } from "react-icons/pi";
 import { RxReset } from "react-icons/rx";
 import { TbFileExport, TbLogicAnd, TbPlus, TbSquare } from "react-icons/tb";
 import { TbFileTypeSql } from "react-icons/tb";
-import { FiDribbble } from "react-icons/fi";
+import { PiGraph } from "react-icons/pi";
 import "reactflow/dist/style.css";
 import type { EventTypeQualifiers, OCELInfo, OCELType } from "../../types/ocel";
 import ViolationDetailsSheet from "./ViolationDetailsSheet";
@@ -882,7 +882,7 @@ export default function VisualEditor(props: VisualEditorProps) {
                       }
                     }}
                   >
-                    <FiDribbble
+                    <PiGraph
                       strokeWidth={"2px"}
                       size={20}
                       className="absolute right-1.5 bottom-1.5"
