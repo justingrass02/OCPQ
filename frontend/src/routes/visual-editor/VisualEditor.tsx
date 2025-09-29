@@ -96,6 +96,8 @@ export default function VisualEditor(props: VisualEditorProps) {
     useContext(FlowContext);
   const instance = useReactFlow();
 
+  const [selectedDb, setSelectedDb] = useState<DatabaseType>("SQLite");
+  
   const [violationDetails, setViolationDetails] = useState<{
     id: string;
     initialMode?: "violations" | "situations" | "satisfied-situations";
@@ -843,6 +845,19 @@ export default function VisualEditor(props: VisualEditorProps) {
               className="absolute right-1.5 bottom-1.5"
             />
           </Button>
+          
+          <div className="flex items-center gap-1 border rounded-md bg-white px-0.25 py-0.5 text-sm h-9">
+              <div className="min-w-[6rem] h-7 flex items-center">
+                <Combobox
+                  value={selectedDb}
+                  onChange={(v) => setSelectedDb(v as DatabaseType)}
+                  name="Database"
+                  options={[
+                    { label: "SQLite", value: "SQLite" },
+                    { label: "DuckDB", value: "DuckDB" },
+                  ]}
+                />
+              </div>
           <Button
                  variant="outline"
                  title="Translate to SQL"
@@ -852,10 +867,11 @@ export default function VisualEditor(props: VisualEditorProps) {
                     instance.getNodes(),
                     instance.getEdges(),
                   );
-                  const database_used: DatabaseType = ev.shiftKey ? "DuckDB" : "SQLite";
-                  for (const tree of subTrees){
-                  backend["translate-to-sql"](tree.tree, database_used).then((x)=> {console.log(x)}).catch((x)=> {console.error(x)})
-                  }
+                  for (const tree of subTrees) {
+                      backend["translate-to-sql"](tree.tree, selectedDb)
+                        .then((x) => console.log(x))
+                        .catch((x) => console.error(x));
+                    }
                   }}
                 >
                 <TbFileTypeSql
@@ -864,7 +880,7 @@ export default function VisualEditor(props: VisualEditorProps) {
               className="absolute right-1.5 bottom-1.5"
                 />
               </Button>
-
+                  </div>
               <Button
                     variant="outline"
                     title="Translate to Cypher"
