@@ -80,7 +80,7 @@ pub fn translate_to_sql_shared(
     match sql_parts.database_type {
 
             DatabaseType::SQLite => {
-                sql_parts.event_tables = map_to_event_tables_sqllite(); // args can be done later, for now hardcoded for Management
+                sql_parts.event_tables = map_to_event_tables_sqllite();
 
                 sql_parts.object_tables = map_to_object_tables_sqllite();
             }
@@ -162,7 +162,7 @@ pub fn bindingbox_to_intermediate(
     let object_vars = binding_box.new_object_vars.clone();
 
 
-    // Extract the relations we HAVE to translate to query language (O2O, E2O, TBE) could as mentioned split O2O, E2O and TBE
+    // Extract the relations we HAVE to translate to query language (O2O, E2O, TBE)
     let relations = extract_basic_relations(binding_box.filters.clone());
 
     let constraints = extract_constraints(binding_box.constraints);
@@ -749,7 +749,6 @@ pub fn construct_select_fields(
     return select_fields;
 }
 
-// 
 pub fn get_object_type(
     node: InterMediateNode
     ,index: usize
@@ -787,8 +786,6 @@ pub fn get_event_type(
 
 
 
-
-// problem when creating table but Table was already created (missing entry)
 pub fn construct_from_clauses(sql_parts: &mut SqlParts) -> Vec<String> {
     let mut from_clauses = Vec::new();
     let mut is_first_join = true;
@@ -1595,7 +1592,6 @@ pub fn construct_filter_non_basic(
                     
                     
                     
-                    // prototyp cast probably necessary
                     ValueFilter::Time { from, to } => {
                         let mut parts = vec![];
                         if let Some(from) = from {
@@ -1960,7 +1956,7 @@ pub fn translate_to_cypher_shared(
 
    }
 
-// For root node in particular, could make other functions for child queries later
+// For root node in particular
 pub fn convert_to_cypher_from_inter(
    cypher_parts: &mut CypherParts
 )  -> String{
@@ -2261,7 +2257,7 @@ pub fn get_object_table_cypher(
 }
 
 
-// Construct return clauses, at the moment only event and object ids
+// Construct return clauses
 pub fn construct_return_clauses(
     cypher_parts: &mut CypherParts
 ){
